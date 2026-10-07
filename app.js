@@ -516,7 +516,8 @@ $('setList').addEventListener('click', e=>{
 function renderWish(){
   const rows = Object.entries(wish).map(([id,q])=>({c:byId.get(id),q})).filter(r=>r.c).sort((a,b)=>bySetOrder(a.c,b.c));
   let total=0, n=0; for (const r of rows){ total += r.q*(priceOf(r.c, foilOnly(r.c))||0); n+=r.q; }
-  $('wishSum').innerHTML = rows.length ? `<div><strong>${n}</strong>cards wanted</div><div><strong>${money(total)}</strong>at TCGplayer market</div>` : '';
+  $('wishSum').innerHTML = rows.length ? `<div><strong>${n}</strong>cards wanted</div><div><strong>${money(total)}</strong>at TCGplayer market</div><button class="btn primary" id="wishBuy" style="margin-left:auto;align-self:center">Buy on TCGplayer</button>` : '';
+  if (rows.length) $('wishBuy').onclick = ()=>openTcg(rows.map(r=>({q:r.q, c:r.c})));
   $('wishList').innerHTML = rows.length ? rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${metaLine(r.c,foilOnly(r.c))}${ownedNV(r.c.nv)?` · own ${ownedNV(r.c.nv)}`:''}</div></div>
     <div class="acts"><button data-act="w" data-id="${r.c.id}" data-d="-1" aria-label="Want one fewer">−</button><output>${r.q}</output><button data-act="w" data-id="${r.c.id}" data-d="1" aria-label="Want one more">+</button></div></div>
     ${r.c.t?`<div style="padding:0 12px 10px 62px"><a class="link tiny" href="https://www.tcgplayer.com/product/${r.c.t}" target="_blank" rel="noopener">Buy on TCGplayer ↗</a></div>`:''}</div>`).join('')
@@ -527,6 +528,15 @@ $('wishList').addEventListener('click', e=>{
   const id=b.dataset.id; wish[id]=Math.max(0,(wish[id]||0)+ +b.dataset.d); if(!wish[id]) delete wish[id]; saveWish(); renderWish();
 });
 
+/* ---- TCGplayer Mass Entry: prefilled cart link ---- */
+function massEntryUrl(items){ // items: [{q, c}]
+  const lines = items.filter(x=>x.q>0 && x.c).map(x=>`${x.q} ${x.c.n}${x.c.v?' - '+x.c.v:''}`);
+  return 'https://www.tcgplayer.com/massentry?productline=' + encodeURIComponent('Lorcana TCG') + '&c=' + lines.map(encodeURIComponent).join('||');
+}
+function openTcg(items, what){
+  if (!items.some(x=>x.q>0)){ toast(`Nothing to buy${what?' '+what:''}`); return; }
+  window.open(massEntryUrl(items), '_blank', 'noopener');
+}
 /* =========================================================
    BROWSE
    ========================================================= */
@@ -690,6 +700,7 @@ $('deckMoreBtn').onclick = ()=>{
       <button class="btn" data-dm="copy">Copy decklist</button>
       <button class="btn" data-dm="txt">Download .txt</button>
       <button class="btn" data-dm="wish">Wishlist missing cards</button>
+      <button class="btn" data-dm="buy">Buy missing on TCGplayer</button>
       <button class="btn" data-dm="dup">Duplicate deck</button>
     </div>
     <p class="note">Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.</p>
@@ -705,6 +716,7 @@ $('sheetBody').addEventListener('click', async e=>{
   const a = b.dataset.dm;
   if (a==='copy'){ toast(await copyText(deckText(d)) ? 'Decklist copied' : 'Couldn’t copy. Use Download instead.'); }
   else if (a==='txt'){ download(`${d.name.replace(/[^\w\- ]+/g,'').trim()||'deck'}.txt`, deckText(d), 'text/plain'); }
+  else if (a==='buy'){ openTcg(Object.entries(d.cards).map(([nv,q])=>({q:Math.max(0,q-ownedNV(nv)), c:repOf(nv)})), '. You own every card in this deck'); }
   else if (a==='wish'){
     let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-ownedNV(nv)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
     saveWish(); toast(n?`Added ${n} cards to your wishlist`:'You already own or want every card in this deck');
@@ -817,9 +829,10 @@ async function sync(manual){
   if (syncState.busy){ syncState.again = true; return; }
   if (!navigator.onLine){ syncState.err = 'Offline. Changes are saved on this phone and will sync later.'; renderSyncBox(); return; }
   syncState.busy = true; renderSyncBox();
-  let changed = false;
+  let changed = false; const newDecks = []; let wishAdds = 0;
   try{
-    if (!base || base.uid !== session.uid) base = freshBase();
+    const firstEver = !base || base.uid !== session.uid;
+    if (firstEver) base = freshBase();
     /* ---- pull ---- */
     const later = (a,b) => (a > b ? a : b);
     for (const r of await pullTable('collection')){
@@ -830,7 +843,7 @@ async function sync(manual){
     }
     for (const r of await pullTable('wishlist')){
       const id = r.card_id, sv = r.qty ? String(r.qty) : '';
-      if (wishVal(id) === (base.wish[id]||'') && wishVal(id) !== sv){ if (sv) wish[id]=r.qty; else delete wish[id]; changed = true; }
+      if (wishVal(id) === (base.wish[id]||'') && wishVal(id) !== sv){ if (sv && r.qty > (wish[id]||0)) wishAdds += r.qty-(wish[id]||0); if (sv) wish[id]=r.qty; else delete wish[id]; changed = true; }
       if (sv) base.wish[id]=sv; else delete base.wish[id];
       base.cur.wishlist = later(base.cur.wishlist, r.updated_at);
     }
@@ -840,7 +853,7 @@ async function sync(manual){
       if (deckVal(local) === (base.decks[r.id]||'') && deckVal(local) !== sv){
         if (!sv) decks = decks.filter(d=>d.id!==r.id);
         else if (local){ local.name=r.name; local.cards={...r.cards}; local.updated=Date.parse(r.updated_at)||Date.now(); }
-        else decks.push({id:r.id, name:r.name, cards:{...r.cards}, updated:Date.parse(r.updated_at)||Date.now()});
+        else { decks.push({id:r.id, name:r.name, cards:{...r.cards}, updated:Date.parse(r.updated_at)||Date.now()}); newDecks.push(r.name); }
         changed = true;
       }
       if (sv) base.decks[r.id]=sv; else delete base.decks[r.id];
@@ -866,7 +879,11 @@ async function sync(manual){
     lsSet('inkscan.base', base);
     syncState.last = Date.now(); lsSet('inkscan.lastSync', syncState.last); syncState.err = null;
     if (changed){ if (curDeck && !decks.find(d=>d.id===curDeck)) curDeck=null; renderAll(); }
-    if (manual) toast(changed ? 'Synced. Picked up changes from the cloud.' : 'Synced');
+    const news = [];
+    if (newDecks.length) news.push(newDecks.length===1 ? `New deck: ${newDecks[0]}` : `${newDecks.length} new decks`);
+    if (wishAdds) news.push(`${wishAdds} card${wishAdds===1?'':'s'} added to your wishlist`);
+    if (news.length && !firstEver) toast(news.join(' · '));
+    else if (manual) toast(changed ? 'Synced. Picked up changes from the cloud.' : 'Synced');
   }catch(e){
     syncState.err = e.status===401 ? 'Signed out. Sign in again to keep syncing.'
       : (e instanceof TypeError || e.status>=500) ? 'Can’t reach the cloud right now (offline, or the project is paused). Changes are saved on this phone and will sync later.'
