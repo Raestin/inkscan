@@ -51,7 +51,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .btn.danger{color:var(--bad)}
 .btn.tiny{padding:6px 10px;font-size:12px}
 .btn:focus-visible,.tabbar button:focus-visible,.seg button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tile:focus-visible,.item-main:focus-visible,.chip-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-input[type=search],input[type=text],select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+input[type=search],input[type=text],input[type=email],input[type=password],select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
 select.slim{width:auto;padding:7px 10px}
 textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
 .check{display:inline-flex;gap:6px;align-items:center;font-size:14px}

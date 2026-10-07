@@ -116,9 +116,9 @@ async function refreshFromLorcast(manual, btn){
 let inv = {};     // cardId -> {q, f}
 let decks = [];   // [{id, name, cards:{nv:qty}, updated}]
 let wish = {};    // cardId -> qty wanted
-function saveInv(){ if(!lsSet('inkscan.inv', inv)) toast('Couldn’t save. Your phone may be out of storage.'); renderTotals(); }
-function saveDecks(){ lsSet('inkscan.decks', decks); }
-function saveWish(){ lsSet('inkscan.wish', wish); }
+function saveInv(){ if(!lsSet('inkscan.inv', inv)) toast('Couldn’t save. Your phone may be out of storage.'); renderTotals(); scheduleSync(); }
+function saveDecks(){ lsSet('inkscan.decks', decks); scheduleSync(); }
+function saveWish(){ lsSet('inkscan.wish', wish); scheduleSync(); }
 function ownedOf(id){ const v=inv[id]; return v ? (v.q||0)+(v.f||0) : 0; }
 function ownedNV(nv){ let n=0; for (const c of byNV.get(nv)||[]) n+=ownedOf(c.id); return n; }
 function addQty(id, foil, n){
@@ -757,17 +757,180 @@ $('importDeckBtn').onclick = ()=>{
 };
 
 /* =========================================================
+   CLOUD SYNC (Supabase). The phone keeps its own copy; the cloud is a second home.
+   Each item is compared with the last value both sides agreed on ("base"):
+   if the phone changed it, the phone's value is pushed; otherwise the cloud's value is taken.
+   ========================================================= */
+const SB_URL = 'https://fzavmefambwdhnzmbvxv.supabase.co';
+const SB_KEY = 'sb_publishable_biFosNnFXZK8xSUiJOk0xw_wLrKGrD6';
+const EPOCH = '1970-01-01T00:00:00Z';
+let session = lsGet('inkscan.session', null);
+let base = lsGet('inkscan.base', null);
+const syncState = {busy:false, last: lsGet('inkscan.lastSync', null), err:null, again:false};
+let syncT = null, applying = false;
+
+function sbHeaders(tok){ const h={apikey:SB_KEY,'Content-Type':'application/json'}; if(tok) h.Authorization='Bearer '+tok; return h; }
+async function authCall(path, body){
+  const r = await fetch(`${SB_URL}/auth/v1/${path}`, {method:'POST', headers:sbHeaders(), body:JSON.stringify(body)});
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok){ const e = new Error(j.msg || j.error_description || j.message || `Sign-in failed (${r.status})`); e.status=r.status; throw e; }
+  return j;
+}
+function keepSession(j){
+  session = {access:j.access_token, refresh:j.refresh_token, exp:Date.now()+(j.expires_in||3600)*1000, uid:j.user?.id||session?.uid, email:j.user?.email||session?.email};
+  lsSet('inkscan.session', session);
+}
+async function token(){
+  if (!session) return null;
+  if (Date.now() > session.exp - 60000){
+    try{ keepSession(await authCall('token?grant_type=refresh_token', {refresh_token:session.refresh})); }
+    catch(e){ if (e.status===400 || e.status===401){ session=null; lsSet('inkscan.session', null); } throw e; }
+  }
+  return session.access;
+}
+async function rest(method, path, body, extra){
+  const t = await token(); if (!t){ const e=new Error('Not signed in'); e.status=401; throw e; }
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {method, headers:{...sbHeaders(t), ...(extra||{})}, body: body ? JSON.stringify(body) : undefined});
+  if (!r.ok){ const j = await r.json().catch(()=>({})); const e = new Error(j.message || `Sync error ${r.status}`); e.status=r.status; throw e; }
+  return r.status===204 || r.status===201 ? null : r.json();
+}
+const sortObj = o => Object.keys(o).sort().reduce((a,k)=>(a[k]=o[k],a),{});
+const invVal = id => { const v=inv[id]; return v && (v.q||v.f) ? `${v.q||0}|${v.f||0}` : ''; };
+const wishVal = id => wish[id] ? String(wish[id]) : '';
+const deckVal = d => d ? JSON.stringify({n:d.name, c:sortObj(d.cards)}) : '';
+function freshBase(){ return {uid:session.uid, cur:{collection:EPOCH, wishlist:EPOCH, decks:EPOCH}, inv:{}, wish:{}, decks:{}}; }
+async function pullTable(table){
+  const out=[]; let cursor = base.cur[table];
+  for (;;){
+    const page = await rest('GET', `${table}?select=*&updated_at=gt.${encodeURIComponent(cursor)}&order=updated_at.asc&limit=1000`);
+    out.push(...page); if (page.length<1000) break; cursor = page[page.length-1].updated_at;
+  }
+  return out;
+}
+async function upsert(table, rows, conflict){
+  for (let i=0;i<rows.length;i+=500)
+    await rest('POST', `${table}?on_conflict=${conflict}`, rows.slice(i,i+500), {Prefer:'resolution=merge-duplicates,return=minimal'});
+}
+function scheduleSync(){ if (!session || applying) return; clearTimeout(syncT); syncT = setTimeout(()=>sync(false), 2500); }
+async function sync(manual){
+  if (!session) return;
+  if (syncState.busy){ syncState.again = true; return; }
+  if (!navigator.onLine){ syncState.err = 'Offline. Changes are saved on this phone and will sync later.'; renderSyncBox(); return; }
+  syncState.busy = true; renderSyncBox();
+  let changed = false;
+  try{
+    if (!base || base.uid !== session.uid) base = freshBase();
+    /* ---- pull ---- */
+    const later = (a,b) => (a > b ? a : b);
+    for (const r of await pullTable('collection')){
+      const id = r.card_id, sv = (r.q||r.f) ? `${r.q}|${r.f}` : '';
+      if (invVal(id) === (base.inv[id]||'') && invVal(id) !== sv){ if (sv) inv[id]={q:r.q,f:r.f}; else delete inv[id]; changed = true; }
+      if (sv) base.inv[id]=sv; else delete base.inv[id];
+      base.cur.collection = later(base.cur.collection, r.updated_at);
+    }
+    for (const r of await pullTable('wishlist')){
+      const id = r.card_id, sv = r.qty ? String(r.qty) : '';
+      if (wishVal(id) === (base.wish[id]||'') && wishVal(id) !== sv){ if (sv) wish[id]=r.qty; else delete wish[id]; changed = true; }
+      if (sv) base.wish[id]=sv; else delete base.wish[id];
+      base.cur.wishlist = later(base.cur.wishlist, r.updated_at);
+    }
+    for (const r of await pullTable('decks')){
+      const local = decks.find(d=>d.id===r.id);
+      const sv = r.deleted ? '' : JSON.stringify({n:r.name, c:sortObj(r.cards||{})});
+      if (deckVal(local) === (base.decks[r.id]||'') && deckVal(local) !== sv){
+        if (!sv) decks = decks.filter(d=>d.id!==r.id);
+        else if (local){ local.name=r.name; local.cards={...r.cards}; local.updated=Date.parse(r.updated_at)||Date.now(); }
+        else decks.push({id:r.id, name:r.name, cards:{...r.cards}, updated:Date.parse(r.updated_at)||Date.now()});
+        changed = true;
+      }
+      if (sv) base.decks[r.id]=sv; else delete base.decks[r.id];
+      base.cur.decks = later(base.cur.decks, r.updated_at);
+    }
+    /* ---- push whatever the phone changed ---- */
+    const invIds = new Set([...Object.keys(inv), ...Object.keys(base.inv)]);
+    const invRows = [...invIds].filter(id=>invVal(id)!==(base.inv[id]||'')).map(id=>({user_id:session.uid, card_id:id, q:inv[id]?.q||0, f:inv[id]?.f||0}));
+    const wishIds = new Set([...Object.keys(wish), ...Object.keys(base.wish)]);
+    const wishRows = [...wishIds].filter(id=>wishVal(id)!==(base.wish[id]||'')).map(id=>({user_id:session.uid, card_id:id, qty:wish[id]||0}));
+    const deckIds = new Set([...decks.map(d=>d.id), ...Object.keys(base.decks)]);
+    const deckRows = [...deckIds].map(id=>({id, d:decks.find(x=>x.id===id)})).filter(x=>deckVal(x.d)!==(base.decks[x.id]||''))
+      .map(x=>({id:x.id, user_id:session.uid, name:x.d?.name||'Deleted deck', cards:x.d?.cards||{}, deleted:!x.d}));
+    if (invRows.length) await upsert('collection', invRows, 'user_id,card_id');
+    if (wishRows.length) await upsert('wishlist', wishRows, 'user_id,card_id');
+    if (deckRows.length) await upsert('decks', deckRows, 'id');
+    for (const r of invRows){ const v=invVal(r.card_id); if (v) base.inv[r.card_id]=v; else delete base.inv[r.card_id]; }
+    for (const r of wishRows){ const v=wishVal(r.card_id); if (v) base.wish[r.card_id]=v; else delete base.wish[r.card_id]; }
+    for (const r of deckRows){ const v=deckVal(decks.find(d=>d.id===r.id)); if (v) base.decks[r.id]=v; else delete base.decks[r.id]; }
+    /* ---- save ---- */
+    applying = true;
+    if (changed){ lsSet('inkscan.inv', inv); lsSet('inkscan.wish', wish); lsSet('inkscan.decks', decks); }
+    lsSet('inkscan.base', base);
+    syncState.last = Date.now(); lsSet('inkscan.lastSync', syncState.last); syncState.err = null;
+    if (changed){ if (curDeck && !decks.find(d=>d.id===curDeck)) curDeck=null; renderAll(); }
+    if (manual) toast(changed ? 'Synced. Picked up changes from the cloud.' : 'Synced');
+  }catch(e){
+    syncState.err = e.status===401 ? 'Signed out. Sign in again to keep syncing.'
+      : (e instanceof TypeError || e.status>=500) ? 'Can’t reach the cloud right now (offline, or the project is paused). Changes are saved on this phone and will sync later.'
+      : (e.message || 'Sync failed');
+    if (manual) toast(syncState.err);
+  }finally{
+    applying = false; syncState.busy = false; renderSyncBox();
+    if (syncState.again){ syncState.again=false; scheduleSync(); }
+  }
+}
+function syncBoxHTML(){
+  if (!session) return `<h3 class="h2" style="font-size:17px">Cloud sync</h3>
+    <p class="note">Sign in to keep your collection, decks and wishlist in your own cloud database, so they survive a lost phone and Claude can read and add to them.</p>
+    <input type="email" id="sbEmail" placeholder="Email" autocomplete="email" value="${esc(lsGet('inkscan.email','')||'')}">
+    <input type="password" id="sbPass" placeholder="Password (6+ characters)" autocomplete="current-password">
+    <div class="row"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div>
+    <p class="note" id="sbMsg"></p>`;
+  const when = syncState.last ? new Date(syncState.last).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'not yet';
+  return `<h3 class="h2" style="font-size:17px">Cloud sync</h3>
+    <p class="note">Signed in as <b>${esc(session.email||'')}</b>. ${syncState.busy?'Syncing…':`Last synced ${when}.`}</p>
+    ${syncState.err?`<p class="note" style="color:var(--warn)">${esc(syncState.err)}</p>`:''}
+    <div class="row"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Sync now</button><button class="btn ghost" data-sync="out">Sign out</button></div>`;
+}
+function renderSyncBox(){ const el=$('syncBox'); if (el) el.innerHTML = syncBoxHTML(); }
+$('sheetBody').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-sync]'); if(!b) return;
+  const a = b.dataset.sync;
+  if (a==='in' || a==='up'){
+    const email = $('sbEmail').value.trim(), pass = $('sbPass').value; lsSet('inkscan.email', email);
+    if (!email || pass.length<6){ $('sbMsg').textContent='Enter your email and a password of at least 6 characters.'; return; }
+    b.disabled = true; $('sbMsg').textContent = a==='in' ? 'Signing in…' : 'Creating your account…';
+    try{
+      if (a==='in'){ keepSession(await authCall('token?grant_type=password', {email, password:pass})); }
+      else {
+        const j = await authCall(`signup?redirect_to=${encodeURIComponent(location.origin+location.pathname)}`, {email, password:pass});
+        if (!j.access_token){ $('sbMsg').textContent = 'Account created. Open the confirmation email on this phone, tap the link, then come back here and tap Sign in.'; b.disabled=false; return; }
+        keepSession(j);
+      }
+      renderSyncBox(); await sync(true);
+    }catch(err){
+      $('sbMsg').textContent = /confirm/i.test(err.message) ? 'Confirm your email first: tap the link in the message Supabase sent you, then Sign in.'
+        : /invalid login/i.test(err.message) ? 'That email and password don’t match.' : err.message;
+      b.disabled = false;
+    }
+  } else if (a==='now'){ sync(true); }
+  else if (a==='out'){ session=null; lsSet('inkscan.session', null); renderSyncBox(); toast('Signed out. Everything stays on this phone.'); }
+});
+window.addEventListener('online', ()=>scheduleSync());
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && session) sync(false); });
+setInterval(()=>{ if (!document.hidden && session) sync(false); }, 180000);
+
+/* =========================================================
    TOOLS: export, backup, restore, prices, clear
    ========================================================= */
 $('toolsBtn').onclick = ()=>{
-  openSheet('Tools', `<div class="toolbtns">
+  openSheet('Tools', `<div class="own" id="syncBox">${syncBoxHTML()}</div>
+    <div class="toolbtns">
       <button class="btn primary" data-tool="csv">Export collection CSV</button>
       <button class="btn" data-tool="backup">Back up everything</button>
       <button class="btn" data-tool="restore">Restore a file</button>
       <button class="btn" data-tool="prices">Update prices</button>
     </div>
     <p class="note">${DB?`${DB.cards.length.toLocaleString()} cards through ${esc(DB.sets[DB.sets.length-1].name)}. TCGplayer prices from ${new Date(DB.asof+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}.`:''}</p>
-    <p class="note">Everything lives on this phone. "Back up everything" saves your collection, decks and wishlist in one file; Restore takes that file or a collection CSV.</p>
+    <p class="note">"Back up everything" saves your collection, decks and wishlist in one file; Restore takes that file or a collection CSV.</p>
     <div class="row" id="wipeRow"><button class="btn danger tiny" data-tool="wipe">Clear collection</button></div>`);
 };
 $('sheetBody').addEventListener('click', e=>{
@@ -849,6 +1012,7 @@ async function boot(){
   const age = (Date.now() - new Date(DB.asof+'T00:00:00').getTime())/86400000;
   if (age > 3 && navigator.onLine) refreshFromLorcast(false);
   getWorker().catch(()=>{});
+  if (session) sync(false);
 }
 boot();
 if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
