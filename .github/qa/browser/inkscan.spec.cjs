@@ -2,7 +2,7 @@
 // Synthetic localhost UI QA only. Run through the paired Playwright config.
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
-const KEY = 'inkscan.state.v5';
+const KEY = 'inkscan.state.v6';
 const blockedByContext = new WeakMap();
 const errorsByPage = new WeakMap();
 
@@ -408,7 +408,7 @@ test('JSON restore cancel and quota failure preserve durable and in-memory colle
     };
   }, KEY);
   await page.locator('#confirmRestore').click();
-  await expect(page.locator('#restoreError')).toContainText('Restore was not applied.');
+  await expect(page.locator('#restoreError')).toContainText('Restore could not be confirmed.');
   expect(await saved(page)).toEqual(original);
   expect(await page.evaluate(() => window.__inkscan.inv)).toEqual(original.inv);
   await shot(page, info, 'restore-quota-failure-preserves-data');
@@ -427,10 +427,10 @@ test('another synthetic tab save is detected and not overwritten by the stale ta
   await expect(page.locator('#saveStatus')).toContainText('Another tab saved changes.');
   await openCard(page);
   await page.getByRole('button', { name: 'One more normal', exact: true }).click();
-  await expect(page.locator('#saveStatus')).toContainText('Not saved on this device.');
+  await expect(page.locator('#saveStatus')).toContainText('Saving on this device could not be confirmed.');
   const visibleWarning = page.locator('#sheetSaveStatus');
   await expect(visibleWarning).toBeVisible();
-  await expect(visibleWarning).toContainText('Not saved on this device.');
+  await expect(visibleWarning).toContainText('Saving on this device could not be confirmed.');
   await expect(visibleWarning).toContainText('Another tab saved different data.');
   const warningBounds = await visibleWarning.boundingBox();
   expect(warningBounds.y).toBeGreaterThanOrEqual(0);
@@ -447,7 +447,7 @@ test('preserved real public catalog boots signed out without creating ownership 
   const path = require('node:path');
   const raw = await fs.readFile(path.join(__dirname, '../../../cards.json'), 'utf8');
   const catalog = JSON.parse(raw);
-  expect(catalog.cards).toHaveLength(3469);
+  expect(catalog.cards).toHaveLength(3505);
   await context.route('**/cards.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: raw }));
   // This is a disposable seeded test context, never an owner's browser storage.
   await page.evaluate(() => localStorage.clear());
@@ -457,7 +457,7 @@ test('preserved real public catalog boots signed out without creating ownership 
   await expect(page.locator('#tUnique')).toHaveText('0');
   await expectNoCloudFetchAttempts(page);
   await tab(page, 'browse');
-  await expect(page.locator('#bCount')).toHaveText('3,469 cards');
+  await expect(page.locator('#bCount')).toHaveText('3,505 cards');
   await expect(page.locator('#bGrid [data-card]').first()).toBeVisible();
   await expectNoCloudFetchAttempts(page);
   expect(await page.evaluate(() => localStorage.getItem('inkscan.state.v5'))).toBeNull();

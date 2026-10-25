@@ -1,4 +1,4 @@
-name: Production candidate validation (no deploy step)
+name: Variant candidate validation (no deploy step)
 
 on:
   pull_request:
@@ -14,9 +14,9 @@ concurrency:
 
 jobs:
   release-qa:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'release/safety-manual-update-ec3e57dc04bf'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/rainbow-variants-380c8678dea8'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: .github/qa
@@ -40,6 +40,10 @@ jobs:
           mkdir -p unit-results
           npm run check
           npm run test:unit | tee unit-results/unit-tests.txt
+      - name: Disposable PostgreSQL and PostgREST compatibility
+        run: |
+          set -o pipefail
+          bash database/run-integration.sh | tee unit-results/database-compatibility.txt
       - name: Install official Chromium and dependencies
         run: npx --no-install playwright install --with-deps chromium
       - name: Desktop and mobile isolated release UI

@@ -1,7 +1,6 @@
 {
   "rollbackCommit": "9ae98e6f78a17f30aa7fc45ecb7ca38f1d644b25",
   "unchangedFiles": {
-    "cards.json": "e64ecc22896d8744b5992a91f8a84c000a5fd4ab",
     "eng.traineddata.gz": "730a6a59010b9440e38dd85f9fe6b6bf0637e6eb",
     "icon-192.png": "fbc96b0c9ba477638820f5f03748de3888d406c5",
     "icon-512.png": "2aed3a26881ab859f8c7489d165ec293509c2ca3",
@@ -15,5 +14,10 @@
     "SB_URL": "da9a375a2ec8c5cb57b2bdcc0346c12ad4f26914fa556d1dff80cd33d66fe493",
     "SB_KEY": "1e653f9d4f8f8d2af6ab25aebbcdef9deb937c75a028da94f024d7ecad80dddb"
   },
-  "catalogPrintings": 3469
+  "catalogPrintings": 3505,
+  "catalogSha256": "f83aafffb66abaccccd9ba6f4ebc3250576907e511687ef97d1a61c83b028de9",
+  "originalCatalogPrintings": 3469,
+  "finishQuoteEntries": 12,
+  "verifiedProductMappings": 54,
+  "finishQuotesSha256": "a08a551dfaa21a09a352cd9c816934c6ea889ff4d31f934edc5a7f1024e045f4"
 }

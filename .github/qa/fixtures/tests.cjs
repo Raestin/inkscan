@@ -2,7 +2,7 @@ const test=require('node:test'), assert=require('node:assert/strict'), fs=requir
 const S=require('./safety.js');
 const empty=()=>({inv:{},wish:{},decks:{}});
 function storage(seed={}){const values=new Map(Object.entries(seed));return {fail:false,getItem:k=>values.has(k)?values.get(k):null,setItem(k,v){if(this.fail)throw Error('Quota exceeded');values.set(k,v);},values};}
-const state=()=>({v:5,inv:{},wish:{},decks:[],base:null,last:null,imports:{},revision:0});
+const state=()=>S.load(storage());
 const catalog=(n=3)=>({asof:'2026-10-24',sets:[{code:'1',name:'Synthetic set'}],cards:Array.from({length:n},(_,i)=>({id:'card'+i,n:'Synthetic '+i,v:'Test',s:'1',sn:'Synthetic set',c:String(i),i:i%2?'Ruby':'Amber',r:'Common',cl:'Test',tx:'Text',ty:'Character',co:2,ik:1,p:2,pf:5,iv:null}))});
 function harness(seed={}){
  const elements=new Map(), events=[], timers=[], network=[], localStorage=storage(seed);
@@ -15,7 +15,7 @@ function harness(seed={}){
  source=source.replace('window.__inkscan =',`window.testAPI={boot,totals,saveInv,saveDecks,saveWish,parseDeckImport,previewCollectionImport,previewRestore,collRows,renderCollCards,renderBrowse,resetBrowse,addQty,logAdd,openCard,cardDetailHTML,sync,guardedWrite,rest,reviewUpdate,renderSaveStatus,
   setState(s){inv=S.clone(s.inv||{});wish=S.clone(s.wish||{});decks=S.clone(s.decks||[]);base=s.base||null;session=Object.hasOwn(s,'session')?s.session:{uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};savedState=savedState||${JSON.stringify(state())};},
   getState(){return {inv,wish,decks,base,session,storageError,localRevision,syncState};},
-  setReview(fn){reviewUpdate=fn;},setRest(fn){rest=fn;},setDownload(fn){download=fn;},setRender(fn){renderAll=fn;},setCatalog(d){indexCards(d);},setInk(i){collInks.clear();if(i)collInks.add(i);},setChunk(fn){chunked=fn;}};\nwindow.__inkscan =`);
+  setReview(fn){reviewUpdate=fn;},setRest(fn){rest=async(...args)=>{if(args[0]==='GET'&&args[1].includes('select=rainbow_foil'))return [];const value=await fn(...args);return args[0]==='GET'&&args[1].startsWith('collection')&&Array.isArray(value)?value.map(row=>({rainbow_foil:0,...row})):value;};},setDownload(fn){download=fn;},setRender(fn){renderAll=fn;},setCatalog(d){indexCards(d);},setInk(i){collInks.clear();if(i)collInks.add(i);},setChunk(fn){chunked=fn;}};\nwindow.__inkscan =`);
  source=source.replace('inv=S.clone','inv=InkSafety.clone').replace('wish=S.clone','wish=InkSafety.clone').replace('decks=S.clone','decks=InkSafety.clone');
  vm.runInNewContext(source,context);context.testAPI.setCatalog(catalog());
  for(const id of ['cFinish','bFinish'])el(id).value='all';for(const id of ['sortSel','bSort'])el(id).value='set';
@@ -26,7 +26,7 @@ test('legacy migration retains unknown printings and foil quantities without mod
 test('atomic save failure leaves previous durable snapshot intact',()=>{const st=storage();const original=state();original.inv={a:{q:2,f:0}};S.save(st,original);st.fail=true;assert.throws(()=>S.save(st,{...original,inv:{a:{q:99,f:0}}}));assert.equal(S.load(st).inv.a.q,2);});
 test('corrupt existing state is a recovery error, never empty fallback',()=>{assert.throws(()=>S.load(storage({[S.KEY]:'{bad'})));assert.throws(()=>S.load(storage({'inkscan.inv':'{bad'})));});
 test('unknown IDs remain included in overall owned counts',()=>{const h=harness();h.api.setState({inv:{unknown:{q:2,f:3}}});assert.equal(h.api.totals().copies,5);assert.equal(h.api.totals().u,1);});
-test('collection/deck/wishlist save failure visibly persists and never triggers cloud calls',()=>{const h=harness();h.api.setState({inv:{a:{q:1,f:0}},decks:[{id:'d',name:'Synthetic',cards:{x:1}}],wish:{a:1}});h.storage.fail=true;h.api.saveInv();h.api.saveDecks();h.api.saveWish();assert.match(h.el('saveStatus').textContent,/Not saved/);assert.equal(h.network.length,0);});
+test('collection/deck/wishlist save failure visibly persists and never triggers cloud calls',()=>{const h=harness();h.api.setState({inv:{a:{q:1,f:0}},decks:[{id:'d',name:'Synthetic',cards:{x:1}}],wish:{a:1}});h.storage.fail=true;h.api.saveInv();h.api.saveDecks();h.api.saveWish();assert.match(h.el('saveStatus').textContent,/could not be confirmed/);assert.equal(h.network.length,0);});
 test('edits, online and focus cannot automatically sync',()=>{const h=harness();h.api.setState({});h.api.addQty('card0',false,1);for(const e of h.events.filter(e=>['online','visibilitychange'].includes(e.type)))e.fn();assert.equal(h.network.length,0);assert.equal(h.timers.filter(t=>t.ms===2500||t.ms===180000).length,0);assert.doesNotMatch(fs.readFileSync(__dirname+'/app.js','utf8'),/sync\(false\)|scheduleSync|setInterval\(/);});
 test('three-way same-item conflicts preserve both sides and abort',()=>{const local=empty(),remote=empty(),base=empty();base.inv.a={q:1,f:0};local.inv.a={q:2,f:0};remote.inv.a={q:3,f:0};const plan=S.plan(local,remote,base);assert.equal(plan.conflicts.length,1);assert.equal(local.inv.a.q,2);assert.equal(remote.inv.a.q,3);});
 test('deletion versus concurrent edit conflicts, not silent deletion',()=>{const local=empty(),remote=empty(),base=empty();base.decks.d={name:'Synthetic',cards:{x:1}};remote.decks.d={name:'Synthetic',cards:{x:2}};assert.equal(S.plan(local,remote,base).conflicts.length,1);});
@@ -63,7 +63,7 @@ function restoreHarness(){
  const h=harness({[S.KEY]:JSON.stringify(initial)});h.api.setState(initial);return {h,initial};
 }
 async function chooseRestore(h,value){await h.el('fileIn').onchange({target:{value:'synthetic-file',files:[{text:async()=>typeof value==='string'?value:JSON.stringify(value)}]}});}
-const restoreFile=()=>({app:'inkscan',...state(),inv:{unknownPrinting:{q:3,f:2}},decks:[{id:'d-new',name:'Restored',cards:{},unresolved:['unrecognized source']}],wish:{card2:1},imports:{restoredReceipt:{at:'synthetic',items:[]}},base:{uid:'must-not-be-imported',inv:{},wish:{},decks:{}}});
+const restoreFile=()=>({app:S.BACKUP_APP,...state(),inv:{unknownPrinting:{q:3,f:2}},decks:[{id:'d-new',name:'Restored',cards:{},unresolved:['unrecognized source']}],wish:{card2:1},imports:{restoredReceipt:{at:'synthetic',items:[]}},base:{uid:'must-not-be-imported',inv:{},wish:{},decks:{}}});
 test('incomplete and malformed backup files cannot clear live or durable data',async()=>{
  for(const backup of [{app:'inkscan'},{app:'inkscan',inv:{},decks:[]},{app:'inkscan',inv:null,decks:[],wish:{}},{app:'inkscan',inv:{bad:7},decks:[],wish:{}}]){
   const {h,initial}=restoreHarness(),raw=h.storage.getItem(S.KEY);await chooseRestore(h,backup);
@@ -81,7 +81,7 @@ test('confirmed backup restore atomically retains recovery and local cloud basel
  assert.deepEqual(stored.recovery.at(-1).inv,initial.inv);assert.deepEqual(stored.recovery.at(-1).decks,initial.decks);assert.deepEqual(stored.recovery.at(-1).wish,initial.wish);assert.deepEqual(stored.recovery.at(-1).imports,initial.imports);assert.equal(stored.revision,1);assert.equal(h.network.length,0);
 });
 test('restore quota failure changes neither memory nor saved snapshot and retry is atomic',async()=>{
- const {h,initial}=restoreHarness(),raw=h.storage.getItem(S.KEY);await chooseRestore(h,restoreFile());h.storage.fail=true;h.el('confirmRestore').onclick();assert.equal(h.storage.getItem(S.KEY),raw);assert.deepEqual(json(h.api.getState().inv),initial.inv);assert.match(h.el('restoreError').textContent,/not applied/);
+ const {h,initial}=restoreHarness(),raw=h.storage.getItem(S.KEY);await chooseRestore(h,restoreFile());h.storage.fail=true;h.el('confirmRestore').onclick();assert.equal(h.storage.getItem(S.KEY),raw);assert.deepEqual(json(h.api.getState().inv),initial.inv);assert.match(h.el('restoreError').textContent,/could not be confirmed/);
  h.storage.fail=false;h.el('confirmRestore').onclick();assert.equal(S.load(h.storage).inv.unknownPrinting.q,3);assert.equal(S.load(h.storage).recovery.length,1);
 });
 test('restore cannot overwrite another tab or local edits after preview',async()=>{
@@ -148,8 +148,8 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=6'));assert.ok(sw.includes(name+'.js?v=6'));}
- assert.match(sw,/const CACHE = 'inkscan-v6'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=7'));assert.ok(sw.includes(name+'.js?v=7'));}
+ assert.match(sw,/const CACHE = 'inkscan-v7'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.
@@ -165,19 +165,19 @@ test('fresh signed-out boot completes with synthetic catalog and no cloud reques
  const initial={...state(),inv:{card0:{q:2,f:1}}};
  const h=harness({[S.KEY]:JSON.stringify(initial)});
  h.context.Tesseract={createWorker:async()=>({setParameters:async()=>{}})};
- h.context.fetch=async url=>{h.network.push(url);assert.equal(url,'cards.json');return new Response(JSON.stringify(catalog()));};
+ h.context.fetch=async url=>{h.network.push(url);assert.ok(['cards.json','finish-quotes.json'].includes(url));return new Response(JSON.stringify(url==='cards.json'?catalog():{entries:{},productMappings:[],ambiguousFoilPrintings:[]}));};
  await h.api.boot();
  assert.equal(h.el('loadBanner').hidden,true);
  assert.equal(h.el('tCopies').textContent,'3');
  assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
- assert.deepEqual(h.network,['cards.json']);
+ assert.deepEqual([...h.network].sort(),['cards.json','finish-quotes.json']);
 });
 
 test('save failure stays visible inside an open sheet across card rerenders and clears only after a durable save',()=>{
  const h=harness();h.api.setState({inv:{card0:{q:2,f:1}},session:null});h.api.openCard('card0');
  assert.equal(h.el('sheetSaveStatus').hidden,true);
  h.storage.fail=true;h.api.addQty('card0',false,1);
- assert.equal(h.el('sheetSaveStatus').hidden,false);assert.match(h.el('sheetSaveStatus').textContent,/Not saved on this device/);
+ assert.equal(h.el('sheetSaveStatus').hidden,false);assert.match(h.el('sheetSaveStatus').textContent,/could not be confirmed/);
  h.api.openCard('card0');assert.equal(h.el('sheetSaveStatus').hidden,false);assert.match(h.el('sheetSaveStatus').textContent,/Quota exceeded/);
  h.storage.fail=false;h.api.saveInv();assert.equal(h.el('sheetSaveStatus').hidden,true);assert.equal(h.el('sheetSaveStatus').textContent,'');
  assert.equal(h.network.length,0);

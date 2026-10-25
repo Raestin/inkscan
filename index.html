@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 </head>
 <body>
 <header class="top">
@@ -31,6 +31,8 @@
 
   <!-- ============ SCAN ============ -->
   <section class="view" id="vScan">
+    <label class="scan-finish">Finish for scans and search additions <select id="scanFinish"><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label>
+    <p class="note">Choose the physical finish yourself; scanning a card number does not identify its foil treatment.</p>
     <div class="cam" id="cam">
       <video id="video" playsinline muted></video>
       <div class="guide" id="guide" hidden><div class="strip"></div></div>
@@ -85,7 +87,7 @@
           <button data-lay="list" aria-pressed="false">List</button>
         </div>
       </div>
-      <label>Finish <select id="cFinish"><option value="all">Normal + foil</option><option value="normal">Normal only</option><option value="foil">Foil only</option></select></label>
+      <label>Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
       <button class="btn" id="cReset">Reset collection filters</button>
       <p class="summary" id="cValue" role="status"></p>
       <div id="coll"></div>
@@ -162,7 +164,7 @@
       </select>
     </div>
     <div class="row between"><span class="note" id="bCount"></span><button class="btn ghost tiny" id="bReset">Reset filters</button></div>
-    <label>Value / ownership finish <select id="bFinish"><option value="all">Normal + foil</option><option value="normal">Normal only</option><option value="foil">Foil only</option></select></label>
+    <label>Value / ownership finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
     <p class="summary" id="bValue" role="status"></p>
     <div class="grid" id="bGrid"></div>
     <div id="bSentinel" class="sentinel"></div>
@@ -191,7 +193,7 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="safety.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
