@@ -23,6 +23,6 @@ docker run --rm -d --name "$REST" --network "$NET" --read-only --cap-drop ALL --
  -e PGRST_DB_SCHEMAS=public -e PGRST_DB_ANON_ROLE=qa_anon \
  -e PGRST_JWT_SECRET=inkscan-synthetic-ci-jwt-secret-not-for-production "$REST_IMAGE"
 ready=false
-for i in {1..40}; do if curl --silent --fail http://127.0.0.1:4300/ >/dev/null; then ready=true; break; fi; sleep 1; done
-$ready || { docker logs "$REST"; exit 1; }
+for i in {1..40}; do if curl --silent --show-error --max-time 2 http://127.0.0.1:4300/ >/dev/null; then ready=true; break; fi; sleep 1; done
+$ready || { docker logs "$REST"; docker port "$REST"; curl --verbose --max-time 3 http://127.0.0.1:4300/ || true; exit 1; }
 node verify.cjs

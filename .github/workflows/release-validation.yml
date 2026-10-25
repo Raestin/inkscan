@@ -35,6 +35,7 @@ jobs:
       - name: Install pinned tests
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Syntax and unit/contract tests
+        id: unit
         run: |
           set -o pipefail
           mkdir -p unit-results
@@ -45,8 +46,11 @@ jobs:
           set -o pipefail
           bash database/run-integration.sh | tee unit-results/database-compatibility.txt
       - name: Install official Chromium and dependencies
+        id: browser-deps
+        if: ${{ !cancelled() && steps.unit.conclusion == 'success' }}
         run: npx --no-install playwright install --with-deps chromium
       - name: Desktop and mobile isolated release UI
+        if: ${{ !cancelled() && steps.browser-deps.conclusion == 'success' }}
         run: npm run test:browser
       - name: Keep synthetic evidence for 7 days
         if: always()
