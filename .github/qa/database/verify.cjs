@@ -11,7 +11,9 @@ async function own(){const r=await req('GET','/collection?user_id=eq.'+owner+'&c
 (async()=>{
  let row=await own();assert.deepEqual([row.q,row.f,row.rainbow_foil],[2,1,3]);
  // Exact old v4 merge-duplicates shape omits the new column.
- let r=await req('POST','/collection?on_conflict=user_id,card_id',{user_id:owner,card_id:'legacy-printing',q:4,f:2},'resolution=merge-duplicates,return=representation');assert.equal(r.status,201);row=await own();assert.deepEqual([row.q,row.f,row.rainbow_foil],[4,2,3]);
+ // PostgREST returns 200 for an update-only upsert; a new INSERT below must be 201.
+ // https://github.com/PostgREST/postgrest/blob/v16.5/CHANGELOG.md (#1070)
+ let r=await req('POST','/collection?on_conflict=user_id,card_id',{user_id:owner,card_id:'legacy-printing',q:4,f:2},'resolution=merge-duplicates,return=representation');assert.equal(r.status,200);row=await own();assert.deepEqual([row.q,row.f,row.rainbow_foil],[4,2,3]);
  // Released v5-style q/f patch and q/f tombstone must retain rainbow-only row.
  r=await req('PATCH','/collection?user_id=eq.'+owner+'&card_id=eq.legacy-printing&q=eq.4&f=eq.2&updated_at=eq.'+encodeURIComponent(row.updated_at),{user_id:owner,card_id:'legacy-printing',q:0,f:0});assert.equal(r.status,200);assert.equal(r.body.length,1);row=await own();assert.deepEqual([row.q,row.f,row.rainbow_foil],[0,0,3]);
  // Stale rainbow CAS cannot overwrite a more recent change.
