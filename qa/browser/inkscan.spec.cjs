@@ -428,6 +428,14 @@ test('another synthetic tab save is detected and not overwritten by the stale ta
   await openCard(page);
   await page.getByRole('button', { name: 'One more normal', exact: true }).click();
   await expect(page.locator('#saveStatus')).toContainText('Not saved on this device.');
+  const visibleWarning = page.locator('#sheetSaveStatus');
+  await expect(visibleWarning).toBeVisible();
+  await expect(visibleWarning).toContainText('Not saved on this device.');
+  await expect(visibleWarning).toContainText('Another tab saved different data.');
+  const warningBounds = await visibleWarning.boundingBox();
+  expect(warningBounds.y).toBeGreaterThanOrEqual(0);
+  expect(warningBounds.y + warningBounds.height).toBeLessThanOrEqual(page.viewportSize().height);
+
   expect((await saved(page)).inv['synthetic-card-0']).toEqual({ q: 4, f: 1 });
   expect(await page.evaluate(() => window.__inkscan.inv['synthetic-card-0'])).toEqual({ q: 3, f: 1 });
   await shot(page, info, 'stale-tab-does-not-overwrite');

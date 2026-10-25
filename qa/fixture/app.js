@@ -37,6 +37,8 @@ function renderSaveStatus(){
   const unknown=typeof byId!=='undefined'&&byId ? Object.keys(inv).filter(id=>!byId.has(id)).length : 0;
   el.textContent=storageError || (unknown?`${unknown} collection printing(s) are missing from the catalog. They are retained in your collection and backup.`:'Saved on this device. Cloud updates run only when you tap Update.');
   el.classList.toggle('bad',!!storageError);
+  const sheetStatus=$('sheetSaveStatus');
+  if(sheetStatus){sheetStatus.textContent=storageError||'';sheetStatus.hidden=!storageError;}
   if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}});$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
 }
 
@@ -200,6 +202,7 @@ let sheetOpen = false, sheetOnClose = null;
 function openSheet(title, html, onClose){
   $('sheetTitle').textContent = title; $('sheetBody').innerHTML = html; $('sheetBody').scrollTop = 0;
   $('sheet').hidden = false; $('scrim').hidden = false; sheetOnClose = onClose || null;
+  renderSaveStatus();
   if (!sheetOpen){ sheetOpen = true; try{ history.pushState({sheet:1}, ''); }catch(e){} }
 }
 function closeSheet(fromPop){

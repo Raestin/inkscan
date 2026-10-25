@@ -37,3 +37,8 @@ Final checks: `node --test tests.cjs household-contract.test.cjs` and syntax che
 ## Hosted-browser startup regression
 
 The first GitHub-hosted browser run (2026-10-25) launched Chromium successfully but exposed a new-development signed-out startup error: absent session and baseline IDs compared equal, passing a null baseline into pending-count rendering. Both status and Update-dialog guards now require an actual signed-in user ID before using a matching baseline. Two regression tests exercise signed-out status/dialog and full boot with a synthetic catalog. Local unit total is now 58 passing. Hosted browser rerun is pending; this note is not a browser pass or a statement about the unchanged live app.
+
+
+## Hosted screenshot safety correction
+
+The successful 20-case hosted run's actual mobile screenshot review found that an open card-detail sheet could cover the global unsaved/cross-tab warning. Added a persistent, accessible storage-error strip inside the sheet, outside the rerendered body. It remains visible while reviewing cards and clears only when saving succeeds. Added a unit regression and explicit mobile/desktop viewport visibility checks to the existing stale-tab browser scenario. Local unit total is now 59; the exact hosted result is tracked in the draft PR, not implied by this handoff note. Production root files are still unchanged.

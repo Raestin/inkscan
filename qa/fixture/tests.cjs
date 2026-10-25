@@ -172,3 +172,13 @@ test('fresh signed-out boot completes with synthetic catalog and no cloud reques
  assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
  assert.deepEqual(h.network,['cards.json']);
 });
+
+test('save failure stays visible inside an open sheet across card rerenders and clears only after a durable save',()=>{
+ const h=harness();h.api.setState({inv:{card0:{q:2,f:1}},session:null});h.api.openCard('card0');
+ assert.equal(h.el('sheetSaveStatus').hidden,true);
+ h.storage.fail=true;h.api.addQty('card0',false,1);
+ assert.equal(h.el('sheetSaveStatus').hidden,false);assert.match(h.el('sheetSaveStatus').textContent,/Not saved on this device/);
+ h.api.openCard('card0');assert.equal(h.el('sheetSaveStatus').hidden,false);assert.match(h.el('sheetSaveStatus').textContent,/Quota exceeded/);
+ h.storage.fail=false;h.api.saveInv();assert.equal(h.el('sheetSaveStatus').hidden,true);assert.equal(h.el('sheetSaveStatus').textContent,'');
+ assert.equal(h.network.length,0);
+});

@@ -2,7 +2,7 @@
 
 Sanitized from isolated development commit ff42e20. Production source files remain untouched. This copy replaces the Supabase URL/key with nonfunctional placeholders and replaces the public catalog with 120 synthetic cards. It contains no user collection, Auth session, browser cache, .git directory, private account identifiers, or live credentials. Never deploy this QA archive.
 
-1. Extract to a private directory in the parent cloud VM. Run `node --test tests.cjs household-contract.test.cjs` (58 tests) and syntax checks for app.js/safety.js/sw.js.
+1. Extract to a private directory in the parent cloud VM. Run `node --test tests.cjs household-contract.test.cjs` (59 tests) and syntax checks for app.js/safety.js/sw.js.
 2. From that extracted directory, run `python3 -m http.server 8000 --bind 127.0.0.1` in the CLOUD VM only. Open `http://127.0.0.1:8000/qa-seed.html` in the parent's cloud browser, then click Initialize synthetic collection. Do not use the user's browser or desktop, and do not expose a public tunnel/server.
 3. Expected overall fixture: 3 owned printings / 9 physical copies, $29 priced portion with 4 unpriced copies. Collection shows the two catalog-resolved printings (6 copies); the extra 3 unknown copies remain in total and JSON backup. Filtered known-collection estimate is $29, 6 copies, 1 unpriced copy. Normal-only is $4 / 3 copies / 1 unpriced; foil-only is $25 / 3 copies / 0 unpriced. Missing prices must remain partial, not foil-price fallbacks.
 4. Browse must show 120 catalog items; summaries use all matching items before chunked rendering. Exercise search, ink, rarity, set, ownership, normal/foil selectors and filter resets. Compare Collection grid/list and desktop/mobile layouts.
