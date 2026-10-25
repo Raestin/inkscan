@@ -65,7 +65,24 @@
           "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
         }
       ],
-      "rawSubtype": "Holofoil"
+      "rawSubtype": "Holofoil",
+      "artwork": {
+        "provider": "LorcanaPlayer",
+        "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/9-PD1-EN-14-Nick-Wilde-Inquisitive-Harbormaster-Prerelease-Promo-Lorcana-Player.jpg",
+        "productId": 722990,
+        "expectedPrinting": {
+          "n": "Nick Wilde",
+          "v": "Inquisitive Harbormaster",
+          "s": "PD1",
+          "c": "9",
+          "r": "Promo",
+          "language": "EN",
+          "printedSet": "14",
+          "stamp": "Hyperia City"
+        },
+        "verifiedAt": "2026-10-25",
+        "evidenceURL": "https://lorcanaplayer.com/card/nick-wilde-inquisitive-harbormaster-prerelease-promo/"
+      }
     },
     {
       "id": "tcgplayer_722992",
@@ -129,7 +146,24 @@
           "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
         }
       ],
-      "rawSubtype": "Holofoil"
+      "rawSubtype": "Holofoil",
+      "artwork": {
+        "provider": "LorcanaPlayer",
+        "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/10-PD1-EN-14-Merlin-Ink-Drop-Tinkerer-Prerelease-Promo-Lorcana-Player.jpg",
+        "productId": 722992,
+        "expectedPrinting": {
+          "n": "Merlin",
+          "v": "Ink Drop Tinkerer",
+          "s": "PD1",
+          "c": "10",
+          "r": "Promo",
+          "language": "EN",
+          "printedSet": "14",
+          "stamp": "Hyperia City"
+        },
+        "verifiedAt": "2026-10-25",
+        "evidenceURL": "https://lorcanaplayer.com/card/merlin-ink-drop-tinkerer-prerelease-promo/"
+      }
     },
     {
       "id": "tcgplayer_722993",
@@ -193,7 +227,24 @@
           "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
         }
       ],
-      "rawSubtype": "Holofoil"
+      "rawSubtype": "Holofoil",
+      "artwork": {
+        "provider": "LorcanaPlayer",
+        "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/11-PD1-EN-14-Above-the-Crowd-Prerelease-Promo-Lorcana-Player.jpg",
+        "productId": 722993,
+        "expectedPrinting": {
+          "n": "Above the Crowd",
+          "v": "",
+          "s": "PD1",
+          "c": "11",
+          "r": "Promo",
+          "language": "EN",
+          "printedSet": "14",
+          "stamp": "Hyperia City"
+        },
+        "verifiedAt": "2026-10-25",
+        "evidenceURL": "https://lorcanaplayer.com/card/above-the-crowd-prerelease-promo/"
+      }
     },
     {
       "id": "tcgplayer_722994",
@@ -257,7 +308,24 @@
           "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
         }
       ],
-      "rawSubtype": "Holofoil"
+      "rawSubtype": "Holofoil",
+      "artwork": {
+        "provider": "LorcanaPlayer",
+        "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/12-PD1-EN-14-Goofy-Dancing-Superstar-Prerelease-Promo-Lorcana-Player.jpg",
+        "productId": 722994,
+        "expectedPrinting": {
+          "n": "Goofy",
+          "v": "Dancing Superstar",
+          "s": "PD1",
+          "c": "12",
+          "r": "Promo",
+          "language": "EN",
+          "printedSet": "14",
+          "stamp": "Hyperia City"
+        },
+        "verifiedAt": "2026-10-25",
+        "evidenceURL": "https://lorcanaplayer.com/card/goofy-dancing-superstar-prerelease-promo/"
+      }
     },
     {
       "id": "tcgplayer_722995",
@@ -321,7 +389,24 @@
           "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
         }
       ],
-      "rawSubtype": "Holofoil"
+      "rawSubtype": "Holofoil",
+      "artwork": {
+        "provider": "LorcanaPlayer",
+        "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/13-PD1-EN-14-Judy-Hopps-Day-Camp-Instructor-Prerelease-Promo-Lorcana-Player.jpg",
+        "productId": 722995,
+        "expectedPrinting": {
+          "n": "Judy Hopps",
+          "v": "Day Camp Instructor",
+          "s": "PD1",
+          "c": "13",
+          "r": "Promo",
+          "language": "EN",
+          "printedSet": "14",
+          "stamp": "Hyperia City"
+        },
+        "verifiedAt": "2026-10-25",
+        "evidenceURL": "https://lorcanaplayer.com/card/judy-hopps-day-camp-instructor-prerelease-promo/"
+      }
     },
     {
       "id": "tcgplayer_722996",
@@ -385,7 +470,24 @@
           "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
         }
       ],
-      "rawSubtype": "Holofoil"
+      "rawSubtype": "Holofoil",
+      "artwork": {
+        "provider": "LorcanaPlayer",
+        "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/14-PD1-EN-14-Berlioz-Tiny-Rascal-Prerelease-Promo-Lorcana-Player.jpg",
+        "productId": 722996,
+        "expectedPrinting": {
+          "n": "Berlioz",
+          "v": "Tiny Rascal",
+          "s": "PD1",
+          "c": "14",
+          "r": "Promo",
+          "language": "EN",
+          "printedSet": "14",
+          "stamp": "Hyperia City"
+        },
+        "verifiedAt": "2026-10-25",
+        "evidenceURL": "https://lorcanaplayer.com/card/berlioz-tiny-rascal-prerelease-promo/"
+      }
     }
   ]
 }

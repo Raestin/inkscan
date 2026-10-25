@@ -19,6 +19,6 @@ for (const [name, value] of Object.entries({SB_URL:'https://example.invalid',SB_
 const normalize = text => text.replace(/const SB_(URL|KEY) = '[^']*';/g,'const SB_$1 = [CONFIG];');
 assert.equal(normalize(sanitized),normalize(actual));
 fs.writeFileSync(path.join(fixture,'app.js'),sanitized);
-for (const name of ['cards.json','qa-seed.html','tests.cjs','rainbow-safety.test.cjs','rainbow-app.test.cjs','promo-app.test.cjs','promo-catalog.test.cjs','core-legality.test.cjs','legality-app.test.cjs','household-contract.test.cjs','household-contract-model.cjs']) fs.copyFileSync(path.join(__dirname,'fixtures',name),path.join(fixture,name));
+for (const name of ['cards.json','qa-seed.html','tests.cjs','rainbow-safety.test.cjs','rainbow-app.test.cjs','promo-app.test.cjs','promo-art-app.test.cjs','promo-catalog.test.cjs','core-legality.test.cjs','legality-app.test.cjs','household-contract.test.cjs','household-contract-model.cjs']) fs.copyFileSync(path.join(__dirname,'fixtures',name),path.join(fixture,name));
 assert.equal(JSON.parse(fs.readFileSync(path.join(fixture,'cards.json'))).cards.length,120);
 console.log('Generated isolated fixture from current production candidate; only cloud constants and catalog substituted. No production collection or session loaded.');
