@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "test:unit": "cd fixture && node --test tests.cjs rainbow-safety.test.cjs rainbow-app.test.cjs household-contract.test.cjs",
-    "check": "node --check ../../app.js && node --check ../../safety.js && node --check ../../sw.js && node --check browser/inkscan.spec.cjs && node --check browser/rainbow.spec.cjs && node --check database/verify.cjs",
+    "test:unit": "cd fixture && node --test tests.cjs rainbow-safety.test.cjs rainbow-app.test.cjs promo-app.test.cjs promo-catalog.test.cjs core-legality.test.cjs legality-app.test.cjs household-contract.test.cjs",
+    "check": "node --check ../../app.js && node --check ../../safety.js && node --check ../../sw.js && node --check browser/inkscan.spec.cjs && node --check browser/rainbow.spec.cjs && node --check database/verify.cjs && node --check ../../catalog.js && node --check browser/promo.spec.cjs && node --check ../../legality.js && node --check browser/legality.spec.cjs",
     "test:browser": "playwright test",
     "prepare:fixture": "node prepare-fixture.cjs",
     "verify:release": "node verify-release.cjs"

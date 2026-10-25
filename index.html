@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 </head>
 <body>
 <header class="top">
@@ -31,6 +31,9 @@
 
   <!-- ============ SCAN ============ -->
   <section class="view" id="vScan">
+    <p id="promoCatalogStatus" class="note printing-resolution" role="status" hidden></p>
+    <label class="scan-finish">Printing scope <select id="scanPrintingScope"><option value="all">All printings</option><option value="promo">Promo / special only</option></select></label>
+    <p class="note">Promos and special printings are separate catalog cards, not foil settings. Match the full printed code; a stamp alone cannot identify a printing.</p>
     <label class="scan-finish">Finish for scans and search additions <select id="scanFinish"><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label>
     <p class="note">Choose the physical finish yourself; scanning a card number does not identify its foil treatment.</p>
     <div class="cam" id="cam">
@@ -48,11 +51,13 @@
         <span class="note" style="color:#B9B4D3">Line the card up in the frame. The number line at the bottom left goes in the gold box.</span>
       </div>
     </div>
+    <p id="scanResolution" class="note printing-resolution" role="status" aria-live="polite" hidden></p>
+    <button id="scanManual" class="btn" hidden>Find the exact printing</button>
     <div class="row between"><h2 class="h2">This session <span class="note" id="logCount"></span></h2></div>
     <div class="list" id="log"></div>
     <div>
       <h2 class="h2" style="margin-bottom:8px">Add by search</h2>
-      <input type="search" id="q" placeholder="Card name, or set + number like 1 207" autocomplete="off" enterkeyhint="search">
+      <input type="search" id="q" placeholder="Card name, P3 43, PD1 11, or P2 24B" autocomplete="off" enterkeyhint="search">
       <div class="list" id="qres" hidden style="margin-top:8px"></div>
     </div>
   </section>
@@ -88,6 +93,8 @@
         </div>
       </div>
       <label>Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
+      <label>Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+      <p class="note legality-info" id="cLegalityInfo"></p>
       <button class="btn" id="cReset">Reset collection filters</button>
       <p class="summary" id="cValue" role="status"></p>
       <div id="coll"></div>
@@ -103,6 +110,7 @@
 
   <!-- ============ DECKS ============ -->
   <section class="view" id="vDecks" hidden>
+    <p class="note legality-info" id="deckLegalityCaveat">Size / ink badges are structural checks only, not full deck legality. Collection/Browse card-pool filters do not validate a whole deck. Check copy limits, card-text exceptions, card-pool eligibility and current event rules separately.</p>
     <div id="deckHome" class="stack">
       <div class="row between">
         <h2 class="h2">Decks</h2>
@@ -165,6 +173,8 @@
     </div>
     <div class="row between"><span class="note" id="bCount"></span><button class="btn ghost tiny" id="bReset">Reset filters</button></div>
     <label>Value / ownership finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
+    <label>Card-pool eligibility <select id="bLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+    <p class="note legality-info" id="bLegalityInfo"></p>
     <p class="summary" id="bValue" role="status"></p>
     <div class="grid" id="bGrid"></div>
     <div id="bSentinel" class="sentinel"></div>
@@ -193,7 +203,9 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="safety.js?v=8"></script>
+<script src="catalog.js?v=8"></script>
+<script src="legality.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

@@ -353,7 +353,7 @@
     {
       "printingId": "crd_5f7b5237476649afba3b201770efe75f",
       "expectedIdentity": {
-        "n": "H\u00e9ctor Rivera",
+        "n": "Héctor Rivera",
         "v": "Gone to Pieces",
         "s": "D23",
         "c": "13",
@@ -1028,5 +1028,283 @@
       "printingId": "crd_1a90e72da27d4638ad9aed26776feee5",
       "tcgplayerProductId": 650077
     }
-  ]
+  ],
+  "promoFoilQuotes": {
+    "tcgplayer_722990|provider:Holofoil": {
+      "printingId": "tcgplayer_722990",
+      "tcgplayerProductId": 722990,
+      "tcgplayerGroupId": 23234,
+      "expectedPrinting": {
+        "n": "Nick Wilde",
+        "v": "Inquisitive Harbormaster",
+        "s": "PD1",
+        "c": "9",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "rawSubtype": "Holofoil",
+      "physicalFinish": null,
+      "displayLabel": "Holofoil (provider label)",
+      "currency": "USD",
+      "marketPrice": 5.67,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:41:35.662745+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/nick-wilde-inquisitive-harbormaster-prerelease-promo/",
+        "https://lorcanaplayer.com/wp-content/uploads/2026/09/9-PD1-EN-14-Nick-Wilde-Inquisitive-Harbormaster-Prerelease-Promo-Lorcana-Player.jpg",
+        "https://tcgcsv.com/tcgplayer/71/23234/products",
+        "https://www.tcgplayer.com/product/722990/lorcana-tcg-disney-lorcana-promo-cards-nick-wilde-inquisitive-harbormaster"
+      ],
+      "mappingEvidenceNote": "Exact PD1 printing identity and TCGproduct are verified. The complete group price feed contains exactly one row for this product: Holofoil. This quote does not classify its physical finish as cold or rainbow.",
+      "fallbackPolicy": "unknown-null-if-exact-printing-and-provider-subtype-quote-unavailable; never use base gameplay product prices",
+      "availableRawSubtypes": [
+        "Holofoil"
+      ],
+      "sourcePriceRow": {
+        "productId": 722990,
+        "lowPrice": 4.23,
+        "midPrice": 6.5,
+        "highPrice": 20.0,
+        "marketPrice": 5.67,
+        "directLowPrice": null,
+        "subTypeName": "Holofoil"
+      },
+      "inventoryFinish": "foil",
+      "provider": "TCGplayer via TCGCSV",
+      "sourceBuildURL": "https://tcgcsv.com/last-updated.txt"
+    },
+    "tcgplayer_722992|provider:Holofoil": {
+      "printingId": "tcgplayer_722992",
+      "tcgplayerProductId": 722992,
+      "tcgplayerGroupId": 23234,
+      "expectedPrinting": {
+        "n": "Merlin",
+        "v": "Ink Drop Tinkerer",
+        "s": "PD1",
+        "c": "10",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "rawSubtype": "Holofoil",
+      "physicalFinish": null,
+      "displayLabel": "Holofoil (provider label)",
+      "currency": "USD",
+      "marketPrice": 3.29,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:41:35.662745+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/merlin-ink-drop-tinkerer-prerelease-promo/",
+        "https://lorcanaplayer.com/wp-content/uploads/2026/09/10-PD1-EN-14-Merlin-Ink-Drop-Tinkerer-Prerelease-Promo-Lorcana-Player.jpg",
+        "https://tcgcsv.com/tcgplayer/71/23234/products",
+        "https://www.tcgplayer.com/product/722992/lorcana-tcg-disney-lorcana-promo-cards-merlin-ink-drop-tinkerer"
+      ],
+      "mappingEvidenceNote": "Exact PD1 printing identity and TCGproduct are verified. The complete group price feed contains exactly one row for this product: Holofoil. This quote does not classify its physical finish as cold or rainbow.",
+      "fallbackPolicy": "unknown-null-if-exact-printing-and-provider-subtype-quote-unavailable; never use base gameplay product prices",
+      "availableRawSubtypes": [
+        "Holofoil"
+      ],
+      "sourcePriceRow": {
+        "productId": 722992,
+        "lowPrice": 2.0,
+        "midPrice": 3.67,
+        "highPrice": 23.69,
+        "marketPrice": 3.29,
+        "directLowPrice": null,
+        "subTypeName": "Holofoil"
+      },
+      "inventoryFinish": "foil",
+      "provider": "TCGplayer via TCGCSV",
+      "sourceBuildURL": "https://tcgcsv.com/last-updated.txt"
+    },
+    "tcgplayer_722993|provider:Holofoil": {
+      "printingId": "tcgplayer_722993",
+      "tcgplayerProductId": 722993,
+      "tcgplayerGroupId": 23234,
+      "expectedPrinting": {
+        "n": "Above the Crowd",
+        "v": "",
+        "s": "PD1",
+        "c": "11",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "rawSubtype": "Holofoil",
+      "physicalFinish": null,
+      "displayLabel": "Holofoil (provider label)",
+      "currency": "USD",
+      "marketPrice": 4.2,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:41:35.662745+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/above-the-crowd-prerelease-promo/",
+        "https://lorcanaplayer.com/wp-content/uploads/2026/09/11-PD1-EN-14-Above-the-Crowd-Prerelease-Promo-Lorcana-Player.jpg",
+        "https://tcgcsv.com/tcgplayer/71/23234/products",
+        "https://www.tcgplayer.com/product/722993/lorcana-tcg-disney-lorcana-promo-cards-above-the-crowd"
+      ],
+      "mappingEvidenceNote": "Exact PD1 printing identity and TCGproduct are verified. The complete group price feed contains exactly one row for this product: Holofoil. This quote does not classify its physical finish as cold or rainbow.",
+      "fallbackPolicy": "unknown-null-if-exact-printing-and-provider-subtype-quote-unavailable; never use base gameplay product prices",
+      "availableRawSubtypes": [
+        "Holofoil"
+      ],
+      "sourcePriceRow": {
+        "productId": 722993,
+        "lowPrice": 2.99,
+        "midPrice": 5.44,
+        "highPrice": 30.0,
+        "marketPrice": 4.2,
+        "directLowPrice": null,
+        "subTypeName": "Holofoil"
+      },
+      "inventoryFinish": "foil",
+      "provider": "TCGplayer via TCGCSV",
+      "sourceBuildURL": "https://tcgcsv.com/last-updated.txt"
+    },
+    "tcgplayer_722994|provider:Holofoil": {
+      "printingId": "tcgplayer_722994",
+      "tcgplayerProductId": 722994,
+      "tcgplayerGroupId": 23234,
+      "expectedPrinting": {
+        "n": "Goofy",
+        "v": "Dancing Superstar",
+        "s": "PD1",
+        "c": "12",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "rawSubtype": "Holofoil",
+      "physicalFinish": null,
+      "displayLabel": "Holofoil (provider label)",
+      "currency": "USD",
+      "marketPrice": 5.39,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:41:35.662745+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/goofy-dancing-superstar-prerelease-promo/",
+        "https://lorcanaplayer.com/wp-content/uploads/2026/09/12-PD1-EN-14-Goofy-Dancing-Superstar-Prerelease-Promo-Lorcana-Player.jpg",
+        "https://tcgcsv.com/tcgplayer/71/23234/products",
+        "https://www.tcgplayer.com/product/722994/lorcana-tcg-disney-lorcana-promo-cards-goofy-dancing-superstar"
+      ],
+      "mappingEvidenceNote": "Exact PD1 printing identity and TCGproduct are verified. The complete group price feed contains exactly one row for this product: Holofoil. This quote does not classify its physical finish as cold or rainbow.",
+      "fallbackPolicy": "unknown-null-if-exact-printing-and-provider-subtype-quote-unavailable; never use base gameplay product prices",
+      "availableRawSubtypes": [
+        "Holofoil"
+      ],
+      "sourcePriceRow": {
+        "productId": 722994,
+        "lowPrice": 3.96,
+        "midPrice": 6.0,
+        "highPrice": 15.0,
+        "marketPrice": 5.39,
+        "directLowPrice": null,
+        "subTypeName": "Holofoil"
+      },
+      "inventoryFinish": "foil",
+      "provider": "TCGplayer via TCGCSV",
+      "sourceBuildURL": "https://tcgcsv.com/last-updated.txt"
+    },
+    "tcgplayer_722995|provider:Holofoil": {
+      "printingId": "tcgplayer_722995",
+      "tcgplayerProductId": 722995,
+      "tcgplayerGroupId": 23234,
+      "expectedPrinting": {
+        "n": "Judy Hopps",
+        "v": "Day Camp Instructor",
+        "s": "PD1",
+        "c": "13",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "rawSubtype": "Holofoil",
+      "physicalFinish": null,
+      "displayLabel": "Holofoil (provider label)",
+      "currency": "USD",
+      "marketPrice": 8.54,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:41:35.662745+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/judy-hopps-day-camp-instructor-prerelease-promo/",
+        "https://lorcanaplayer.com/wp-content/uploads/2026/09/13-PD1-EN-14-Judy-Hopps-Day-Camp-Instructor-Prerelease-Promo-Lorcana-Player.jpg",
+        "https://tcgcsv.com/tcgplayer/71/23234/products",
+        "https://www.tcgplayer.com/product/722995/lorcana-tcg-disney-lorcana-promo-cards-judy-hopps-day-camp-instructor"
+      ],
+      "mappingEvidenceNote": "Exact PD1 printing identity and TCGproduct are verified. The complete group price feed contains exactly one row for this product: Holofoil. This quote does not classify its physical finish as cold or rainbow.",
+      "fallbackPolicy": "unknown-null-if-exact-printing-and-provider-subtype-quote-unavailable; never use base gameplay product prices",
+      "availableRawSubtypes": [
+        "Holofoil"
+      ],
+      "sourcePriceRow": {
+        "productId": 722995,
+        "lowPrice": 8.48,
+        "midPrice": 9.38,
+        "highPrice": 17.24,
+        "marketPrice": 8.54,
+        "directLowPrice": null,
+        "subTypeName": "Holofoil"
+      },
+      "inventoryFinish": "foil",
+      "provider": "TCGplayer via TCGCSV",
+      "sourceBuildURL": "https://tcgcsv.com/last-updated.txt"
+    },
+    "tcgplayer_722996|provider:Holofoil": {
+      "printingId": "tcgplayer_722996",
+      "tcgplayerProductId": 722996,
+      "tcgplayerGroupId": 23234,
+      "expectedPrinting": {
+        "n": "Berlioz",
+        "v": "Tiny Rascal",
+        "s": "PD1",
+        "c": "14",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "rawSubtype": "Holofoil",
+      "physicalFinish": null,
+      "displayLabel": "Holofoil (provider label)",
+      "currency": "USD",
+      "marketPrice": 4.79,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:41:35.662745+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/berlioz-tiny-rascal-prerelease-promo/",
+        "https://lorcanaplayer.com/wp-content/uploads/2026/09/14-PD1-EN-14-Berlioz-Tiny-Rascal-Prerelease-Promo-Lorcana-Player.jpg",
+        "https://tcgcsv.com/tcgplayer/71/23234/products",
+        "https://www.tcgplayer.com/product/722996/lorcana-tcg-disney-lorcana-promo-cards-berlioz-tiny-rascal"
+      ],
+      "mappingEvidenceNote": "Exact PD1 printing identity and TCGproduct are verified. The complete group price feed contains exactly one row for this product: Holofoil. This quote does not classify its physical finish as cold or rainbow.",
+      "fallbackPolicy": "unknown-null-if-exact-printing-and-provider-subtype-quote-unavailable; never use base gameplay product prices",
+      "availableRawSubtypes": [
+        "Holofoil"
+      ],
+      "sourcePriceRow": {
+        "productId": 722996,
+        "lowPrice": 3.95,
+        "midPrice": 6.0,
+        "highPrice": 30.0,
+        "marketPrice": 4.79,
+        "directLowPrice": null,
+        "subTypeName": "Holofoil"
+      },
+      "inventoryFinish": "foil",
+      "provider": "TCGplayer via TCGCSV",
+      "sourceBuildURL": "https://tcgcsv.com/last-updated.txt"
+    }
+  }
 }

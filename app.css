@@ -191,3 +191,9 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .own .step label{min-width:94px}
 .scan-finish{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .scan-finish select{width:auto}
+
+/* Promo/special printing identity remains separate from physical finish. */
+.printing-resolution{padding:10px 12px;border:1px solid var(--warn);border-radius:10px;overflow-wrap:anywhere}
+.printing-search-note{padding:8px 12px;margin:0;overflow-wrap:anywhere}
+.printing-more{margin:10px 12px}
+.legality-info{overflow-wrap:anywhere;line-height:1.5}

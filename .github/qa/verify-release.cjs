@@ -37,11 +37,32 @@ for(const [key,quote] of Object.entries(quotes.quotes)){assert.equal(key,quote.p
 
 assert(catalog.cards.every(c => !String(c.id).startsWith('synthetic-')));
 const html = read('index.html').toString(), sw = read('sw.js').toString();
-assert(html.includes('safety.js?v=7') && html.includes('app.js?v=7') && html.includes('app.css?v=7'));
-assert(html.indexOf('safety.js?v=7') < html.indexOf('app.js?v=7'));
-assert(sw.includes("const CACHE = 'inkscan-v7'"));
-assert(sw.includes('safety.js?v=7'));
+assert(html.includes('safety.js?v=8') && html.includes('app.js?v=8') && html.includes('app.css?v=8'));
+assert(html.indexOf('safety.js?v=8') < html.indexOf('app.js?v=8'));
+assert(sw.includes("const CACHE = 'inkscan-v8'"));
+assert(sw.includes('safety.js?v=8'));
+assert(html.includes('catalog.js?v=8') && html.indexOf('catalog.js?v=8') < html.indexOf('app.js?v=8'));
+assert(sw.includes('catalog.js?v=8') && sw.includes('promo-catalog.json'));
+assert.equal(crypto.createHash('sha256').update(read('promo-catalog.json')).digest('hex'),manifest.promoCatalogSha256);
+const supplemental=JSON.parse(read('promo-catalog.json')), merged=require('../../catalog.js').merge(catalog,supplemental);
+assert.deepEqual(merged.warnings,[]);
+assert.deepEqual(supplemental.records.map(x=>x.id).sort(),manifest.supplementalPrintingIds.slice().sort());
+assert.equal(merged.catalog.cards.length,catalog.cards.length+manifest.supplementalPrintingIds.length);
+assert.equal(Object.keys(quotes.promoFoilQuotes).length,manifest.promoFoilQuoteEntries);
+for(const [key,quote] of Object.entries(quotes.promoFoilQuotes)){assert.equal(key,quote.printingId+'|provider:Holofoil');assert.notEqual(require('../../catalog.js').validatedFoilQuote(merged.catalog.cards.find(c=>c.id===quote.printingId),quote,new Date(quote.observedAt).getTime()),null);}
+for(const id of manifest.supplementalPrintingIds){const c=merged.catalog.cards.find(x=>x.id===id);assert(c?.supplemental);for(const key of ['p','pf','prf','iv'])assert.equal(c[key],null);}
+assert(html.includes('legality.js?v=8') && html.indexOf('legality.js?v=8') < html.indexOf('app.js?v=8'));
+assert(sw.includes('legality.js?v=8') && sw.includes('core-rules.json'));
+assert.equal(crypto.createHash('sha256').update(read('core-rules.json')).digest('hex'),manifest.coreRulesSha256);
+const rules=JSON.parse(read('core-rules.json'));
+assert.equal(rules.verifiedAt,manifest.corePolicyAsOf);assert.equal(rules.reviewDue,manifest.corePolicyReviewDue);
+assert.deepEqual(rules.eligibleReleasedSetCodes,['9','10','11','12','13','14']);assert.deepEqual(rules.bannedGameplayIdentities,[]);
+const coreIndex=require('../../legality.js').createIndex(merged.catalog,rules,Date.parse(manifest.corePolicyAsOf+'T18:00:00Z')), coreCounts={};
+assert.equal(coreIndex.info.valid,true);for(const c of merged.catalog.cards){const status=coreIndex.status(c).status;coreCounts[status]=(coreCounts[status]||0)+1;}
+assert.deepEqual(coreCounts,manifest.coreEligibilityCounts);
+assert.equal(require('../../legality.js').createIndex(merged.catalog,rules,Date.parse(manifest.corePolicyReviewDue+'T00:00:00Z')).status(merged.catalog.cards[0]).status,'unknown');
+assert(!app.includes('Legal deck') && !app.includes('Not legal (Infinity only)'));
 assert(!/skipWaiting\s*\(|clients\.claim\s*\(/.test(sw));
 assert(!/localStorage\.(clear|removeItem)\s*\(/.test(app), 'Do not erase saved legacy state during this release');
 for (const name of ['qa-seed.html','tests.cjs','household-schema.proposal.sql','HOUSEHOLD-PROPOSAL.md']) assert(!fs.existsSync(path.join(root,name)), `Test/proposal file must not enter production root: ${name}`);
-console.log(`Release verified: ${catalog.cards.length}-printing verified catalog with all original identities retained, ${Object.keys(manifest.unchangedFiles).length} unchanged catalog/assets, unchanged production configuration, v7 assets, no forced worker takeover or legacy deletion.`);
+console.log(`Release verified: ${catalog.cards.length}-printing verified catalog with all original identities retained, ${Object.keys(manifest.unchangedFiles).length} unchanged catalog/assets, unchanged production configuration, v8 assets, no forced worker takeover or legacy deletion.`);

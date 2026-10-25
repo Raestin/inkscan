@@ -8,7 +8,7 @@ function harness(seed={}){
  const elements=new Map(), events=[], timers=[], network=[], localStorage=storage(seed);
  function el(id){if(!elements.has(id))elements.set(id,{id,value:'',hidden:false,dataset:{},style:{},textContent:'',innerHTML:'',classList:{toggle(){},add(){},remove(){}},addEventListener(type,fn){events.push({id,type,fn});},setAttribute(){},getAttribute(){return 'false';},removeAttribute(){},querySelector(){return el('child');},querySelectorAll(){return[];},getContext(){return{};},appendChild(){},click(){},remove(){},insertAdjacentHTML(){},select(){}});return elements.get(id);}
  const doc={getElementById:el,querySelector:el,querySelectorAll:()=>[],createElement:el,addEventListener(type,fn){events.push({id:'document',type,fn});},body:el('body'),hidden:false};
- const context={InkSafety:S,document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:true},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
+ const context={InkSafety:S,InkCatalog:require('./catalog.js'),InkLegality:require('./legality.js'),document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:true},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
  context.window=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(__dirname+'/app.js','utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
@@ -148,8 +148,8 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=7'));assert.ok(sw.includes(name+'.js?v=7'));}
- assert.match(sw,/const CACHE = 'inkscan-v7'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=8'));assert.ok(sw.includes(name+'.js?v=8'));}
+ assert.match(sw,/const CACHE = 'inkscan-v8'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.
@@ -165,12 +165,12 @@ test('fresh signed-out boot completes with synthetic catalog and no cloud reques
  const initial={...state(),inv:{card0:{q:2,f:1}}};
  const h=harness({[S.KEY]:JSON.stringify(initial)});
  h.context.Tesseract={createWorker:async()=>({setParameters:async()=>{}})};
- h.context.fetch=async url=>{h.network.push(url);assert.ok(['cards.json','finish-quotes.json'].includes(url));return new Response(JSON.stringify(url==='cards.json'?catalog():{entries:{},productMappings:[],ambiguousFoilPrintings:[]}));};
+ h.context.fetch=async url=>{h.network.push(url);assert.ok(['cards.json','core-rules.json','finish-quotes.json','promo-catalog.json'].includes(url));return new Response(JSON.stringify(url==='cards.json'?catalog():{entries:{},productMappings:[],ambiguousFoilPrintings:[]}));};
  await h.api.boot();
  assert.equal(h.el('loadBanner').hidden,true);
  assert.equal(h.el('tCopies').textContent,'3');
  assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
- assert.deepEqual([...h.network].sort(),['cards.json','finish-quotes.json']);
+ assert.deepEqual([...h.network].sort(),['cards.json','core-rules.json','finish-quotes.json','promo-catalog.json']);
 });
 
 test('save failure stays visible inside an open sheet across card rerenders and clears only after a durable save',()=>{
