@@ -1,0 +1,56 @@
+name: Isolated synthetic QA (never deploy)
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'qa/**'
+      - '.github/workflows/isolated-synthetic-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: synthetic-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  browser-qa:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/synthetic-browser-6d9ed1f8829a4d5f82466ec64fcd6865'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+      - name: Verify production roots and sanitized fixture
+        run: node verify-isolation.cjs
+      - name: Install pinned test runner
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Unit and syntax checks
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          npm run check
+          npm run test:unit | tee test-results/unit-tests.txt
+      - name: Install official Chromium and OS dependencies
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Desktop and mobile localhost browser QA
+        run: npm run test:browser
+      - name: Retain synthetic evidence for 7 days
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: synthetic-qa-${{ github.sha }}
+          path: |
+            qa/playwright-report/
+            qa/test-results/
+          retention-days: 7
+          if-no-files-found: warn

@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1D1A35">
+<title>InkScan</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="app.css?v=6">
+</head>
+<body>
+<header class="top">
+  <div class="wrap brand">
+    <h1>Ink<b>Scan</b></h1>
+    <div class="totals" aria-live="polite">
+      <span><strong id="tUnique">0</strong> cards</span>
+      <span><strong id="tCopies">0</strong> copies</span>
+      <span><strong id="tValue">$0</strong></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="row between"><p id="saveStatus" class="note" role="status"></p><button class="btn primary" id="manualUpdate">Update</button><button class="btn" id="safetyBackup">Back up</button></div>
+  <div id="loadBanner" class="banner">Loading the card list…</div>
+
+  <!-- ============ SCAN ============ -->
+  <section class="view" id="vScan">
+    <div class="cam" id="cam">
+      <video id="video" playsinline muted></video>
+      <div class="guide" id="guide" hidden><div class="strip"></div></div>
+      <div class="flash" id="flash"></div>
+      <div class="camtools" id="camtools" hidden>
+        <button id="foilBtn" aria-pressed="false">Foil</button>
+        <button id="torchBtn" aria-pressed="false" hidden>Light</button>
+        <button id="stopBtn">Stop</button>
+      </div>
+      <div class="camstate" id="camstate" hidden></div>
+      <div class="camstart" id="camstart">
+        <button class="btn primary" id="startBtn" disabled>Start scanning</button>
+        <span class="note" style="color:#B9B4D3">Line the card up in the frame. The number line at the bottom left goes in the gold box.</span>
+      </div>
+    </div>
+    <div class="row between"><h2 class="h2">This session <span class="note" id="logCount"></span></h2></div>
+    <div class="list" id="log"></div>
+    <div>
+      <h2 class="h2" style="margin-bottom:8px">Add by search</h2>
+      <input type="search" id="q" placeholder="Card name, or set + number like 1 207" autocomplete="off" enterkeyhint="search">
+      <div class="list" id="qres" hidden style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ============ COLLECTION ============ -->
+  <section class="view" id="vColl" hidden>
+    <div class="row between">
+      <div class="seg" role="group" aria-label="Collection view">
+        <button data-csub="cards" aria-pressed="true">Cards</button>
+        <button data-csub="sets" aria-pressed="false">Sets</button>
+        <button data-csub="wish" aria-pressed="false">Wishlist</button>
+      </div>
+      <button class="btn" id="toolsBtn">Tools</button>
+    </div>
+
+    <div id="collCards" class="stack">
+      <input type="search" id="cf" placeholder="Filter your collection" autocomplete="off">
+      <div class="chips" id="collInks"></div>
+      <div class="row between">
+        <div class="row">
+          <label for="sortSel" class="note">Sort</label>
+          <select id="sortSel" class="slim">
+            <option value="set">Set &amp; number</option>
+            <option value="value">Value</option>
+            <option value="name">Name</option>
+            <option value="cost">Cost</option>
+            <option value="rarity">Rarity</option>
+          </select>
+        </div>
+        <div class="seg" role="group" aria-label="Layout">
+          <button data-lay="grid" aria-pressed="true">Grid</button>
+          <button data-lay="list" aria-pressed="false">List</button>
+        </div>
+      </div>
+      <label>Finish <select id="cFinish"><option value="all">Normal + foil</option><option value="normal">Normal only</option><option value="foil">Foil only</option></select></label>
+      <button class="btn" id="cReset">Reset collection filters</button>
+      <p class="summary" id="cValue" role="status"></p>
+      <div id="coll"></div>
+    </div>
+
+    <div id="collSets" class="stack" hidden><div class="list" id="setList"></div></div>
+
+    <div id="collWish" class="stack" hidden>
+      <div class="summary" id="wishSum"></div>
+      <div class="list" id="wishList"></div>
+    </div>
+  </section>
+
+  <!-- ============ DECKS ============ -->
+  <section class="view" id="vDecks" hidden>
+    <div id="deckHome" class="stack">
+      <div class="row between">
+        <h2 class="h2">Decks</h2>
+        <div class="row">
+          <button class="btn" id="importDeckBtn">Import</button>
+          <button class="btn primary" id="newDeckBtn">New deck</button>
+        </div>
+      </div>
+      <div class="list" id="deckList"></div>
+    </div>
+
+    <div id="deckEdit" class="stack" hidden>
+      <div class="row between">
+        <button class="btn ghost" id="deckBack">‹ Decks</button>
+        <div class="row">
+          <button class="btn" id="deckHandBtn">Sample hand</button>
+          <button class="btn" id="deckMoreBtn">More</button>
+        </div>
+      </div>
+      <input type="text" id="deckName" class="deckname" aria-label="Deck name" maxlength="60">
+      <div class="deckstats" id="deckStats"></div>
+      <div class="seg" role="group" aria-label="Deck view">
+        <button data-dsub="list" aria-pressed="true">Deck</button>
+        <button data-dsub="add" aria-pressed="false">Add cards</button>
+      </div>
+      <div id="deckListPane"></div>
+      <div id="deckAddPane" class="stack" hidden>
+        <input type="search" id="dq" placeholder="Search cards to add" autocomplete="off">
+        <div class="row">
+          <label class="check"><input type="checkbox" id="dOwned" checked> Cards I own</label>
+          <span class="note" id="dInkNote"></span>
+        </div>
+        <div class="list" id="dRes"></div>
+        <div id="dMore"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BROWSE ============ -->
+  <section class="view" id="vBrowse" hidden>
+    <input type="search" id="bq" placeholder="Search all Lorcana cards" autocomplete="off">
+    <div class="chips" id="bInks"></div>
+    <div class="filters">
+      <select id="bSet" aria-label="Set"></select>
+      <select id="bType" aria-label="Type">
+        <option value="">All types</option><option>Character</option><option>Action</option><option>Song</option><option>Item</option><option>Location</option>
+      </select>
+      <select id="bCost" aria-label="Cost">
+        <option value="">Any cost</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option value="7">7+</option>
+      </select>
+      <select id="bRar" aria-label="Rarity">
+        <option value="">Any rarity</option><option>Common</option><option>Uncommon</option><option>Rare</option><option value="Super_rare">Super rare</option><option>Legendary</option><option>Epic</option><option>Enchanted</option><option>Iconic</option><option>Promo</option>
+      </select>
+      <select id="bOwn" aria-label="Ownership">
+        <option value="">Owned + missing</option><option value="own">Owned</option><option value="miss">Missing</option>
+      </select>
+      <select id="bSort" aria-label="Sort">
+        <option value="set">Set &amp; number</option><option value="name">Name</option><option value="cost">Cost</option><option value="price">Price</option>
+      </select>
+    </div>
+    <div class="row between"><span class="note" id="bCount"></span><button class="btn ghost tiny" id="bReset">Reset filters</button></div>
+    <label>Value / ownership finish <select id="bFinish"><option value="all">Normal + foil</option><option value="normal">Normal only</option><option value="foil">Foil only</option></select></label>
+    <p class="summary" id="bValue" role="status"></p>
+    <div class="grid" id="bGrid"></div>
+    <div id="bSentinel" class="sentinel"></div>
+  </section>
+</main>
+
+<nav class="tabbar" aria-label="Main">
+  <button data-tab="scan" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Scan</span></button>
+  <button data-tab="coll">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="12" height="16" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/></svg><span>Collection</span></button>
+  <button data-tab="decks">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="12" height="16" rx="2"/><rect x="4" y="6" width="12" height="16" rx="2"/></svg><span>Decks</span></button>
+  <button data-tab="browse">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Browse</span></button>
+</nav>
+
+<!-- bottom sheet (card detail, tools, import, hand) -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="sheet-head"><h2 class="h2" id="sheetTitle"></h2><button class="btn ghost" id="sheetClose" aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
+
+<script src="tesseract.min.js"></script>
+<script src="safety.js?v=6"></script>
+<script src="app.js?v=6"></script>
+</body>
+</html>
