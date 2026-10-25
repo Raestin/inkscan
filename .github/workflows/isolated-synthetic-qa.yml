@@ -30,6 +30,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.1'
+          package-manager-cache: false
       - name: Verify production roots and sanitized fixture
         run: node verify-isolation.cjs
       - name: Install pinned test runner
@@ -37,9 +38,9 @@ jobs:
       - name: Unit and syntax checks
         run: |
           set -o pipefail
-          mkdir -p test-results
+          mkdir -p unit-results
           npm run check
-          npm run test:unit | tee test-results/unit-tests.txt
+          npm run test:unit | tee unit-results/unit-tests.txt
       - name: Install official Chromium and OS dependencies
         run: npx --no-install playwright install --with-deps chromium
       - name: Desktop and mobile localhost browser QA
@@ -52,5 +53,6 @@ jobs:
           path: |
             qa/playwright-report/
             qa/test-results/
+            qa/unit-results/
           retention-days: 7
           if-no-files-found: warn

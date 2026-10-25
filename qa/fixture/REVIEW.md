@@ -33,3 +33,7 @@ The sanitized cloud QA copy now has 56 passing synthetic tests (51 client/persis
 - Present null/false/scalar v5 saved state is treated as corruption rather than an empty legacy fallback. Primitive inventory rows fail validation. Asset/cache version is 6 (state envelope remains v5), without forced service-worker takeover.
 
 Final checks: `node --test tests.cjs household-contract.test.cjs` and syntax checks for app.js, safety.js and sw.js. Browser QA is still **not run**: this cloud sandbox denies AF_UNIX socket creation needed to launch Chromium, and no supported bundled headless shell is installed. No security bypass, production access, push, deployment, migration, or account change occurred.
+
+## Hosted-browser startup regression
+
+The first GitHub-hosted browser run (2026-10-25) launched Chromium successfully but exposed a new-development signed-out startup error: absent session and baseline IDs compared equal, passing a null baseline into pending-count rendering. Both status and Update-dialog guards now require an actual signed-in user ID before using a matching baseline. Two regression tests exercise signed-out status/dialog and full boot with a synthetic catalog. Local unit total is now 58 passing. Hosted browser rerun is pending; this note is not a browser pass or a statement about the unchanged live app.

@@ -37,7 +37,7 @@ function renderSaveStatus(){
   const unknown=typeof byId!=='undefined'&&byId ? Object.keys(inv).filter(id=>!byId.has(id)).length : 0;
   el.textContent=storageError || (unknown?`${unknown} collection printing(s) are missing from the catalog. They are retained in your collection and backup.`:'Saved on this device. Cloud updates run only when you tap Update.');
   el.classList.toggle('bad',!!storageError);
-  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),base?.uid===session?.uid?base:{inv:{},wish:{},decks:{}});$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
+  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}});$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
 }
 
 function download(name, text, type){
@@ -987,7 +987,7 @@ async function sync(manual){
 }
 
 function syncBoxHTML(){
-  const agreed=base?.uid===session?.uid?base:{inv:{},wish:{},decks:{}};
+  const agreed=session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}};
   const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),agreed);
   const when=syncState.last?new Date(syncState.last).toLocaleString():'not yet';
   const common=`<p class="note">Manual cloud updates only. Pending on this device: ${counts.inv} collection printing(s), ${counts.decks} deck(s), ${counts.wish} wishlist item(s). Last confirmed update: ${esc(when)}.</p>

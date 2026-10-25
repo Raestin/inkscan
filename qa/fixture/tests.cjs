@@ -13,7 +13,7 @@ function harness(seed={}){
  let source=fs.readFileSync(__dirname+'/app.js','utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
  source=source.replace('window.__inkscan =',`window.testAPI={boot,totals,saveInv,saveDecks,saveWish,parseDeckImport,previewCollectionImport,previewRestore,collRows,renderCollCards,renderBrowse,resetBrowse,addQty,logAdd,openCard,cardDetailHTML,sync,guardedWrite,rest,reviewUpdate,renderSaveStatus,
-  setState(s){inv=S.clone(s.inv||{});wish=S.clone(s.wish||{});decks=S.clone(s.decks||[]);base=s.base||null;session=s.session||{uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};savedState=savedState||${JSON.stringify(state())};},
+  setState(s){inv=S.clone(s.inv||{});wish=S.clone(s.wish||{});decks=S.clone(s.decks||[]);base=s.base||null;session=Object.hasOwn(s,'session')?s.session:{uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};savedState=savedState||${JSON.stringify(state())};},
   getState(){return {inv,wish,decks,base,session,storageError,localRevision,syncState};},
   setReview(fn){reviewUpdate=fn;},setRest(fn){rest=fn;},setDownload(fn){download=fn;},setRender(fn){renderAll=fn;},setCatalog(d){indexCards(d);},setInk(i){collInks.clear();if(i)collInks.add(i);},setChunk(fn){chunked=fn;}};\nwindow.__inkscan =`);
  source=source.replace('inv=S.clone','inv=InkSafety.clone').replace('wish=S.clone','wish=InkSafety.clone').replace('decks=S.clone','decks=InkSafety.clone');
@@ -150,4 +150,25 @@ test('updated app and safety scripts have matching versioned service-worker shel
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
  for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=6'));assert.ok(sw.includes(name+'.js?v=6'));}
  assert.match(sw,/const CACHE = 'inkscan-v6'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+});
+
+// Browser-discovered regression: null baseline + signed-out session must not match.
+test('signed-out fresh state renders pending status and manual Update without a null baseline crash',()=>{
+ const h=harness();h.api.setState({inv:{card0:{q:2,f:1}},session:null,base:null});
+ assert.doesNotThrow(()=>h.api.renderSaveStatus());
+ assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
+ assert.doesNotThrow(()=>h.el('manualUpdate').onclick());
+ assert.match(h.el('sheetBody').innerHTML,/Signing in does not sync/);
+ assert.equal(h.network.length,0);
+});
+test('fresh signed-out boot completes with synthetic catalog and no cloud request',async()=>{
+ const initial={...state(),inv:{card0:{q:2,f:1}}};
+ const h=harness({[S.KEY]:JSON.stringify(initial)});
+ h.context.Tesseract={createWorker:async()=>({setParameters:async()=>{}})};
+ h.context.fetch=async url=>{h.network.push(url);assert.equal(url,'cards.json');return new Response(JSON.stringify(catalog()));};
+ await h.api.boot();
+ assert.equal(h.el('loadBanner').hidden,true);
+ assert.equal(h.el('tCopies').textContent,'3');
+ assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
+ assert.deepEqual(h.network,['cards.json']);
 });
