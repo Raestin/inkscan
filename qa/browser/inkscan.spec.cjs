@@ -6,6 +6,16 @@ const KEY = 'inkscan.state.v5';
 const blockedByContext = new WeakMap();
 const errorsByPage = new WeakMap();
 
+async function fetchAttempts(page) {
+  return page.evaluate(() => window.__inkscanQAFetchAttempts || []);
+}
+async function expectNoCloudFetchAttempts(page) {
+  const attempts = await fetchAttempts(page);
+  expect(attempts.filter(attempt => attempt.audit), 'Fetch audit must inspect every attempted app request').toEqual([]);
+  expect(attempts.filter(attempt => /^\/(?:auth|rest)\/v1(?:\/|$)/.test(attempt.pathname)),
+    'The app must fail closed before attempting any auth or collection API fetch').toEqual([]);
+}
+
 async function saved(page) {
   return page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY);
 }
@@ -78,6 +88,28 @@ test.beforeEach(async ({ context, page }) => {
   const errors = [];
   errorsByPage.set(page, errors);
   page.on('pageerror', error => errors.push(error.message));
+  // A CSP rejection can happen before routing sees a request. Audit calls to
+  // fetch as well as intercepted traffic, without recording headers or bodies.
+  // Each navigation gets a new per-document audit; checks below occur in the
+  // same document as the startup/events/edit/manual action under examination.
+  await context.addInitScript(() => {
+    const nativeFetch = window.fetch;
+    const attempts = [];
+    window.__inkscanQAFetchAttempts = attempts;
+    window.fetch = function (...args) {
+      try {
+        const input = args[0];
+        const target = typeof input === 'string' ? input : input instanceof URL ? input.href : input?.url;
+        const url = new URL(target, location.href);
+        const method = args[1]?.method || (input instanceof Request ? input.method : 'GET');
+        attempts.push({ method: String(method).toUpperCase(), origin: url.origin, pathname: url.pathname });
+      } catch {
+        // Auditing must not change native fetch's errors or return value.
+        attempts.push({ audit: 'URL or method could not be inspected' });
+      }
+      return Reflect.apply(nativeFetch, this, args);
+    };
+  });
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin === 'http://127.0.0.1:4173') return route.continue();
@@ -88,7 +120,12 @@ test.beforeEach(async ({ context, page }) => {
 });
 
 test.afterEach(async ({ context, page }, info) => {
-  if (!page.isClosed()) await shot(page, info, 'final-screen');
+  if (!page.isClosed()) {
+    await shot(page, info, 'final-screen');
+    await info.attach('fetch-attempt-audit.json', {
+      body: JSON.stringify(await fetchAttempts(page), null, 2), contentType: 'application/json'
+    });
+  }
   await info.attach('blocked-external-requests.json', {
     body: JSON.stringify(blockedByContext.get(context) || [], null, 2), contentType: 'application/json'
   });
@@ -296,6 +333,7 @@ test('backup and reload preserve unknown printing, exact normal/foil quantities,
 
 test('manual Update exposes pending status and development sign-in fails before any cloud request', async ({ page, context }, info) => {
   const original = await saved(page);
+  await expectNoCloudFetchAttempts(page);
   await page.locator('#manualUpdate').click();
   await expect(page.locator('#sheetTitle')).toHaveText('Cloud update');
   await expect(page.locator('#syncBox')).toContainText('Manual cloud updates only.');
@@ -307,9 +345,11 @@ test('manual Update exposes pending status and development sign-in fails before 
   await page.locator('#sbPass').fill('synthetic-test-only-not-a-real-password');
   await page.locator('[data-sync="in"]').click();
   await expect(page.locator('#sbMsg')).toHaveText('Cloud access is disabled in this isolated development preview.');
+  await expectNoCloudFetchAttempts(page);
   await page.locator('[data-sync="up"]').click();
   await expect(page.locator('#sbMsg')).toHaveText('Cloud access is disabled in this isolated development preview.');
   expect(await saved(page)).toEqual(original);
+  await expectNoCloudFetchAttempts(page);
   expect((blockedByContext.get(context) || []).filter(x => /example\.invalid|supabase/.test(x.origin))).toEqual([]);
   expect(await page.evaluate(() => localStorage.getItem('inkscan.session'))).toBeNull();
   await shot(page, info, 'manual-update-disabled-development-origin');
@@ -323,22 +363,28 @@ test('synthetic signed-in state never auto-syncs and explicit Update still fails
   })));
   await page.reload();
   await waitForApp(page);
+  await expectNoCloudFetchAttempts(page);
   await page.evaluate(() => {
     window.dispatchEvent(new Event('online'));
     window.dispatchEvent(new Event('focus'));
     document.dispatchEvent(new Event('visibilitychange'));
   });
+  await expectNoCloudFetchAttempts(page);
   await openCard(page);
   await page.getByRole('button', { name: 'One more normal', exact: true }).click();
   await page.locator('#sheetClose').click();
   await closed(page);
+  await expectNoCloudFetchAttempts(page);
   await page.locator('#manualUpdate').click();
   await expect(page.locator('#syncBox')).toContainText('Your collection stays local until you confirm an Update.');
+  await expect(page.locator('#syncBox [role="alert"]')).toHaveCount(0);
+  await expectNoCloudFetchAttempts(page);
   await page.locator('[data-sync="now"]').click();
   await expect(page.locator('#syncBox [role="alert"]')).toContainText('Cloud access is disabled in this isolated development preview.');
   await expect(page.locator('#syncBox')).toContainText('Last confirmed update: not yet.');
   expect((await saved(page)).base).toEqual(original.base);
   expect((await saved(page)).inv['synthetic-card-0']).toEqual({ q: 3, f: 1 });
+  await expectNoCloudFetchAttempts(page);
   expect((blockedByContext.get(context) || []).filter(x => /example\.invalid|supabase/.test(x.origin))).toEqual([]);
   await shot(page, info, 'manual-update-synthetic-session-fails-closed');
 });

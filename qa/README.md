@@ -15,7 +15,7 @@ A future production patch must separately extract/review the actual application 
 - The draft PR workflow runs only for this newly generated QA head branch, on pull-request events targeting `main`.
 - It uses one standard GitHub-hosted Ubuntu runner, a 15-minute job limit, one Playwright worker, exact dependency versions and official actions pinned to commit SHAs.
 - Workflow permissions are only `contents: read`; checkout credentials are not persisted. It references no secrets, deployments or Pages environment and has no publish/deploy step.
-- The HTTP server binds **127.0.0.1 only**, serves **fixture only**, and sends a restrictive CSP denying external connections. Browser context routing also aborts external requests. The app's development-origin guard and nonfunctional cloud placeholders remain intact.
+- The HTTP server binds **127.0.0.1 only**, serves **fixture only**, and sends a restrictive CSP denying external connections. Only local WebAssembly compilation is allowed for the bundled OCR initialization; JavaScript `unsafe-eval` is not enabled. Browser context routing also aborts external requests. The app's development-origin guard and nonfunctional cloud placeholders remain intact.
 - Artifacts contain synthetic reports/screenshots/traces only and expire after 7 days. No real credentials are requested or entered.
 - Service workers are blocked so request interception cannot be bypassed. **This is not offline/PWA/service-worker lifecycle coverage.** No physical phone, camera/OCR, real Supabase or household RLS/RPC pass is claimed.
 
