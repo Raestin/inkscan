@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>InkScan synthetic QA setup</title><h1>Cloud VM QA only</h1><p>This initializes synthetic data in this cloud browser origin. It must never be opened on a user's real app origin.</p><button id="seed">Initialize synthetic collection and open InkScan</button><p id="status"></p><script src="safety.js?v=7"></script><script>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>InkScan synthetic QA setup</title><h1>Cloud VM QA only</h1><p>This initializes synthetic data in this cloud browser origin. It must never be opened on a user's real app origin.</p><button id="seed">Initialize synthetic collection and open InkScan</button><p id="status"></p><script src="safety.js?v=8"></script><script>
 document.getElementById('seed').onclick=()=>{
  if(!['localhost','127.0.0.1'].includes(location.hostname)){document.getElementById('status').textContent='Setup is restricted to a localhost cloud-VM preview.';return;}
  const data={v:5,inv:{'synthetic-card-0':{q:2,f:1},'synthetic-card-1':{q:1,f:2},'synthetic-unknown-printing':{q:3,f:0}},decks:[],wish:{},base:null,last:null,imports:{},recovery:[],revision:0};

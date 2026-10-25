@@ -1,0 +1,391 @@
+{
+  "schemaVersion": 1,
+  "game": "lorcana",
+  "verifiedAt": "2026-10-25",
+  "records": [
+    {
+      "id": "tcgplayer_722990",
+      "provider": "TCGplayer",
+      "productId": 722990,
+      "printing": {
+        "n": "Nick Wilde",
+        "v": "Inquisitive Harbormaster",
+        "s": "PD1",
+        "sn": "PD1",
+        "c": "9",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "gameplaySource": {
+        "id": "crd_44606b91eae5430e9ee3290986734dbd",
+        "expectedIdentity": {
+          "n": "Nick Wilde",
+          "v": "Inquisitive Harbormaster",
+          "s": "14",
+          "c": "11",
+          "r": "Rare"
+        }
+      },
+      "evidence": [
+        {
+          "url": "https://lorcanaplayer.com/card/nick-wilde-inquisitive-harbormaster-prerelease-promo/",
+          "supports": [
+            "printing",
+            "gameplay"
+          ]
+        },
+        {
+          "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/9-PD1-EN-14-Nick-Wilde-Inquisitive-Harbormaster-Prerelease-Promo-Lorcana-Player.jpg",
+          "supports": [
+            "printing",
+            "gameplay"
+          ],
+          "note": "Full public card image visually checked: 9/PD1 · EN · 14, Hyperia City logo stamp, gold promo border and promo symbol; gameplay matches the exact base printing."
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/products",
+          "supports": [
+            "product"
+          ],
+          "note": "Product 722990; category 71; group 23234; Number 9; PromoType Prerelease Promo."
+        },
+        {
+          "url": "https://www.tcgplayer.com/product/722990/lorcana-tcg-disney-lorcana-promo-cards-nick-wilde-inquisitive-harbormaster",
+          "supports": [
+            "product"
+          ]
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+          "supports": [
+            "finish"
+          ],
+          "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
+        }
+      ],
+      "rawSubtype": "Holofoil"
+    },
+    {
+      "id": "tcgplayer_722992",
+      "provider": "TCGplayer",
+      "productId": 722992,
+      "printing": {
+        "n": "Merlin",
+        "v": "Ink Drop Tinkerer",
+        "s": "PD1",
+        "sn": "PD1",
+        "c": "10",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "gameplaySource": {
+        "id": "crd_df613732dc6641a6b0a8699c056c070f",
+        "expectedIdentity": {
+          "n": "Merlin",
+          "v": "Ink Drop Tinkerer",
+          "s": "14",
+          "c": "52",
+          "r": "Rare"
+        }
+      },
+      "evidence": [
+        {
+          "url": "https://lorcanaplayer.com/card/merlin-ink-drop-tinkerer-prerelease-promo/",
+          "supports": [
+            "printing",
+            "gameplay"
+          ]
+        },
+        {
+          "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/10-PD1-EN-14-Merlin-Ink-Drop-Tinkerer-Prerelease-Promo-Lorcana-Player.jpg",
+          "supports": [
+            "printing",
+            "gameplay"
+          ],
+          "note": "Full public card image visually checked: 10/PD1 · EN · 14, Hyperia City logo stamp, gold promo border and promo symbol; gameplay matches the exact base printing."
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/products",
+          "supports": [
+            "product"
+          ],
+          "note": "Product 722992; category 71; group 23234; Number 10; PromoType Prerelease Promo."
+        },
+        {
+          "url": "https://www.tcgplayer.com/product/722992/lorcana-tcg-disney-lorcana-promo-cards-merlin-ink-drop-tinkerer",
+          "supports": [
+            "product"
+          ]
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+          "supports": [
+            "finish"
+          ],
+          "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
+        }
+      ],
+      "rawSubtype": "Holofoil"
+    },
+    {
+      "id": "tcgplayer_722993",
+      "provider": "TCGplayer",
+      "productId": 722993,
+      "printing": {
+        "n": "Above the Crowd",
+        "v": "",
+        "s": "PD1",
+        "sn": "PD1",
+        "c": "11",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "gameplaySource": {
+        "id": "crd_ad5100c1182246a1a864abd42423f715",
+        "expectedIdentity": {
+          "n": "Above the Crowd",
+          "v": "",
+          "s": "14",
+          "c": "95",
+          "r": "Rare"
+        }
+      },
+      "evidence": [
+        {
+          "url": "https://lorcanaplayer.com/card/above-the-crowd-prerelease-promo/",
+          "supports": [
+            "printing",
+            "gameplay"
+          ]
+        },
+        {
+          "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/11-PD1-EN-14-Above-the-Crowd-Prerelease-Promo-Lorcana-Player.jpg",
+          "supports": [
+            "printing",
+            "gameplay"
+          ],
+          "note": "Full public card image visually checked: 11/PD1 · EN · 14, Hyperia City logo stamp, gold promo border and promo symbol; gameplay matches the exact base printing."
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/products",
+          "supports": [
+            "product"
+          ],
+          "note": "Product 722993; category 71; group 23234; Number 11; PromoType Prerelease Promo."
+        },
+        {
+          "url": "https://www.tcgplayer.com/product/722993/lorcana-tcg-disney-lorcana-promo-cards-above-the-crowd",
+          "supports": [
+            "product"
+          ]
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+          "supports": [
+            "finish"
+          ],
+          "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
+        }
+      ],
+      "rawSubtype": "Holofoil"
+    },
+    {
+      "id": "tcgplayer_722994",
+      "provider": "TCGplayer",
+      "productId": 722994,
+      "printing": {
+        "n": "Goofy",
+        "v": "Dancing Superstar",
+        "s": "PD1",
+        "sn": "PD1",
+        "c": "12",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "gameplaySource": {
+        "id": "crd_d635730df878416c8cb022ce851a4edc",
+        "expectedIdentity": {
+          "n": "Goofy",
+          "v": "Dancing Superstar",
+          "s": "14",
+          "c": "105",
+          "r": "Rare"
+        }
+      },
+      "evidence": [
+        {
+          "url": "https://lorcanaplayer.com/card/goofy-dancing-superstar-prerelease-promo/",
+          "supports": [
+            "printing",
+            "gameplay"
+          ]
+        },
+        {
+          "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/12-PD1-EN-14-Goofy-Dancing-Superstar-Prerelease-Promo-Lorcana-Player.jpg",
+          "supports": [
+            "printing",
+            "gameplay"
+          ],
+          "note": "Full public card image visually checked: 12/PD1 · EN · 14, Hyperia City logo stamp, gold promo border and promo symbol; gameplay matches the exact base printing."
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/products",
+          "supports": [
+            "product"
+          ],
+          "note": "Product 722994; category 71; group 23234; Number 12; PromoType Prerelease Promo."
+        },
+        {
+          "url": "https://www.tcgplayer.com/product/722994/lorcana-tcg-disney-lorcana-promo-cards-goofy-dancing-superstar",
+          "supports": [
+            "product"
+          ]
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+          "supports": [
+            "finish"
+          ],
+          "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
+        }
+      ],
+      "rawSubtype": "Holofoil"
+    },
+    {
+      "id": "tcgplayer_722995",
+      "provider": "TCGplayer",
+      "productId": 722995,
+      "printing": {
+        "n": "Judy Hopps",
+        "v": "Day Camp Instructor",
+        "s": "PD1",
+        "sn": "PD1",
+        "c": "13",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "gameplaySource": {
+        "id": "crd_c88e409716e8466b8850451676e23c0c",
+        "expectedIdentity": {
+          "n": "Judy Hopps",
+          "v": "Day Camp Instructor",
+          "s": "14",
+          "c": "154",
+          "r": "Rare"
+        }
+      },
+      "evidence": [
+        {
+          "url": "https://lorcanaplayer.com/card/judy-hopps-day-camp-instructor-prerelease-promo/",
+          "supports": [
+            "printing",
+            "gameplay"
+          ]
+        },
+        {
+          "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/13-PD1-EN-14-Judy-Hopps-Day-Camp-Instructor-Prerelease-Promo-Lorcana-Player.jpg",
+          "supports": [
+            "printing",
+            "gameplay"
+          ],
+          "note": "Full public card image visually checked: 13/PD1 · EN · 14, Hyperia City logo stamp, gold promo border and promo symbol; gameplay matches the exact base printing."
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/products",
+          "supports": [
+            "product"
+          ],
+          "note": "Product 722995; category 71; group 23234; Number 13; PromoType Prerelease Promo. Provider raw Rarity is Rare, but the physical PD1 promo footer/symbol and Prerelease Promo designation establish this promo printing; the normalized rarity group is Promo."
+        },
+        {
+          "url": "https://www.tcgplayer.com/product/722995/lorcana-tcg-disney-lorcana-promo-cards-judy-hopps-day-camp-instructor",
+          "supports": [
+            "product"
+          ]
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+          "supports": [
+            "finish"
+          ],
+          "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
+        }
+      ],
+      "rawSubtype": "Holofoil"
+    },
+    {
+      "id": "tcgplayer_722996",
+      "provider": "TCGplayer",
+      "productId": 722996,
+      "printing": {
+        "n": "Berlioz",
+        "v": "Tiny Rascal",
+        "s": "PD1",
+        "sn": "PD1",
+        "c": "14",
+        "r": "Promo",
+        "language": "EN",
+        "printedSet": "14",
+        "stamp": "Hyperia City"
+      },
+      "gameplaySource": {
+        "id": "crd_1d6f817a9ccd4cdcbd1cc89918f1c1c1",
+        "expectedIdentity": {
+          "n": "Berlioz",
+          "v": "Tiny Rascal",
+          "s": "14",
+          "c": "186",
+          "r": "Rare"
+        }
+      },
+      "evidence": [
+        {
+          "url": "https://lorcanaplayer.com/card/berlioz-tiny-rascal-prerelease-promo/",
+          "supports": [
+            "printing",
+            "gameplay"
+          ]
+        },
+        {
+          "url": "https://lorcanaplayer.com/wp-content/uploads/2026/09/14-PD1-EN-14-Berlioz-Tiny-Rascal-Prerelease-Promo-Lorcana-Player.jpg",
+          "supports": [
+            "printing",
+            "gameplay"
+          ],
+          "note": "Full public card image visually checked: 14/PD1 · EN · 14, Hyperia City logo stamp, gold promo border and promo symbol; gameplay matches the exact base printing."
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/products",
+          "supports": [
+            "product"
+          ],
+          "note": "Product 722996; category 71; group 23234; Number 14; PromoType Prerelease Promo."
+        },
+        {
+          "url": "https://www.tcgplayer.com/product/722996/lorcana-tcg-disney-lorcana-promo-cards-berlioz-tiny-rascal",
+          "supports": [
+            "product"
+          ]
+        },
+        {
+          "url": "https://tcgcsv.com/tcgplayer/71/23234/prices",
+          "supports": [
+            "finish"
+          ],
+          "note": "Raw provider subtype is Holofoil. This does not establish cold foil or rainbow foil. No price is asserted."
+        }
+      ],
+      "rawSubtype": "Holofoil"
+    }
+  ]
+}

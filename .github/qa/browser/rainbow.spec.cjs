@@ -288,7 +288,7 @@ test('versioned CSV uses old-reader-safe headers and roundtrips all finishes inc
   await page.locator('#toolsBtn').click();
   const csv = await downloadText(page, info, () => page.locator('[data-tool="csv"]').click(), 'synthetic-rainbow.csv');
   const header = csv.replace(/^\uFEFF/, '').split(/\r?\n/)[0].split(',');
-  expect(header).toContain('InkScan v6 Lorcast ID');
+  expect(header).toContain('InkScan v6 Printing ID');
   expect(header).toContain('InkScan v6 Finish');
   expect(header).toContain('InkScan v6 Quantity');
   expect(header).not.toContain('Finish');

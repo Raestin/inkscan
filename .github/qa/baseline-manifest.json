@@ -19,5 +19,22 @@
   "originalCatalogPrintings": 3469,
   "finishQuoteEntries": 12,
   "verifiedProductMappings": 54,
-  "finishQuotesSha256": "a08a551dfaa21a09a352cd9c816934c6ea889ff4d31f934edc5a7f1024e045f4"
+  "finishQuotesSha256": "033d184633250660dcf76ac72c661005ff386aaf326f484b9949387298476069",
+  "promoCatalogSha256": "c9436fdc26f4e231d1c4241b4bb0d112ffe8f28d83ab2d761b2b9e799e46477f",
+  "supplementalPrintingIds": [
+    "tcgplayer_722990",
+    "tcgplayer_722992",
+    "tcgplayer_722993",
+    "tcgplayer_722994",
+    "tcgplayer_722995",
+    "tcgplayer_722996"
+  ],
+  "promoFoilQuoteEntries": 6,
+  "coreRulesSha256": "235c4787c5dd813713a9c2b36a4efb82cfc3d726e019a69d3d51c4febda1c5d8",
+  "corePolicyAsOf": "2026-10-25",
+  "corePolicyReviewDue": "2026-11-24",
+  "coreEligibilityCounts": {
+    "legal": 1761,
+    "not_legal": 1750
+  }
 }

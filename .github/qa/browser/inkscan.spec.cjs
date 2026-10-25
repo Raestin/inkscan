@@ -457,7 +457,8 @@ test('preserved real public catalog boots signed out without creating ownership 
   await expect(page.locator('#tUnique')).toHaveText('0');
   await expectNoCloudFetchAttempts(page);
   await tab(page, 'browse');
-  await expect(page.locator('#bCount')).toHaveText('3,505 cards');
+  const supplement=JSON.parse(await fs.readFile(path.join(__dirname,'../../../promo-catalog.json'),'utf8'));
+  await expect(page.locator('#bCount')).toHaveText((3505+supplement.records.length).toLocaleString('en-US')+' cards');
   await expect(page.locator('#bGrid [data-card]').first()).toBeVisible();
   await expectNoCloudFetchAttempts(page);
   expect(await page.evaluate(() => localStorage.getItem('inkscan.state.v5'))).toBeNull();

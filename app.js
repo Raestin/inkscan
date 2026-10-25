@@ -26,25 +26,84 @@ const inventoryCount = value => (value?.q||0)+(value?.f||0)+(value?.rf||0);
 const AMBIGUOUS_FOIL = new Set(["crd_fd8709ece8b04d599379c9d168510c43","crd_e2c38bf30c48489f914581f55acd67fb","crd_a7974610679d43d190ee370d23d6e0b3","crd_7f47cc5a26eb4220a9622e8ee83c528d","crd_c7f3b3cbe19c44f7943c510392ea88db","crd_977a785a450a4621b0dcff4404592877","crd_fb78388845f54934a97c596a774bb98f","crd_3881a0b53f854152ad578f5151143244","crd_01ba964bb84745b09a29da266cddccfd","crd_4b656001901d4c34829cfe124d5c166b","crd_0599c55386a649bb9af21a906ed52db5","crd_3a5f83e2f53f4bf0b0d621014cd8f6cf","crd_1a90e72da27d4638ad9aed26776feee5"]);
 const AMBIGUOUS_FOIL_PRODUCTS = new Set([647652,647681,649224,650077,653916,657892,657893,657894,678236,678237,678238,690204,722508]);
 const ambiguousFoil = c => !!c && (AMBIGUOUS_FOIL.has(c.id)||AMBIGUOUS_FOIL_PRODUCTS.has(Number(c.t)));
-let finishQuotes={}, productMappings=new Map(), finishQuoteBuild=null, finishQuoteLoaded=false;
+let finishQuotes={},promoFoilQuotes={}, productMappings=new Map(), finishQuoteBuild=null, finishQuoteLoaded=false;
 function rainbowQuote(c){return c?finishQuotes[c.id+'|rainbow']:null;}
+function promoFoilQuote(c){return c?promoFoilQuotes[c.id+'|provider:Holofoil']:null;}
+function promoFoilPrice(c){return typeof InkCatalog!=='undefined'&&typeof InkCatalog.validatedFoilQuote==='function'?InkCatalog.validatedFoilQuote(c,promoFoilQuote(c)):null;}
 function valuedCard(c){
   if(!c)return {};
+  if(c.supplemental)return {...c,p:null,pf:promoFoilPrice(c),prf:null};
   return {...c,pf:ambiguousFoil(c)?null:c.pf,prf:InkSafety.validatedRainbowQuote(c,rainbowQuote(c))};
 }
 function finishPriceNote(){
-  if(!finishQuoteLoaded)return 'Rainbow prices unavailable: the separate exact-finish quote file could not be loaded. They are counted as unpriced.';
+  if(!finishQuoteLoaded)return 'Rainbow and supplemental promo foil prices unavailable: the separate exact-finish quote file could not be loaded. They are counted as unpriced.';
   const available=typeof byId!=='undefined'&&byId?Object.values(finishQuotes).filter(q=>InkSafety.validatedRainbowQuote(byId.get(q.printingId),q)!==null).length:0;
-  return `Rainbow source: TCGplayer via TCGCSV, built ${finishQuoteBuild||'unknown'}. ${available} verified printing/finish quotes currently usable. Quotes older than 7 days, mismatched or missing stay unpriced; this date is separate from the Lorcast catalog date.`;
+  const promoAvailable=typeof byId!=='undefined'&&byId?[...byId.values()].filter(c=>c.supplemental&&promoFoilPrice(c)!==null).length:0;
+  return `Rainbow source: TCGplayer via TCGCSV, built ${finishQuoteBuild||'unknown'}. ${available} verified printing/finish quotes currently usable. Quotes older than 7 days, mismatched or missing stay unpriced; this date is separate from the Lorcast catalog date. Supplemental promo foil: ${promoAvailable} exact Holofoil (provider label) quotes usable for generic Foil only, never Normal or Rainbow.`;
 }
 async function loadFinishQuotes(){
-  finishQuotes={};productMappings=new Map();finishQuoteBuild=null;finishQuoteLoaded=false;
+  finishQuotes={};promoFoilQuotes={};productMappings=new Map();finishQuoteBuild=null;finishQuoteLoaded=false;
   try{
     const r=await fetch('finish-quotes.json',{cache:'no-cache'});if(!r.ok)return;
     const file=await r.json();
     if(file?.schemaVersion!==1 || file.currency!=='USD' || file.provider!=='TCGplayer via TCGCSV' || !file.quotes || typeof file.quotes!=='object' || Array.isArray(file.quotes))return;
-    finishQuotes=file.quotes;productMappings=new Map((Array.isArray(file.productMappings)?file.productMappings:[]).filter(m=>m && typeof m.printingId==='string').map(m=>[m.printingId,m]));finishQuoteBuild=typeof file.buildAsOf==='string'?file.buildAsOf:null;finishQuoteLoaded=true;
+    finishQuotes=file.quotes;promoFoilQuotes=file.promoFoilQuotes&&typeof file.promoFoilQuotes==='object'&&!Array.isArray(file.promoFoilQuotes)?file.promoFoilQuotes:{};productMappings=new Map((Array.isArray(file.productMappings)?file.productMappings:[]).filter(m=>m && typeof m.printingId==='string').map(m=>[m.printingId,m]));finishQuoteBuild=typeof file.buildAsOf==='string'?file.buildAsOf:null;finishQuoteLoaded=true;
   }catch(e){/* Optional price data never blocks card access; unavailable remains unknown. */}
+}
+let promoSupplement=null,promoLoadError=null,promoCatalogWarnings=[];
+async function loadPromoCatalog(){
+  promoSupplement=null;promoLoadError=null;
+  try{
+    const response=await fetch('promo-catalog.json',{cache:'no-cache'});
+    if(!response.ok)throw Error('Supplemental catalog unavailable');
+    promoSupplement=await response.json();
+  }catch(e){promoLoadError='Supplemental promo catalog could not be loaded. Its exact printings are unavailable; never substitute a regular-set card.';}
+}
+function renderPromoCatalogStatus(){
+  const messages=[promoLoadError,...promoCatalogWarnings].filter(Boolean),element=$('promoCatalogStatus');
+  if(element){element.hidden=!messages.length;element.textContent=messages.join(' ');}
+}
+let coreRules=null,coreRulesLoadError=null,legalityIndex=null,legalityIndexDay=null;
+async function loadCoreRules(){
+  coreRules=null;coreRulesLoadError=null;legalityIndex=null;
+  try{const response=await fetch('core-rules.json',{cache:'no-cache'});if(!response.ok)throw Error('Rules unavailable');coreRules=await response.json();}
+  catch(e){coreRulesLoadError='Verified Core Constructed rules could not be loaded. Eligibility is unknown, not assumed legal.';}
+}
+function currentLegalityIndex(){
+  const day=new Date().toISOString().slice(0,10);
+  if(!legalityIndex || legalityIndexDay!==day){
+    legalityIndexDay=day;
+    try{if(!DB||typeof InkLegality==='undefined')throw Error('Rules reader unavailable');legalityIndex=InkLegality.createIndex(DB,coreRules);}
+    catch(e){legalityIndex={status:()=>({status:'unknown',reason:'rules-missing',anchor:null,verifiedAt:null,source:null}),info:{valid:false,reason:'rules-missing',displayName:'Core Constructed (Standard)',verifiedAt:null,reviewDue:null}};}
+  }
+  return legalityIndex;
+}
+function legalityOf(card){return currentLegalityIndex().status(card);}
+function legalityMatches(card,filter){return !filter||filter==='all'||legalityOf(card).status===filter;}
+const legalityLabel=status=>({legal:'Standard legal',not_legal:'Not legal for Standard',unknown:'Eligibility unknown'})[status]||'Eligibility unknown';
+function legalityReason(reason){return ({
+  'current-set-identity':'This full card name and version is in a verified eligible set.',
+  'reprinted-identity':'An eligible reprint makes this exact full name and version playable, including older printings.',
+  'rotated-identity':'This full name and version has only rotated printings in the verified card pool.',
+  'banned':'This full name and version is explicitly banned by the verified Core policy.',
+  'special-format-only':'This printing belongs to a separate special format, not Core Constructed.',
+  'unverified-set':'This set is not covered by the verified Core policy.',
+  'unresolved-identity':'This full card name and version could not be resolved against the verified card pool.',
+  'unverified-supplement':'This supplemental printing could not be verified against its exact gameplay identity.',
+  'rules-missing':'Verified rules are unavailable; eligibility is unknown.',
+  'rules-invalid':'The rules snapshot could not be verified; eligibility is unknown.',
+  'rules-future':'The rules snapshot is not yet effective; eligibility is unknown.',
+  'rules-expired':'The rules snapshot needs review; eligibility is unknown until it is updated.'
+})[reason]||'Eligibility could not be verified.';}
+function legalityInfoHTML(){
+  const info=currentLegalityIndex().info;
+  const source=typeof info.source==='string'&&/^https:\/\/(?:files\.|www\.)?disneylorcana\.com\//.test(info.source)?info.source:'https://www.disneylorcana.com/en-US/resources/';
+  return `<strong>Core Constructed (Standard)</strong> · verified ${esc(info.verifiedAt||'not available')}${info.reviewDue?' · review due '+esc(info.reviewDue):''}. <a class="link" href="${esc(source)}" target="_blank" rel="noopener">Official rules ↗</a> ${info.valid?'English card-pool eligibility only; check event-specific rules.':esc(coreRulesLoadError||legalityReason(info.reason))}`;
+}
+function renderLegalityInfo(){for(const id of ['cLegalityInfo','bLegalityInfo']){const element=$(id);if(element)element.innerHTML=legalityInfoHTML();}}
+function cardLegalityHTML(card){
+  const result=legalityOf(card),anchor=result.anchor;
+  return `${esc(legalityLabel(result.status))}. ${esc(legalityReason(result.reason))}${anchor?' Eligible reference: '+esc(anchor.setCode)+' #'+esc(anchor.collectorNumber)+'.':''}<br>${legalityInfoHTML()}`;
 }
 const inventoryRows = (c,v) => ({c:valuedCard(c),q:v?.q||0,f:v?.f||0,rf:v?.rf||0});
 
@@ -91,25 +150,36 @@ const today = () => new Date().toISOString().slice(0,10);
 /* =========================================================
    Card data
    ========================================================= */
-let DB=null, byId, bySetNum, byNV, setIdx, setName, setCards, nvReps;
+let DB=null, byId, bySetNum, byPrinting, byNV, setIdx, setName, setCards, nvReps;
 function nvKeyOf(c){ return norm(c.n)+'|'+norm(c.v); }
 function indexCards(d){
-  DB=d; byId=new Map(); bySetNum=new Map(); byNV=new Map(); setIdx=new Map(); setName=new Map(); setCards=new Map();
+  promoCatalogWarnings=[];
+  if(promoSupplement){
+    try{
+      if(typeof InkCatalog==='undefined')throw Error('Supplemental catalog reader unavailable');
+      const merged=InkCatalog.merge(d,promoSupplement);d=merged.catalog;promoCatalogWarnings=merged.warnings||[];
+    }catch(e){promoCatalogWarnings=['Supplemental promo catalog could not be verified. Its printings are unavailable; use only an exact known printing.'];}
+  }
+  renderPromoCatalogStatus();
+  DB=d; byId=new Map(); bySetNum=new Map(); byPrinting=new Map(); byNV=new Map(); setIdx=new Map(); setName=new Map(); setCards=new Map();
   d.sets.forEach((s,i)=>{ setIdx.set(s.code,i); setName.set(s.code,s.name); setCards.set(s.code,[]); });
   for (const c of d.cards){
     const verifiedProduct=InkSafety.validatedProductMapping(c,productMappings.get(c.id));
     if(verifiedProduct!==null)c.t=verifiedProduct;
-    c.prf=InkSafety.validatedRainbowQuote(c,rainbowQuote(c));
+    c.prf=c.supplemental?null:InkSafety.validatedRainbowQuote(c,rainbowQuote(c));
     c.nv = nvKeyOf(c);
     c.inks = (c.i||'').split('/').filter(Boolean);
     c.num = parseInt(c.c,10) || 0;
     byId.set(c.id,c);
     bySetNum.set(norm(c.s)+'|'+norm(c.c), c);
+    const printingKey=printingToken(c.s)+'|'+printingToken(c.c);
+    (byPrinting.get(printingKey)||byPrinting.set(printingKey,[]).get(printingKey)).push(c);
     (byNV.get(c.nv) || byNV.set(c.nv,[]).get(c.nv)).push(c);
     setCards.get(c.s)?.push(c);
   }
   for (const list of byNV.values()) list.sort(bySetOrder);
   nvReps = [...byNV.keys()].map(k => byNV.get(k));
+  legalityIndex=null;renderLegalityInfo();
 }
 function bySetOrder(a,b){ return (setIdx.get(a.s)-setIdx.get(b.s)) || (a.num-b.num) || a.c.localeCompare(b.c); }
 const SPECIAL = new Set(['Enchanted','Promo','Iconic','Epic']);
@@ -124,7 +194,7 @@ function priceOf(c, finish){ const value=valuedCard(c); return InkSafety.price(v
 function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=priceOf(c,false) ?? priceOf(c,true); if(p!=null && (m==null||p<m)) m=p; } return m; }
 function foilPriceOnly(c){ return c && priceOf(c,false)===null && priceOf(c,true)!==null; }
 function setLabel(c){ return /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
-function imgUrl(c, size){ return c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
+function imgUrl(c, size){ return c.supplemental || c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
 function inkDot(c){
   if (c.inks.length > 1) return `<span class="ink dual" style="--c1:var(--${c.inks[0].toLowerCase()});--c2:var(--${c.inks[1].toLowerCase()})"></span>`;
   return `<span class="ink ${esc(c.inks[0]||'')}"></span>`;
@@ -175,7 +245,7 @@ async function refreshFromLorcast(manual, btn){
     if (cards.length < 1000) throw 0;
     const d = {asof:today(), sets:sets.map(s=>({code:s.code,name:s.name,rel:s.released_at})), cards};
     try{ await (await caches.open('inkscan-data')).put('cards-live.json', new Response(JSON.stringify(d), {headers:{'content-type':'application/json'}})); }catch(e){}
-    await loadFinishQuotes();indexCards(d); renderAll(); renderSaveStatus();
+    await Promise.all([loadFinishQuotes(),loadPromoCatalog(),loadCoreRules()]);indexCards(d); renderAll(); renderSaveStatus();
     if (manual) toast('Prices and cards updated');
   }catch(e){ if (manual) toast('Couldn’t reach Lorcast. Check your connection and try again.'); }
   finally{ if (btn){ btn.textContent = label; btn.disabled = false; } }
@@ -222,7 +292,21 @@ function tileHTML(c, opts={}){
   return `<button class="tile${opts.dim && !q ? ' missing':''}" data-card="${c.id}" aria-label="${esc(c.n+(c.v?' – '+c.v:''))}"><div class="art">${artHTML(c)}${badge}</div>${opts.cap!==false?`<div class="cap">${esc(opts.cap || (setLabel(c)+' · #'+c.c))}</div>`:''}</button>`;
 }
 function thumbHTML(c){ return `<span class="thumb">${imgUrl(c,'small')?`<img src="${imgUrl(c,'small')}" alt="" loading="lazy" onerror="this.remove()">`:''}</span>`; }
-function metaLine(c, foil){ return `${esc(setLabel(c))} · #${esc(c.c)} · ${esc(rarityLabel(c.r))} · ${money(priceOf(c,foil))}`; }
+function printingProvider(card){return card?card.supplemental?.provider||'Lorcast':'Unknown';}
+function printingNote(card){
+  const meta=card?.supplemental;if(!meta)return '';
+  return [meta.stamp?meta.stamp+' stamped promo':'Supplemental printing',meta.language,meta.printedSet?'printed release '+meta.printedSet:''].filter(Boolean).join(' · ');
+}
+function printingSource(card){return (card?.supplemental?.evidence||[]).map(item=>item.url).filter(url=>typeof url==='string'&&/^https:\/\//.test(url)).join(' | ');}
+function supplementalDetails(card){
+  const meta=card?.supplemental;if(!meta)return '';
+  const sources=(meta.evidence||[]).map(item=>item.url).filter(url=>typeof url==='string'&&/^https:\/\//.test(url));
+  const quote=promoFoilQuote(card),price=promoFoilPrice(card);
+  const priceNote=`TCGplayer via TCGCSV; Holofoil (provider label), built ${quote?.buildAsOf||'unavailable'}. ${price===null?'No current exact quote: this foil is unpriced.':'This exact market quote applies to generic Foil only.'} Normal and Rainbow remain unpriced. Quotes expire after 7 days; no base-card or other-finish fallback.`;
+  return `<dt>Printing</dt><dd>${esc(printingNote(card))}</dd><dt>Catalog provider</dt><dd>${esc(meta.provider)} · ${esc(card.id)} (not a Lorcast ID)</dd><dt>Provider finish term</dt><dd>${esc(meta.rawSubtype||'Unspecified')}; choose the actual physical finish separately. No rainbow or cold-foil classification is inferred.</dd><dt>Exact foil price source</dt><dd>${esc(priceNote)}</dd><dt>Printing evidence</dt><dd>${sources.map((url,index)=>`<a class="link" href="${esc(url)}" target="_blank" rel="noopener">Source ${index+1} ↗</a>`).join(' · ')}</dd>`;
+}
+function metaLine(c,foil){return `${esc(setLabel(c))} · #${esc(c.c)} · ${esc(rarityLabel(c.r))} · ${money(priceOf(c,foil))}${c.supplemental?' · '+esc(printingNote(c)):''}`;}
+
 function inkChips(el, state, onChange){
   el.innerHTML = INKS.map(i=>`<button class="chip-btn" data-ink="${i}" aria-pressed="${state.has(i)}"><span class="ink ${i}"></span>${i}</button>`).join('');
   el.onclick = e => { const b=e.target.closest('[data-ink]'); if(!b) return; const i=b.dataset.ink; state.has(i)?state.delete(i):state.add(i); b.setAttribute('aria-pressed',state.has(i)); onChange(); };
@@ -299,9 +383,10 @@ function cardDetailHTML(c){
       <dl class="kv">
         <dt>Set</dt><dd>${esc(c.sn)} · #${esc(c.c)}</dd>
         <dt>Rarity</dt><dd>${esc(rarityLabel(c.r))}</dd>
-        <dt>Price</dt><dd>${FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced. ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
+        ${supplementalDetails(c)}
+        <dt>Price</dt><dd>${FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced. ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
         ${c.il?`<dt>Artist</dt><dd>${esc(c.il)}</dd>`:''}
-        <dt>Core format</dt><dd>${c.lc?'Legal':'Not legal (Infinity only)'}</dd>
+        <dt>Core Constructed</dt><dd data-legality-status="${esc(legalityOf(c).status)}">${cardLegalityHTML(c)}</dd>
       </dl>
       <div class="own" id="ownBox">
         <div class="step"><label>Normal</label><button data-own="q" data-d="-1" aria-label="One fewer normal">−</button><output>${v.q||0}</output><button data-own="q" data-d="1" aria-label="One more normal">+</button></div>
@@ -350,7 +435,7 @@ function showTab(t){
   lsSet('inkscan.tab', t); window.scrollTo(0,0);
 }
 document.querySelector('.tabbar').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab); });
-function renderAll(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
+function renderAll(){ renderTotals(); renderLog(); if(tab==='scan')renderQuick(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
 function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(true); if(tab==='browse') renderBrowse(); }
 
 /* =========================================================
@@ -359,10 +444,13 @@ function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') render
 let log = []; // {key, cardId, foil}
 let seq = 0;
 function logAdd(card, foil){
+  card=card && byId.get(card.id);
+  if(!card || !printingAllowed(card,scanPrintingScope))return false;
   // Price availability does not identify the finish of the user's physical card.
   addQty(card.id, foil, 1);
   log.unshift({key:++seq, cardId:card.id, foil});
   renderLog();
+  return true;
 }
 function renderLog(){
   const el=$('log');
@@ -391,46 +479,94 @@ $('log').addEventListener('change',e=>{
   catch(err){storageError='Finish change could not be confirmed. Keep this tab open and back up before retrying. '+err.message;renderSaveStatus();renderLog();return;}
   inv=next;localRevision=snapshot.revision;storageError=null;x.foil=select.value;renderSaveStatus();renderSyncBox();renderTotals();renderLog();
 });
-function quickSearch(q, limit=30){
-  q = q.trim(); if(!q || !DB) return [];
-  const out = [];
-  const m = q.match(/^#?\s*([A-Za-z]*\d*[A-Za-z]*)\s*[\s\/\-#·]\s*#?(\d+)$/);
-  if (m){
-    const a = bySetNum.get(norm(m[1])+'|'+norm(m[2])); if (a) out.push(a);
-    const b = bySetNum.get(norm(m[2])+'|'+norm(m[1])); if (b && b!==a) out.push(b);
+// Printing identity and physical finish are independent choices.
+let scanPrintingScope='all', lastScanResolution=null;
+const printingToken=value=>String(value??'').trim().toUpperCase();
+const collectorToken=value=>printingToken(value).replace(/^0+(?=\d)/,'');
+const isSpecialPrinting=card=>!!card && (card.r==='Promo'||!/^\d+$/.test(String(card.s)));
+const printingAllowed=(card,scope)=>scope!=='promo'||isSpecialPrinting(card);
+function exactPrinting(set,collector,scope='all'){
+  const reference={set:printingToken(set),collector:collectorToken(collector)};
+  const matches=byPrinting?.get(reference.set+'|'+reference.collector)||[];
+  const candidates=matches.filter(card=>printingAllowed(card,scope));
+  const label=`${reference.set} #${reference.collector}`;
+  if(!matches.length)return {status:'missing',card:null,candidates:[],reference,message:`${label} is not in this catalog. Nothing was added. Choose the exact printing manually; do not substitute its regular-set version.`};
+  if(!candidates.length)return {status:'blocked',card:null,candidates:[],reference,message:`${label} is a regular-set printing. Promo / special only is selected, so nothing was added. Search for the exact promo printing or switch printing scope.`};
+  if(candidates.length!==1)return {status:'ambiguous',card:null,candidates,reference,message:`${label} matches multiple catalog printings. Nothing was added. Review and select the exact printing manually.`};
+  return {status:'exact',card:candidates[0],candidates,reference,message:`${label} identified. Confirm the physical finish separately.`};
+}
+function resolveNumberLine(text,scope='all'){
+  const source=String(text||'').replace(/\n/g,' '),references=[];
+  // Full alphanumeric tokens are retained. A promo denominator is authoritative;
+  // the trailing release number must never turn 11/PD1 EN14 into set14/#11.
+  const pattern=/(?:^|[^A-Za-z0-9])([A-Za-z0-9|!]{1,32})\s*\/\s*([A-Za-z0-9]{1,32})(?![A-Za-z0-9])[\s·•:.,-]*(?:EN|FN|EM|ER|FR|DE|IT|JA|ZH|ES|E N)(?:[\s·•:.,-]*([A-Za-z0-9]{1,32})(?![A-Za-z0-9]|\s*\/))?/gi;
+  for(const match of source.matchAll(pattern)){
+    const collector=collectorToken(match[1]),denominator=printingToken(match[2]);
+    const explicit=!/^\d+$/.test(denominator);
+    const set=explicit?denominator:printingToken(match[3]||'');
+    if(!set){references.push({set:'',collector,explicit});continue;}
+    references.push({set,collector,explicit});
   }
-  const nq = norm(q); if (nq.length < 2) return out;
-  for (const c of DB.cards){ if (out.length>=limit) break; if (!out.includes(c) && (norm(c.n+c.v).includes(nq) || norm(c.n).startsWith(nq))) out.push(c); }
-  return out;
+  const unique=[...new Map(references.map(r=>[r.set+'|'+r.collector,r])).values()];
+  if(!unique.length || unique.some(r=>!r.set))return {status:'unrecognized',card:null,candidates:[],reference:null,message:'The exact printing could not be read. Nothing was added. Search by its printed set code and full collector number, or card name.'};
+  if(unique.length>1){const candidates=[...new Map(unique.flatMap(r=>exactPrinting(r.set,r.collector,scope).candidates).map(c=>[c.id,c])).values()];return {status:'ambiguous',card:null,candidates,reference:null,message:'Multiple printing references were read. Nothing was added. Review and select the exact printing manually.'};}
+  return exactPrinting(unique[0].set,unique[0].collector,scope);
 }
-let qT;
-$('q').addEventListener('input', ()=>{ clearTimeout(qT); qT=setTimeout(renderQuick,120); });
+function parseLine(text){const result=resolveNumberLine(text,scanPrintingScope);return result.status==='exact'?result.card:null;}
+function searchPrintings(query,scope=scanPrintingScope){
+  const q=String(query||'').trim();
+  if(!DB)return {candidates:[],reference:null,message:''};
+  if(q.includes('/') && /\b(?:EN|FR|DE|IT|JA|ZH|ES)\s*[0-9A-Za-z]*/i.test(q))return resolveNumberLine(q,scope);
+  const pair=q.match(/^#?([A-Za-z0-9]+)\s*(?:\/|[#· -]|\s)\s*#?([A-Za-z0-9]+)$/);
+  if(pair){
+    const a=printingToken(pair[1]),b=printingToken(pair[2]);
+    const knownSet=token=>DB.sets.some(set=>printingToken(set.code)===token);
+    if(q.includes('/') && /^\d/.test(a) && /^[A-Za-z]/.test(b))return exactPrinting(b,a,scope);
+    if(/^\d+$/.test(a) && /^\d+$/.test(b) && a!==b && knownSet(a) && knownSet(b)){
+      const candidates=[...new Map([...exactPrinting(a,b,scope).candidates,...exactPrinting(b,a,scope).candidates].map(card=>[card.id,card])).values()];
+      if(candidates.length)return {status:'ambiguous',card:null,candidates,reference:null,message:'Both numbers are catalog set codes. Nothing was added. Review the set and collector number shown on each result and choose the exact printing.'};
+    }
+    if(knownSet(b) && !/^\d+$/.test(b) && /^\d/.test(a))return exactPrinting(b,a,scope);
+    if(knownSet(a) || (/^[A-Za-z]+\d+$/.test(a)&&/^\d/.test(b)))return exactPrinting(a,b,scope);
+    if((knownSet(b)||q.includes('/')) && /^\d/.test(a))return exactPrinting(b,a,scope);
+  }
+  const nq=norm(q);
+  const candidates=DB.cards.filter(c=>printingAllowed(c,scope) && (!q&&scope==='promo'||nq.length>=2&&(norm(c.n+c.v).includes(nq)||norm(c.n).startsWith(nq))));
+  return {status:'search',candidates,reference:null,message:''};
+}
+function quickSearch(q,limit=30,scope=scanPrintingScope){return searchPrintings(q,scope).candidates.slice(0,limit);}
+let qT,quickVisible=30;
+$('q').addEventListener('input',()=>{quickVisible=30;clearTimeout(qT);qT=setTimeout(renderQuick,120);});
 function renderQuick(){
-  const res = quickSearch($('q').value); const el=$('qres');
-  el.hidden = !$('q').value.trim();
-  el.innerHTML = res.length ? res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}</div></div><div class="acts"><button data-act="add" data-id="${c.id}">Add</button></div></div></div>`).join('') : `<div class="empty" style="padding:16px">No cards match. Try part of the name, or a set and number like <b>5 207</b>.</div>`;
+  const result=searchPrintings($('q').value),res=result.candidates.slice(0,quickVisible),el=$('qres');
+  el.hidden=!$('q').value.trim() && scanPrintingScope!=='promo';
+  const hint=result.message && result.status!=='exact'?`<p class="note printing-search-note" role="status">${esc(result.message)}</p>`:'';
+  const count=result.candidates.length>30?`<p class="note printing-search-note">Showing ${res.length} of ${result.candidates.length} matching printings. Search by name or full set code and collector number, or show more below.</p>`:'';
+  el.innerHTML=hint+count+(res.length?res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}${isSpecialPrinting(c)?' · Promo / special printing':''}</div>${result.status==='ambiguous'?`<div class="m">${esc(printingProvider(c))} ID: ${esc(c.id)}</div>`:''}</div><div class="acts"><button data-act="add" data-id="${c.id}" aria-label="Add ${esc(c.n)} ${esc(c.s)} number ${esc(c.c)}">Add</button></div></div></div>`).join(''):`<div class="empty" style="padding:16px">No exact printing found. Try its name or a full reference such as <b>P3 43</b>, <b>PD1 11</b>, or <b>P2 24B</b>. An absent printing cannot be added as its regular version.</div>`)+(result.candidates.length>res.length?`<button class="btn printing-more" id="qMore" data-more-printings>Show next ${Math.min(30,result.candidates.length-res.length)} printings</button>`:'');
 }
-$('qres').addEventListener('click', e=>{
-  const b=e.target.closest('button[data-act="add"]'); if(!b) return;
-  const c = byId.get(b.dataset.id); logAdd(c, foilMode); toast(`Added ${c.n}`);
+$('qres').addEventListener('click',e=>{
+  if(e.target.closest('[data-more-printings]')){quickVisible+=30;renderQuick();return;}
+  const b=e.target.closest('button[data-act="add"]');if(!b)return;
+  const card=byId.get(b.dataset.id);if(!card || !printingAllowed(card,scanPrintingScope))return;
+  if(logAdd(card,foilMode)){clearScanResolution();toast(`Added ${card.n} · ${card.s} #${card.c}`);}
 });
-
-/* ---- reading the number line ---- */
-const DIGITFIX = s => s.replace(/[oOD]/g,'0').replace(/[lI|!]/g,'1').replace(/[sS]/g,'5').replace(/[zZ]/g,'2').replace(/[B]/g,'8');
-function parseLine(text){
-  const t = text.replace(/\n/g,' ');
-  const re = /([0-9oOlI|sSzZB]{1,3})\s*\/\s*([A-Z0-9]{1,4})\s*[^A-Za-z0-9]{0,4}\s*(EN|FN|EM|ER|FR|DE|IT|JA|ZH|E N)\s*[^A-Za-z0-9]{0,4}\s*([A-Za-z]{0,3}[0-9oOlIsSzZ]{1,2})?/i;
-  const m = t.match(re); if (!m) return null;
-  const num = String(parseInt(DIGITFIX(m[1]),10));
-  const total = m[2].toUpperCase();
-  let set = m[4] ? m[4].replace(/^([A-Za-z]*)(.*)$/, (_,a,b)=>a.toUpperCase()+DIGITFIX(b)) : '';
-  if (!/^\d+$/.test(DIGITFIX(total))) { if(!set) set = total; }
-  const tries = [];
-  if (set) tries.push(set);
-  if (!/^\d+$/.test(total)) tries.push(total);
-  for (const s of tries){ const c = bySetNum.get(norm(s)+'|'+norm(num)); if (c) return c; }
-  return null;
+function clearScanResolution(){lastScanResolution=null;$('scanResolution').hidden=true;$('scanResolution').textContent='';$('scanManual').hidden=true;}
+function showScanResolution(result){
+  lastScanResolution=result;$('scanResolution').textContent=result.message;$('scanResolution').hidden=false;$('scanManual').hidden=false;
 }
+function reviewNumberLine(text){
+  const result=resolveNumberLine(text,scanPrintingScope);
+  if(result.status==='exact')clearScanResolution();
+  else if(['missing','ambiguous','blocked'].includes(result.status))showScanResolution(result);
+  return result;
+}
+function setScanPrintingScope(scope){
+  if(!['all','promo'].includes(scope))return;
+  scanPrintingScope=scope;$('scanPrintingScope').value=scope;quickVisible=30;lastKey=null;streak=0;cooldownKey=null;clearScanResolution();renderQuick();
+  if(scanning)camMsg(scope==='promo'?'Promo / special only: read the full printed code, or choose the exact printing below.':'Line the number line up in the gold box');
+}
+$('scanPrintingScope').onchange=()=>setScanPrintingScope($('scanPrintingScope').value);
+$('scanManual').onclick=()=>{quickVisible=30;if(lastScanResolution?.reference){const r=lastScanResolution.reference;$('q').value=r.set+' '+r.collector;}else $('q').value='';renderQuick();$('q').focus?.();$('q').scrollIntoView?.({block:'center',behavior:'smooth'});};
 
 /* ---- camera + OCR loop ---- */
 let stream=null, worker=null, workerReady=null, scanning=false;
@@ -498,15 +634,16 @@ async function loop(){
   while (scanning){
     if (document.hidden || !worker){ await sleep(400); continue; }
     const frame = grabStrip(); if(!frame){ await sleep(200); continue; }
-    let card = null;
-    try{ const {data} = await worker.recognize(frame); card = parseLine(data.text); }catch(e){}
+    let card=null,resolution=null;
+    try{const {data}=await worker.recognize(frame);resolution=reviewNumberLine(data.text);card=resolution.card;}catch(e){}
     if (!scanning) break;
     if (!card){
       streak=0; lastKey=null; blankFrames++;
       if (blankFrames>=2) cooldownKey=null;
-      if (Date.now()-lastHitAt > 2500) camMsg('Line the number line up in the gold box');
+      if(resolution && ['missing','ambiguous','blocked'].includes(resolution.status)){showScanResolution(resolution);camMsg('Printing needs manual review. Nothing added.');}
+      else if(Date.now()-lastHitAt>2500)camMsg('Line the number line up in the gold box');
     } else {
-      blankFrames=0;
+      clearScanResolution();blankFrames=0;
       streak = (card.id===lastKey) ? streak+1 : 1; lastKey = card.id;
       if (streak>=2 && card.id!==cooldownKey){ hit(card); cooldownKey = card.id; }
       else if (card.id===cooldownKey && Date.now()-lastHitAt > 1800) camMsg('Got it. Swap in the next card.');
@@ -522,6 +659,7 @@ function beep(){
   }catch(e){}
 }
 function hit(card){
+  if(!card || !byId.has(card.id) || !printingAllowed(card,scanPrintingScope))return;
   lastHitAt = Date.now();
   logAdd(card, foilMode);
   const f=$('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
@@ -556,7 +694,8 @@ document.querySelectorAll('[data-lay]').forEach(b=>b.onclick=()=>{ layout=b.data
 let cfT; $('cf').addEventListener('input',()=>{ clearTimeout(cfT); cfT=setTimeout(renderColl,120); });
 $('sortSel').onchange = renderColl;
 $('cFinish').onchange=renderColl;
-$('cReset').onclick=()=>{$('cf').value='';collInks.clear();$('cFinish').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
+$('cLegality').onchange=renderColl;
+$('cReset').onclick=()=>{$('cf').value='';collInks.clear();$('cFinish').value='all';$('cLegality').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
 function valueSummary(rows,finish){
   const result=InkSafety.valuation(rows,finish);
   return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies across all matching results. ${result.unpriced} copies unpriced. TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
@@ -574,6 +713,7 @@ function collRows(){
     const q=finish==='all'||finish==='normal'?(v.q||0):0, foil=finish==='all'||finish==='foil'?(v.f||0):0, rf=finish==='all'||finish==='rainbow'?(v.rf||0):0;
     if(!q&&!foil&&!rf)continue;
     if (!inkMatch(c, collInks)) continue;
+    if (!legalityMatches(c,$('cLegality').value))continue;
     if (f && !norm(c.n+c.v+c.sn+c.i+c.r+c.cl).includes(f) && !(norm(setLabel(c))+norm(c.c)).includes(f)) continue;
     const estimate=InkSafety.valuation([{c:valuedCard(c),q,f:foil,rf}]);
     rows.push({c:valuedCard(c),q,f:foil,rf,val:estimate.value,unpriced:estimate.unpriced});
@@ -587,6 +727,7 @@ function collRows(){
   return rows;
 }
 function renderCollCards(){
+  renderLegalityInfo();
   document.querySelectorAll('[data-lay]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.lay===layout));
   const el = $('coll'); const rows = collRows();
   $('cValue').textContent=valueSummary(rows,'all');
@@ -649,18 +790,20 @@ function fillSetSelect(){
   $('bSet').innerHTML = `<option value="">All sets</option>` + DB.sets.map(s=>`<option value="${esc(s.code)}">${/^\d+$/.test(s.code)?esc(s.code)+' · ':''}${esc(s.name)}</option>`).join('');
 }
 function resetBrowse(){
-  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); $('bSort').value='set';$('bFinish').value='all';
+  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); $('bSort').value='set';$('bFinish').value='all';$('bLegality').value='all';
   inkChips($('bInks'), bInks, renderBrowse);
 }
 $('bReset').onclick = ()=>{ resetBrowse(); renderBrowse(); };
 let bT; $('bq').addEventListener('input',()=>{ clearTimeout(bT); bT=setTimeout(renderBrowse,150); });
-['bSet','bType','bCost','bRar','bOwn','bSort','bFinish'].forEach(id=>$(id).onchange=renderBrowse);
+['bSet','bType','bCost','bRar','bOwn','bSort','bFinish','bLegality'].forEach(id=>$(id).onchange=renderBrowse);
 function renderBrowse(){
   if (!DB) return;
+  renderLegalityInfo();
   const q = norm($('bq').value), set=$('bSet').value, type=$('bType').value, cost=$('bCost').value, rar=$('bRar').value, own=$('bOwn').value;
   const finish=$('bFinish').value||'all';
   let list = DB.cards.filter(c=>{
     if (set && c.s!==set) return false;
+    if (!legalityMatches(c,$('bLegality').value))return false;
     if (!inkMatch(c,bInks)) return false;
     if (type && !isType(c,type)) return false;
     if (cost && (cost==='7' ? (c.co??0)<7 : c.co!=+cost)) return false;
@@ -727,7 +870,7 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML = sorted.length ? sorted.map(d=>{
     const st = deckStats(d); const lead = Object.entries(d.cards).sort((a,b)=>(repOf(b[0])?.co||0)-(repOf(a[0])?.co||0))[0];
     const c = lead && repOf(lead[0]);
-    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.total}/60 cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip ok">Ready</span>':''}</button></div>`;
+    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.total}/60 cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
   }).join('') : `<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`;
 }
 $('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
@@ -749,7 +892,7 @@ function renderDeckEdit(keepScroll){
   const warns = [];
   if (st.total<60) warns.push(`<span class="chip warn">${60-st.total} more cards needed</span>`);
   if (st.inks.length>2) warns.push(`<span class="chip warn">More than 2 inks</span>`);
-  if (st.total>=60 && st.inks.length<=2) warns.push(`<span class="chip ok">Legal deck</span>`);
+  if (st.total>=60 && st.inks.length<=2) warns.push(`<span class="chip">Size / ink check only</span>`);
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div><div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div><div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
@@ -1154,14 +1297,15 @@ $('sheetBody').addEventListener('click', e=>{
   else if (a==='wipeno'){ $('wipeRow').innerHTML = `<button class="btn danger tiny" data-tool="wipe">Clear collection</button>`; }
 });
 const LEGACY_HEAD = ['Name','Version','Set Code','Set Name','Card Number','Rarity','Ink','Finish','Quantity','Market Price','Total Value','TCGplayer Product ID','TCGplayer URL','Lorcast ID'];
-const HEAD=LEGACY_HEAD.map(name=>'InkScan v6 '+name);
+const OLD_V6_HEAD=LEGACY_HEAD.map(name=>'InkScan v6 '+name);
+const HEAD=[...LEGACY_HEAD.map(name=>name==='Lorcast ID'?'Printing ID':name),'Provider','Printing note','Provenance URL'].map(name=>'InkScan v6 '+name);
 function csvCell(v){ v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 function buildCsv(){
   const rows=[HEAD];
   const sorted=Object.entries(inv).map(([id,v])=>({id,c:byId.get(id),v})).sort((a,b)=>a.c&&b.c?bySetOrder(a.c,b.c):a.id.localeCompare(b.id));
   for(const {id,c,v} of sorted)for(const finish of FINISHES){
     const n=v[finishField(finish)]||0;if(!n)continue;const price=priceOf(c,finish);
-    rows.push([c?.n||'Unknown printing',c?.v||'',c?.s||'',c?.sn||'',c?.c||'',rarityLabel(c?.r),c?.i||'',finish==='rainbow'?'Rainbow Foil':finishLabel(finish),n,price==null?'':price.toFixed(2),price==null?'':(price*n).toFixed(2),c?.t||'',c?.t?`https://www.tcgplayer.com/product/${c.t}`:'',id]);
+    rows.push([c?.n||'Unknown printing',c?.v||'',c?.s||'',c?.sn||'',c?.c||'',rarityLabel(c?.r),c?.i||'',finish==='rainbow'?'Rainbow Foil':finishLabel(finish),n,price==null?'':price.toFixed(2),price==null?'':(price*n).toFixed(2),c?.t||'',c?.t?`https://www.tcgplayer.com/product/${c.t}`:'',id,printingProvider(c),printingNote(c),printingSource(c)]);
   }
   return rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
 }
@@ -1209,14 +1353,16 @@ $('fileIn').onchange = async e=>{
   }
   const rows=parseCsv(text),h=rows.shift()||[];
   const modern=h.includes('InkScan v6 Quantity');
+  const neutral=modern&&h.includes('InkScan v6 Printing ID');
   const ix=name=>h.indexOf((modern?'InkScan v6 ':'')+name);
-  const iId=ix('Lorcast ID'),iSet=ix('Set Code'),iNum=ix('Card Number'),iFin=ix('Finish'),iQty=ix('Quantity');
-  if(iQty<0 || iFin<0 || (iId<0&&(iSet<0||iNum<0)) || (modern && !HEAD.every(name=>h.includes(name)))){toast('That file isn’t a complete InkScan export. Nothing was replaced.');return;}
+  const iId=ix(neutral?'Printing ID':'Lorcast ID'),iSet=ix('Set Code'),iNum=ix('Card Number'),iFin=ix('Finish'),iQty=ix('Quantity');
+  if(iQty<0 || iFin<0 || (iId<0&&(iSet<0||iNum<0)) || (modern && (!(neutral?HEAD:OLD_V6_HEAD).every(name=>h.includes(name)) || new Set(h).size!==h.length))){toast('That file isn’t a complete InkScan export. Nothing was replaced.');return;}
   let n=0,miss=0;const next={};
   for(const r of rows){
     if(r.every(cell=>!cell.trim()))continue;
     const sourceId=iId>=0?(r[iId]||'').trim():'';
-    const c=sourceId?byId.get(sourceId):bySetNum.get(norm(r[iSet])+'|'+norm(r[iNum]));
+    const lookup=sourceId?null:exactPrinting(r[iSet],r[iNum]);
+    const c=sourceId?byId.get(sourceId):lookup.status==='exact'?lookup.card:null;
     const id=c?.id||(modern?sourceId:'');
     const qty=/^\d+$/.test(r[iQty]||'')?Number(r[iQty]):NaN;
     const label=(r[iFin]||'').trim().toLowerCase();
@@ -1243,7 +1389,7 @@ async function boot(){
   renderSaveStatus();
   renderLog();
   let d;
-  try{ [d] = await Promise.all([loadCards(),loadFinishQuotes()]); }
+  try{ [d] = await Promise.all([loadCards(),loadFinishQuotes(),loadPromoCatalog(),loadCoreRules()]); }
   catch(e){ $('loadBanner').textContent='The card list didn’t load. Check your connection and reload.'; $('loadBanner').classList.add('bad'); return; }
   indexCards(d); $('loadBanner').hidden = true;
   // Legacy catalog/localStorage keys remain intact for recovery.
@@ -1262,5 +1408,5 @@ async function boot(){
 }
 boot();
 if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
-window.__inkscan = {parseLine:t=>parseLine(t), get log(){return log}, get decks(){return decks}, get inv(){return inv}};
+window.__inkscan = {parseLine:t=>parseLine(t),resolveNumberLine:(text,scope)=>resolveNumberLine(text,scope),reviewNumberLine:text=>reviewNumberLine(text), get log(){return log}, get decks(){return decks}, get inv(){return inv}};
 })();

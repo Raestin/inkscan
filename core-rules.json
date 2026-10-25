@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "status": "verified-source-snapshot",
+  "game": "lorcana",
+  "format": "core",
+  "displayName": "Core Constructed (Standard)",
+  "rulesScope": "Current English Ravensburger tournament rules; not Japanese regional policy or a guarantee of event-specific eligibility",
+  "verifiedAt": "2026-10-25",
+  "policyAsOf": "2026-10-25",
+  "eligibleReleasedSetCodes": [
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14"
+  ],
+  "rotatedSetCodes": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+  ],
+  "knownPromoSetCodes": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "PD1",
+    "D23",
+    "DIS",
+    "cp",
+    "C2",
+    "CC1"
+  ],
+  "excludedSpecialFormatSets": [
+    "Coconut",
+    "Q3"
+  ],
+  "bannedGameplayIdentities": [],
+  "infinityBannedIdentitiesForReferenceOnly": [
+    {
+      "name": "Hiram Flaversham",
+      "version": "Toymaker"
+    }
+  ],
+  "newestVerifiedRelease": {
+    "setCode": "14",
+    "name": "Hyperia City",
+    "legalFrom": "2026-10-16",
+    "sourceURL": "https://www.disneylorcana.com/en-US/product/hyperia-city"
+  },
+  "identityRule": "Full English card name including character/location version; case-insensitive; Unicode NFC and whitespace normalization; typographic apostrophes equivalent; retain all other punctuation and never fuzzy-match or drop version. Gameplay rules text can differ through errata without creating a distinct named card.",
+  "algorithm": [
+    "Reject explicitly special-format-only records before matching names.",
+    "An unverified future numeric set or an unknown nonnumeric set returns unknown; never autoallow every set >=9.",
+    "Seed eligible gameplay identities from verified released sets9–14, after explicit ban list application.",
+    "A printing from a known regular or promo group matching an eligible full identity is legal even if its printed set rotated or its rarity/finish differs.",
+    "A known regular/promo printing matched only to rotated-set identities is not_legal with reason rotated; it is not called banned.",
+    "Any unresolved identity is unknown and omitted by an Only Core Legal filter.",
+    "Retain source/date and legal anchor. Do not overwrite source-provider lc/legalities; they are stale observations, not the adjudicating source."
+  ],
+  "futurePolicy": "No future rotation or ban forecast. Review current official resources when policy changes; expose last-verified date. Sets absent from this finite policy remain unknown.",
+  "deckValidationCaveat": "Card-pool filter alone does not validate a whole deck: minimum60 cards, at most2 ink types, and full-identity copy limits plus card-text exceptions must be checked separately.",
+  "sources": [
+    {
+      "url": "https://www.disneylorcana.com/en-US/resources/",
+      "role": "Current document index, English Tournament Rules link82 observed2026-10-25"
+    },
+    {
+      "url": "https://files.disneylorcana.com/Tournament-Rules-7.14.2026_Update_EN.pdf",
+      "title": "Disney Lorcana TCG Tournament Rules",
+      "effectiveDate": "2026-07-14",
+      "printedPages": [
+        5,
+        8,
+        9
+      ],
+      "sections": [
+        "1.3.1.1",
+        "1.6",
+        "1.6.1",
+        "1.6.2"
+      ],
+      "supports": [
+        "Full English name plus version",
+        "Hobby prerelease eligibility",
+        "Any printing of eligible card",
+        "Sets1–8 rotated",
+        "Core ban list empty; Infinity Hiram only"
+      ]
+    },
+    {
+      "url": "https://www.disneylorcana.com/en-GB/news/2026/08/rotation",
+      "publishedDate": "2026-08-04",
+      "supports": [
+        "Current Fabled-onward pool",
+        "Explicit old Strike a Good Match and Winterspell reprint eligibility",
+        "Belle full-version distinction"
+      ]
+    },
+    {
+      "url": "https://www.disneylorcana.com/en-US/product/hyperia-city",
+      "supports": [
+        "Hyperia prerelease2026-10-16"
+      ]
+    },
+    {
+      "url": "https://files.disneylorcana.com/FormatCoconut_Rules.pdf",
+      "supports": [
+        "Coconut is separate format with special associated card, not ordinary gameplay printing"
+      ]
+    },
+    {
+      "url": "https://www.takaratomy.co.jp/products/disneylorcana/news/other/66614/",
+      "publishedDate": "2026-01-21",
+      "supports": [
+        "Japan first rotation planned set17 in2027; English policy not universal"
+      ]
+    },
+    {
+      "url": "https://lorcast.com/docs/api/cards",
+      "supports": [
+        "Provider legalities.core enum legal/not_legal/banned; provider data needs validation"
+      ]
+    }
+  ],
+  "rawProviderLegalityTrust": "Do not use lc alone; verified-current data conflicts with official policy.",
+  "reviewDue": "2026-11-24",
+  "maintenanceNote": "InkScan maintenance safeguard: this snapshot is shown as unknown from 2026-11-24 00:00 UTC until reviewed. This is not an official rules expiration or announced rotation date.",
+  "primarySourceURL": "https://files.disneylorcana.com/Tournament-Rules-7.14.2026_Update_EN.pdf"
+}
