@@ -281,17 +281,35 @@ function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocale
 /* =========================================================
    Shared rendering
    ========================================================= */
-function artHTML(c, size){
-  const u = imgUrl(c, size||'small');
-  return u ? `<img src="${u}" alt="" loading="lazy" decoding="async" onerror="this.remove()"><span class="ph" aria-hidden="true">${esc(c.n)}</span>` : `<span class="ph">${esc(c.n)}<br>${esc(c.v)}</span>`;
+// A decorative local placeholder is never substituted into a real card <img>.
+// Consume the optional normal-to-small fallback before retrying, then stop.
+const IMAGE_ERROR="const fallback=this.dataset.fallbackSrc;this.removeAttribute('data-fallback-src');if(fallback&&this.src!==fallback){this.src=fallback;}else{this.nextElementSibling?.removeAttribute('hidden');this.remove();}";
+function placeholderHTML(card,variant,hidden){
+  const identity=`${card.n}${card.v?' – '+card.v:''} · ${card.s} #${card.c}`;
+  const metadata=variant==='thumb'?'':`<span class="art-placeholder__identity" aria-hidden="true"><strong>${esc(card.n)}</strong>${card.v?`<span>${esc(card.v)}</span>`:''}<span>${esc(card.s)} #${esc(card.c)}</span></span>`;
+  return `<span class="art-placeholder art-placeholder--${variant}" data-art-placeholder ${hidden?'hidden':''} role="img" aria-label="${esc('No image available for '+identity)}"><span class="art-placeholder__message" aria-hidden="true">No image available</span>${metadata}</span>`;
 }
+function artHTML(c,size){
+  const url=imgUrl(c,size||'small');
+  return (url?`<img data-card-art src="${esc(url)}" alt="" loading="lazy" decoding="async" onerror="${esc(IMAGE_ERROR)}">`:'')+placeholderHTML(c,'grid',!!url);
+}
+function detailArtHTML(c){
+  const url=imgUrl(c,'normal'),small=imgUrl(c,'small');
+  const fallback=small&&small!==url?` data-fallback-src="${esc(small)}"`:'';
+  const image=url?`<img data-card-art src="${esc(url)}" alt="${esc(c.n+(c.v?' – '+c.v:''))}"${fallback} onerror="${esc(IMAGE_ERROR)}">`:'';
+  return image+placeholderHTML(c,'detail',!!url);
+}
+
 /* the img sits above the placeholder text, which only shows if the image fails */
 function tileHTML(c, opts={}){
   const q = opts.q ?? ownedOf(c.id), f = opts.f ?? (inv[c.id]?.f||0), rf=opts.rf??(inv[c.id]?.rf||0);
   const badge = opts.badge != null ? opts.badge : (q ? `<span class="badge${rf&&rf===q?' rainbow':f&&f===q?' foil':''}">${q}</span>` : '');
   return `<button class="tile${opts.dim && !q ? ' missing':''}" data-card="${c.id}" aria-label="${esc(c.n+(c.v?' – '+c.v:''))}"><div class="art">${artHTML(c)}${badge}</div>${opts.cap!==false?`<div class="cap">${esc(opts.cap || (setLabel(c)+' · #'+c.c))}</div>`:''}</button>`;
 }
-function thumbHTML(c){ return `<span class="thumb">${imgUrl(c,'small')?`<img src="${imgUrl(c,'small')}" alt="" loading="lazy" onerror="this.remove()">`:''}</span>`; }
+function thumbHTML(c){
+  const url=imgUrl(c,'small');
+  return `<span class="thumb">${url?`<img data-card-art src="${esc(url)}" alt="" loading="lazy" onerror="${esc(IMAGE_ERROR)}">`:''}${placeholderHTML(c,'thumb',!!url)}</span>`;
+}
 function printingProvider(card){return card?card.supplemental?.provider||'Lorcast':'Unknown';}
 function printingNote(card){
   const meta=card?.supplemental;if(!meta)return '';
@@ -373,7 +391,7 @@ function cardDetailHTML(c){
   const inDecks = decks.filter(d=>d.cards[c.nv]).map(d=>`${esc(d.name)} (${d.cards[c.nv]})`);
   const deckOpts = decks.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
   return `<div class="detail">
-    <div class="big">${imgUrl(c,'normal')?`<img src="${imgUrl(c,'normal')}" alt="${esc(c.n+' – '+c.v)}" onerror="this.onerror=null;this.src='${imgUrl(c,'small')}'">`:''}</div>
+    <div class="big">${detailArtHTML(c)}</div>
     <div class="facts">
       ${c.v?`<div class="ver">${esc(c.v)}</div>`:''}
       <div class="row">${inkDot(c)}<span class="note">${esc(c.i)} · ${esc(c.ty.replace('/',' · '))}${c.cl?' · '+esc(c.cl.replaceAll('/',' · ')):''}</span></div>

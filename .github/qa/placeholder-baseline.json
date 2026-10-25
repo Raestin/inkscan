@@ -1,0 +1,21 @@
+{
+  "baseCommit": "5e37b40a92fd1f371aee607f058b785d243c0575",
+  "unchangedRuntimeSha256": {
+    "cards.json": "f83aafffb66abaccccd9ba6f4ebc3250576907e511687ef97d1a61c83b028de9",
+    "catalog.js": "5116a1da8d787d2273690c55b3f9af6eae00657961e36454c2cdaa8ba85a8cb6",
+    "core-rules.json": "235c4787c5dd813713a9c2b36a4efb82cfc3d726e019a69d3d51c4febda1c5d8",
+    "eng.traineddata.gz": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91",
+    "finish-quotes.json": "033d184633250660dcf76ac72c661005ff386aaf326f484b9949387298476069",
+    "icon-192.png": "d012be0891e6c6d688ddb11530c2ee3b19c3228d61792f8f872365f0bab4f80d",
+    "icon-512.png": "0b2471acda4b366318927fd8dd8852e36e58b17c8cac44f6251b6a824528cabf",
+    "legality.js": "a78cbfa1eff3379265d52e0badf6d616d9c09c6e8c11681c9282eab633c0cf6b",
+    "manifest.webmanifest": "17ddaf26e9c550d3fd4161054e55c8eaa47d0fbba9a9bba3d0d71ab033d056dc",
+    "promo-catalog.json": "c9436fdc26f4e231d1c4241b4bb0d112ffe8f28d83ab2d761b2b9e799e46477f",
+    "safety.js": "3a76ed010f530215b48276332b24b593246ab9a6103eabcf32e181089e42cb9f",
+    "tesseract-core-lstm.wasm.js": "8f04aa0cc81e7bde33f80e92fa01a7a665f0b4884d098acf5de9c7104a11dfaa",
+    "tesseract-core-simd-lstm.wasm.js": "ce20eda9533cbed1e6c2b4276fbae1e0adc61b6754b5513084be601787b457cf",
+    "tesseract.min.js": "a8e29918d098b2b06e1012bdaeffb4aec0445c5d5654709023e0bd1f442a80e8",
+    "worker.min.js": "aca1229639fc9907d86f96e825955a2b7c5716d17f3bc3acd71f9c7ab66181fc"
+  },
+  "imgUrlStatementSha256": "d9602d1c73dc683888c756e3778b87b7d3c677732db99982c34d3298039985b8"
+}

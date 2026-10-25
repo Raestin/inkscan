@@ -1,4 +1,4 @@
-name: Promo scanner and Standard filter validation (no deploy step)
+name: Original no-image placeholder validation (no deploy step)
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   release-qa:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/promo-scanner-20261025-75a9e2'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/promo-art-20261025-63d4b7'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
