@@ -1,12 +1,12 @@
 'use strict';
-// Only localhost synthetic PostgREST. Never accept a production URL override.
+// Only a Docker-verified synthetic service. Never accept a URL/IP override.
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
-const BASE='http://127.0.0.1:4300';
+const BASE=require('./get-local-endpoint.cjs').getLocalEndpoint();
 const owner='11111111-1111-4111-8111-111111111111';
 const secret='inkscan-synthetic-ci-jwt-secret-not-for-production';
 function jwt(sub){const enc=x=>Buffer.from(JSON.stringify(x)).toString('base64url');const body=enc({alg:'HS256',typ:'JWT'})+'.'+enc({sub,role:'qa_authenticated',exp:Math.floor(Date.now()/1000)+600});return body+'.'+crypto.createHmac('sha256',secret).update(body).digest('base64url');}
-async function req(method,path,body,prefer='return=representation',authenticated=true){const r=await fetch(BASE+path,{method,headers:{'Content-Type':'application/json',Prefer:prefer,...(authenticated?{Authorization:'Bearer '+jwt(owner)}:{})},body:body===undefined?undefined:JSON.stringify(body)});const t=await r.text();return {status:r.status,body:t?JSON.parse(t):null};}
+async function req(method,path,body,prefer='return=representation',authenticated=true){const r=await fetch(BASE+path,{method,redirect:'error',signal:AbortSignal.timeout(10000),headers:{'Content-Type':'application/json',Prefer:prefer,...(authenticated?{Authorization:'Bearer '+jwt(owner)}:{})},body:body===undefined?undefined:JSON.stringify(body)});const t=await r.text();return {status:r.status,body:t?JSON.parse(t):null};}
 async function own(){const r=await req('GET','/collection?user_id=eq.'+owner+'&card_id=eq.legacy-printing');assert.equal(r.status,200);assert.equal(r.body.length,1);return r.body[0];}
 (async()=>{
  let row=await own();assert.deepEqual([row.q,row.f,row.rainbow_foil],[2,1,3]);

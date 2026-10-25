@@ -238,7 +238,7 @@ test('deck-only import leaves ownership unchanged; all cancellation routes prese
     await page.locator('#previewPurchase').click();
     await expect(page.locator('#purchaseError')).toContainText('Choose a printing and finish');
     await previewPurchase(page);
-    await expect(page.locator('#sheetBody')).toContainText('(normal): 2 + 4 = 6');
+    await expect(page.locator('#sheetBody')).toContainText('(Normal): 2 + 4 = 6');
     if (dismissal === 'cancel') await page.locator('#cancelPurchase').click();
     if (dismissal === 'escape') await page.keyboard.press('Escape');
     if (dismissal === 'backdrop') await page.locator('#scrim').click({ position: { x: 5, y: 5 } });
@@ -262,7 +262,7 @@ test('confirmed additive purchase is 2 + 4 = 6; double click applies once and fr
   await importDeck(page);
   await openPurchase(page, true);
   await previewPurchase(page);
-  await expect(page.locator('#sheetBody')).toContainText('(normal): 2 + 4 = 6');
+  await expect(page.locator('#sheetBody')).toContainText('(Normal): 2 + 4 = 6');
   await shot(page, info, 'purchase-2-plus-4-preview');
   await page.locator('#confirmPurchase').dblclick();
   await closed(page);
@@ -272,7 +272,7 @@ test('confirmed additive purchase is 2 + 4 = 6; double click applies once and fr
   expect(state.recovery.at(-1).inv['synthetic-card-0']).toEqual({ q: 2, f: 1 });
   await openPurchase(page);
   await previewPurchase(page);
-  await expect(page.locator('#sheetBody')).toContainText('(normal): 6 + 4 = 10');
+  await expect(page.locator('#sheetBody')).toContainText('(Normal): 6 + 4 = 10');
   await page.locator('#confirmPurchase').click();
   await closed(page);
   state = await saved(page);
@@ -427,10 +427,10 @@ test('another synthetic tab save is detected and not overwritten by the stale ta
   await expect(page.locator('#saveStatus')).toContainText('Another tab saved changes.');
   await openCard(page);
   await page.getByRole('button', { name: 'One more normal', exact: true }).click();
-  await expect(page.locator('#saveStatus')).toContainText('Saving on this device could not be confirmed.');
+  await expect(page.locator('#saveStatus')).toContainText('Save could not be confirmed on this device.');
   const visibleWarning = page.locator('#sheetSaveStatus');
   await expect(visibleWarning).toBeVisible();
-  await expect(visibleWarning).toContainText('Saving on this device could not be confirmed.');
+  await expect(visibleWarning).toContainText('Save could not be confirmed on this device.');
   await expect(visibleWarning).toContainText('Another tab saved different data.');
   const warningBounds = await visibleWarning.boundingBox();
   expect(warningBounds.y).toBeGreaterThanOrEqual(0);
