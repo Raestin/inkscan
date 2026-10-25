@@ -16,6 +16,38 @@ const rarityLabel = r => (r || '').replace('_', ' ');
 const INKS = ['Amber','Amethyst','Emerald','Ruby','Sapphire','Steel'];
 const API = 'https://api.lorcast.com/v0';
 const IMG = 'https://cards.lorcast.io/card/digital/';
+const FINISHES = ['normal','foil','rainbow'];
+const finishKey = value => value==='rainbow'?'rainbow':value===true||value==='foil'?'foil':'normal';
+const finishField = value => ({normal:'q',foil:'f',rainbow:'rf'})[finishKey(value)];
+const finishLabel = value => ({normal:'Normal',foil:'Foil',rainbow:'Rainbow foil'})[finishKey(value)];
+const inventoryCount = value => (value?.q||0)+(value?.f||0)+(value?.rf||0);
+// Lorcast's undifferentiated foil quote is ambiguous for these multi-finish products.
+// Preserve generic legacy foil quantities; never silently reclassify them as cold foil.
+const AMBIGUOUS_FOIL = new Set(["crd_fd8709ece8b04d599379c9d168510c43","crd_e2c38bf30c48489f914581f55acd67fb","crd_a7974610679d43d190ee370d23d6e0b3","crd_7f47cc5a26eb4220a9622e8ee83c528d","crd_c7f3b3cbe19c44f7943c510392ea88db","crd_977a785a450a4621b0dcff4404592877","crd_fb78388845f54934a97c596a774bb98f","crd_3881a0b53f854152ad578f5151143244","crd_01ba964bb84745b09a29da266cddccfd","crd_4b656001901d4c34829cfe124d5c166b","crd_0599c55386a649bb9af21a906ed52db5","crd_3a5f83e2f53f4bf0b0d621014cd8f6cf","crd_1a90e72da27d4638ad9aed26776feee5"]);
+const AMBIGUOUS_FOIL_PRODUCTS = new Set([647652,647681,649224,650077,653916,657892,657893,657894,678236,678237,678238,690204,722508]);
+const ambiguousFoil = c => !!c && (AMBIGUOUS_FOIL.has(c.id)||AMBIGUOUS_FOIL_PRODUCTS.has(Number(c.t)));
+let finishQuotes={}, productMappings=new Map(), finishQuoteBuild=null, finishQuoteLoaded=false;
+function rainbowQuote(c){return c?finishQuotes[c.id+'|rainbow']:null;}
+function valuedCard(c){
+  if(!c)return {};
+  return {...c,pf:ambiguousFoil(c)?null:c.pf,prf:InkSafety.validatedRainbowQuote(c,rainbowQuote(c))};
+}
+function finishPriceNote(){
+  if(!finishQuoteLoaded)return 'Rainbow prices unavailable: the separate exact-finish quote file could not be loaded. They are counted as unpriced.';
+  const available=typeof byId!=='undefined'&&byId?Object.values(finishQuotes).filter(q=>InkSafety.validatedRainbowQuote(byId.get(q.printingId),q)!==null).length:0;
+  return `Rainbow source: TCGplayer via TCGCSV, built ${finishQuoteBuild||'unknown'}. ${available} verified printing/finish quotes currently usable. Quotes older than 7 days, mismatched or missing stay unpriced; this date is separate from the Lorcast catalog date.`;
+}
+async function loadFinishQuotes(){
+  finishQuotes={};productMappings=new Map();finishQuoteBuild=null;finishQuoteLoaded=false;
+  try{
+    const r=await fetch('finish-quotes.json',{cache:'no-cache'});if(!r.ok)return;
+    const file=await r.json();
+    if(file?.schemaVersion!==1 || file.currency!=='USD' || file.provider!=='TCGplayer via TCGCSV' || !file.quotes || typeof file.quotes!=='object' || Array.isArray(file.quotes))return;
+    finishQuotes=file.quotes;productMappings=new Map((Array.isArray(file.productMappings)?file.productMappings:[]).filter(m=>m && typeof m.printingId==='string').map(m=>[m.printingId,m]));finishQuoteBuild=typeof file.buildAsOf==='string'?file.buildAsOf:null;finishQuoteLoaded=true;
+  }catch(e){/* Optional price data never blocks card access; unavailable remains unknown. */}
+}
+const inventoryRows = (c,v) => ({c:valuedCard(c),q:v?.q||0,f:v?.f||0,rf:v?.rf||0});
+
 
 let toastT;
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2600); }
@@ -24,14 +56,18 @@ function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return tr
 let savedState=null, storageError=null, localRevision=0, knownStoredRaw=null;
 try { savedState=InkSafety.load(localStorage); localRevision=savedState.revision||0;knownStoredRaw=localStorage.getItem(InkSafety.KEY); }
 catch(e){ storageError='Saved data could not be read. Nothing was reset. Back up this browser before recovery: '+e.message; }
-function snapshotState(){ return {v:5,inv,decks,wish,base,last:syncState.last,imports:savedState?.imports||{},recovery:savedState?.recovery||[],revision:localRevision}; }
+if(savedState){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;}}
+function snapshotState(){ return {v:6,inv,decks,wish,base,last:syncState.last,imports:savedState?.imports||{},recovery:savedState?.recovery||[],revision:localRevision,legacyCheckpoint:savedState?.legacyCheckpoint}; }
 function recoveryPoints(reason){return [...(savedState.recovery||[]),{reason,at:new Date().toISOString(),inv:InkSafety.clone(inv),decks:InkSafety.clone(decks),wish:InkSafety.clone(wish),imports:InkSafety.clone(savedState.imports||{})}].slice(-3);}
 function persistState(){
   try { if(!savedState) throw Error('Saved data needs recovery.'); InkSafety.save(localStorage,snapshotState(),knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY); storageError=null; renderSaveStatus(); return true; }
-  catch(e){ storageError='Not saved on this device. Keep this tab open and download a backup. '+e.message; renderSaveStatus(); return false; }
+  catch(e){ storageError='Save could not be confirmed on this device. Keep this tab open and download a backup. '+e.message; renderSaveStatus(); return false; }
 }
 function edited(){ localRevision++; persistState(); renderSyncBox(); }
-window.addEventListener('storage',event=>{if(event.key===InkSafety.KEY && event.newValue!==knownStoredRaw){storageError='Another tab saved changes. Keep this tab open and back up both tabs before reconciling. Cloud updates are stopped until local saving is safe.';renderSaveStatus();}});
+window.addEventListener('storage',event=>{
+  if(event.key===InkSafety.KEY && event.newValue!==knownStoredRaw){storageError='Another tab saved changes. Keep this tab open and back up both tabs before reconciling. Cloud updates are stopped until local saving is safe.';renderSaveStatus();}
+  if(savedState && (event.key===null || InkSafety.isLegacyKey(event.key))){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;renderSaveStatus();}}
+});
 function renderSaveStatus(){
   const el=$('saveStatus'); if(!el) return;
   const unknown=typeof byId!=='undefined'&&byId ? Object.keys(inv).filter(id=>!byId.has(id)).length : 0;
@@ -61,6 +97,9 @@ function indexCards(d){
   DB=d; byId=new Map(); bySetNum=new Map(); byNV=new Map(); setIdx=new Map(); setName=new Map(); setCards=new Map();
   d.sets.forEach((s,i)=>{ setIdx.set(s.code,i); setName.set(s.code,s.name); setCards.set(s.code,[]); });
   for (const c of d.cards){
+    const verifiedProduct=InkSafety.validatedProductMapping(c,productMappings.get(c.id));
+    if(verifiedProduct!==null)c.t=verifiedProduct;
+    c.prf=InkSafety.validatedRainbowQuote(c,rainbowQuote(c));
     c.nv = nvKeyOf(c);
     c.inks = (c.i||'').split('/').filter(Boolean);
     c.num = parseInt(c.c,10) || 0;
@@ -78,11 +117,11 @@ const SPECIAL = new Set(['Enchanted','Promo','Iconic','Epic']);
 function repOf(nv){
   const list = byNV.get(nv); if(!list) return null;
   let best=null, bestN=0;
-  for (const c of list){ const v=inv[c.id]; const n=v?(v.q||0)+(v.f||0):0; if(n>bestN){best=c;bestN=n;} }
+  for (const c of list){ const v=inv[c.id]; const n=inventoryCount(v); if(n>bestN){best=c;bestN=n;} }
   return best || list.find(c=>!SPECIAL.has(c.r)) || list[0];
 }
-function priceOf(c, foil){ return c?InkSafety.price(foil?c.pf:c.p):null; }
-function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=c.p ?? c.pf; if(p!=null && (m==null||p<m)) m=p; } return m; }
+function priceOf(c, finish){ const value=valuedCard(c); return InkSafety.price(value[finishKey(finish)==='rainbow'?'prf':finishKey(finish)==='foil'?'pf':'p']); }
+function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=priceOf(c,false) ?? priceOf(c,true); if(p!=null && (m==null||p<m)) m=p; } return m; }
 function foilPriceOnly(c){ return c && priceOf(c,false)===null && priceOf(c,true)!==null; }
 function setLabel(c){ return /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
 function imgUrl(c, size){ return c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
@@ -92,14 +131,26 @@ function inkDot(c){
 }
 function isType(c, t){ return c.ty.split('/').includes(t); }
 
+function catalogStamp(data){
+  if(!data || !Array.isArray(data.cards) || !Array.isArray(data.sets) || typeof data.asof!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.asof))return null;
+  const stamp=Date.parse(data.asof+'T00:00:00Z');
+  return Number.isFinite(stamp) && new Date(stamp).toISOString().slice(0,10)===data.asof?stamp:null;
+}
 async function loadCards(){
+  let cached=null,bundled=null;
   try{
     if ('caches' in window){
-      const hit = await (await caches.open('inkscan-data')).match('cards-live.json');
-      if (hit) return await hit.json();
+      const hit=await (await caches.open('inkscan-data')).match('cards-live.json');
+      if(hit){const value=await hit.json();if(catalogStamp(value)!==null)cached=value;}
     }
-  }catch(e){}
-  const r = await fetch('cards.json'); if(!r.ok) throw new Error('cards'); return r.json();
+  }catch(e){/* Invalid/unavailable cache does not replace the bundled catalog. */}
+  try{
+    const response=await fetch('cards.json');
+    if(response.ok){const value=await response.json();if(catalogStamp(value)!==null)bundled=value;}
+  }catch(e){/* A usable live cache still supports offline card access. */}
+  if(cached && (!bundled || catalogStamp(cached)>catalogStamp(bundled)))return cached;
+  if(bundled)return bundled;
+  throw Error('No valid card catalog is available.');
 }
 async function refreshFromLorcast(manual, btn){
   if (btn){ btn.disabled = true; }
@@ -124,7 +175,7 @@ async function refreshFromLorcast(manual, btn){
     if (cards.length < 1000) throw 0;
     const d = {asof:today(), sets:sets.map(s=>({code:s.code,name:s.name,rel:s.released_at})), cards};
     try{ await (await caches.open('inkscan-data')).put('cards-live.json', new Response(JSON.stringify(d), {headers:{'content-type':'application/json'}})); }catch(e){}
-    indexCards(d); renderAll(); renderSaveStatus();
+    await loadFinishQuotes();indexCards(d); renderAll(); renderSaveStatus();
     if (manual) toast('Prices and cards updated');
   }catch(e){ if (manual) toast('Couldn’t reach Lorcast. Check your connection and try again.'); }
   finally{ if (btn){ btn.textContent = label; btn.disabled = false; } }
@@ -133,27 +184,29 @@ async function refreshFromLorcast(manual, btn){
 /* =========================================================
    Saved state: collection, decks, wishlist
    ========================================================= */
-let inv = {};     // cardId -> {q, f}
+let inv = {};     // cardId -> {q, f, rf?}; rainbow is a distinct physical finish
 let decks = [];   // [{id, name, cards:{nv:qty}, updated}]
 let wish = {};    // cardId -> qty wanted
 function saveInv(){ edited(); renderTotals(); }
 function saveDecks(){ edited(); }
 function saveWish(){ edited(); }
-function ownedOf(id){ const v=inv[id]; return v ? (v.q||0)+(v.f||0) : 0; }
+function ownedOf(id){ return inventoryCount(inv[id]); }
 function ownedNV(nv){ let n=0; for (const c of byNV.get(nv)||[]) n+=ownedOf(c.id); return n; }
 function addQty(id, foil, n){
   const v = inv[id] || (inv[id] = {q:0,f:0});
-  if (foil) v.f = Math.max(0,(v.f||0)+n); else v.q = Math.max(0,(v.q||0)+n);
-  if (!v.q && !v.f) delete inv[id];
+  const field=finishField(foil), next=Math.max(0,(v[field]||0)+n);
+  if(!Number.isSafeInteger(next)){toast('Quantity is too large. Nothing was changed.');return;}
+  v[field]=next; if(field==='rf'&&!next)delete v.rf;
+  if (!inventoryCount(v)) delete inv[id];
   if (n>0 && wish[id]){ wish[id]=Math.max(0,wish[id]-n); if(!wish[id]) delete wish[id]; saveWish(); }
   saveInv();
 }
 function totals(){
   let u=0, copies=0, val=0, unpriced=0;
-  for (const [id,v] of Object.entries(inv)){ const c=byId.get(id); const n=(v.q||0)+(v.f||0); if(!n) continue; u++; copies+=n; const estimate=InkSafety.valuation([{c:c||{},q:v.q||0,f:v.f||0}]);val+=estimate.value;unpriced+=estimate.unpriced; }
+  for (const [id,v] of Object.entries(inv)){ const c=byId.get(id); const n=inventoryCount(v); if(!n) continue; u++; copies+=n; const estimate=InkSafety.valuation([inventoryRows(c,v)]);val+=estimate.value;unpriced+=estimate.unpriced; }
   return {u,copies,val,unpriced};
 }
-function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocaleString(); $('tCopies').textContent=t.copies.toLocaleString(); $('tValue').textContent=money0(t.val)+(t.unpriced?' (partial)':'');$('tValue').title=`Overall collection estimate; ${t.unpriced} copies unpriced. TCGplayer via Lorcast, catalog ${DB?.asof||'unknown'}.`; }
+function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocaleString(); $('tCopies').textContent=t.copies.toLocaleString(); $('tValue').textContent=money0(t.val)+(t.unpriced?' (partial)':'');$('tValue').title=`Overall collection estimate; ${t.unpriced} copies unpriced. TCGplayer via Lorcast, catalog ${DB?.asof||'unknown'}. ${finishPriceNote()}`; }
 
 /* =========================================================
    Shared rendering
@@ -164,8 +217,8 @@ function artHTML(c, size){
 }
 /* the img sits above the placeholder text, which only shows if the image fails */
 function tileHTML(c, opts={}){
-  const q = opts.q ?? ownedOf(c.id), f = opts.f ?? (inv[c.id]?.f||0);
-  const badge = opts.badge != null ? opts.badge : (q ? `<span class="badge${f&&f===q?' foil':''}">${q}</span>` : '');
+  const q = opts.q ?? ownedOf(c.id), f = opts.f ?? (inv[c.id]?.f||0), rf=opts.rf??(inv[c.id]?.rf||0);
+  const badge = opts.badge != null ? opts.badge : (q ? `<span class="badge${rf&&rf===q?' rainbow':f&&f===q?' foil':''}">${q}</span>` : '');
   return `<button class="tile${opts.dim && !q ? ' missing':''}" data-card="${c.id}" aria-label="${esc(c.n+(c.v?' – '+c.v:''))}"><div class="art">${artHTML(c)}${badge}</div>${opts.cap!==false?`<div class="cap">${esc(opts.cap || (setLabel(c)+' · #'+c.c))}</div>`:''}</button>`;
 }
 function thumbHTML(c){ return `<span class="thumb">${imgUrl(c,'small')?`<img src="${imgUrl(c,'small')}" alt="" loading="lazy" onerror="this.remove()">`:''}</span>`; }
@@ -246,13 +299,14 @@ function cardDetailHTML(c){
       <dl class="kv">
         <dt>Set</dt><dd>${esc(c.sn)} · #${esc(c.c)}</dd>
         <dt>Rarity</dt><dd>${esc(rarityLabel(c.r))}</dd>
-        <dt>Price</dt><dd>${c.p!=null?money(c.p)+' normal':''}${c.p!=null&&c.pf!=null?' · ':''}${c.pf!=null?money(c.pf)+' foil':''}${c.p==null&&c.pf==null?'—':''}</dd>
+        <dt>Price</dt><dd>${FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced. ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
         ${c.il?`<dt>Artist</dt><dd>${esc(c.il)}</dd>`:''}
         <dt>Core format</dt><dd>${c.lc?'Legal':'Not legal (Infinity only)'}</dd>
       </dl>
       <div class="own" id="ownBox">
         <div class="step"><label>Normal</label><button data-own="q" data-d="-1" aria-label="One fewer normal">−</button><output>${v.q||0}</output><button data-own="q" data-d="1" aria-label="One more normal">+</button></div>
         <div class="step"><label>Foil</label><button data-own="f" data-d="-1" aria-label="One fewer foil">−</button><output>${v.f||0}</output><button data-own="f" data-d="1" aria-label="One more foil">+</button></div>
+        <div class="step"><label>Rainbow foil</label><button data-own="rf" data-d="-1" aria-label="One fewer rainbow foil">−</button><output>${v.rf||0}</output><button data-own="rf" data-d="1" aria-label="One more rainbow foil">+</button></div>
         <div class="step"><label>Wishlist</label><button data-want="-1" aria-label="Want one fewer">−</button><output>${w}</output><button data-want="1" aria-label="Want one more">+</button></div>
       </div>
       ${decks.length?`<div class="row"><select id="deckPick" class="slim" aria-label="Deck">${deckOpts}</select><button class="btn" id="deckAddOne">Add to deck</button></div>`:''}
@@ -266,7 +320,7 @@ $('sheetBody').addEventListener('click', e=>{
   if (other){ e.preventDefault(); const id=other.dataset.card; sheetCard=id; const c=byId.get(id); $('sheetTitle').textContent=c.n; $('sheetBody').innerHTML=cardDetailHTML(c); $('sheetBody').scrollTop=0; return; }
   if (!sheetCard) return;
   const c = byId.get(sheetCard);
-  if (own){ addQty(c.id, own.dataset.own==='f', +own.dataset.d); }
+  if (own){ addQty(c.id, own.dataset.own==='rf'?'rainbow':own.dataset.own==='f', +own.dataset.d); }
   else if (want){ wish[c.id]=Math.max(0,(wish[c.id]||0)+ +want.dataset.want); if(!wish[c.id]) delete wish[c.id]; saveWish(); }
   else if (e.target.id==='deckAddOne'){
     const d = decks.find(x=>x.id===$('deckPick').value); if(!d) return;
@@ -317,14 +371,25 @@ function renderLog(){
   el.innerHTML = log.slice(0,60).map(x=>{
     const c = byId.get(x.cardId); if(!c) return '';
     return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,x.foil)}</div></div>
-      <div class="acts"><button data-act="lf" data-k="${x.key}" aria-pressed="${x.foil}">Foil</button><button data-act="lu" data-k="${x.key}">Undo</button></div></div></div>`;
+      <div class="acts"><select class="log-finish" data-log-finish="${x.key}" aria-label="Finish for ${esc(c.n)}">${FINISHES.map(f=>`<option value="${f}" ${finishKey(x.foil)===f?'selected':''}>${finishLabel(f)}</option>`).join('')}</select><button data-act="lu" data-k="${x.key}">Undo</button></div></div></div>`;
   }).join('');
 }
 $('log').addEventListener('click', e=>{
   const b=e.target.closest('button[data-act]'); if(!b) return;
   const x = log.find(x=>x.key==b.dataset.k); if(!x) return;
   if (b.dataset.act==='lu'){ addQty(x.cardId, x.foil, -1); log = log.filter(y=>y!==x); renderLog(); toast('Removed one copy'); }
-  else { addQty(x.cardId, x.foil, -1); x.foil = !x.foil; addQty(x.cardId, x.foil, 1); renderLog(); }
+});
+$('log').addEventListener('change',e=>{
+  const select=e.target.closest('[data-log-finish]'); if(!select || !FINISHES.includes(select.value))return;
+  const x=log.find(x=>x.key==select.dataset.logFinish);if(!x || finishKey(x.foil)===select.value)return;
+  const next=InkSafety.clone(inv),value=next[x.cardId],before=finishField(x.foil),after=finishField(select.value);
+  if(!value || !(value[before]>0)){toast('That scanned finish is no longer owned. Review the card before changing it.');renderLog();return;}
+  if(!Number.isSafeInteger((value[after]||0)+1)){toast('Quantity is too large. Nothing was changed.');renderLog();return;}
+  value[before]--;value[after]=(value[after]||0)+1;if(!value.rf)delete value.rf;
+  const snapshot={...snapshotState(),inv:next,revision:localRevision+1};
+  try{InkSafety.save(localStorage,snapshot,knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}
+  catch(err){storageError='Finish change could not be confirmed. Keep this tab open and back up before retrying. '+err.message;renderSaveStatus();renderLog();return;}
+  inv=next;localRevision=snapshot.revision;storageError=null;x.foil=select.value;renderSaveStatus();renderSyncBox();renderTotals();renderLog();
 });
 function quickSearch(q, limit=30){
   q = q.trim(); if(!q || !DB) return [];
@@ -463,11 +528,18 @@ function hit(card){
   $('guide').classList.add('hit'); setTimeout(()=>$('guide').classList.remove('hit'),500);
   navigator.vibrate?.(60); beep();
   const x = log[0];
-  camMsg(`${card.n} · ${card.v ? card.v+' · ' : ''}${money(priceOf(card,x.foil))}${x.foil?' foil':''}`);
+  camMsg(`${card.n} · ${card.v ? card.v+' · ' : ''}${money(priceOf(card,x.foil))} ${finishLabel(x.foil)}`);
 }
 $('startBtn').onclick = startCam;
 $('stopBtn').onclick = stopCam;
-$('foilBtn').onclick = ()=>{ foilMode=!foilMode; $('foilBtn').setAttribute('aria-pressed',foilMode); renderQuick(); toast(foilMode?'Foil mode on: scans count as foil':'Foil mode off'); };
+function setScanFinish(finish){
+  if(!FINISHES.includes(finish))return;
+  foilMode=finish==='normal'?false:finish==='foil'?true:'rainbow';
+  $('scanFinish').value=finish;$('foilBtn').textContent=finishLabel(finish);$('foilBtn').setAttribute('aria-pressed',finish!=='normal');
+  renderQuick();toast(`Scans and search additions count as ${finishLabel(finish).toLowerCase()}.`);
+}
+$('scanFinish').onchange=()=>setScanFinish($('scanFinish').value);
+$('foilBtn').onclick=()=>setScanFinish(finishKey(foilMode)==='foil'?'normal':'foil');
 $('torchBtn').onclick = async ()=>{
   const t = stream?.getVideoTracks()[0]; if(!t) return; const on = $('torchBtn').getAttribute('aria-pressed')!=='true';
   try{ await t.applyConstraints({advanced:[{torch:on}]}); $('torchBtn').setAttribute('aria-pressed',on); }catch(e){ toast('This camera’s light can’t be controlled here.'); }
@@ -487,7 +559,7 @@ $('cFinish').onchange=renderColl;
 $('cReset').onclick=()=>{$('cf').value='';collInks.clear();$('cFinish').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
 function valueSummary(rows,finish){
   const result=InkSafety.valuation(rows,finish);
-  return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies across all matching results. ${result.unpriced} copies unpriced. TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}.`;
+  return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies across all matching results. ${result.unpriced} copies unpriced. TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
 }
 
 function renderColl(){
@@ -497,14 +569,14 @@ function renderColl(){
 function collRows(){
   const f = norm($('cf').value); const rows = [];
   for (const [id,v] of Object.entries(inv)){
-    const c = byId.get(id); if(!c || !((v.q||0)+(v.f||0))) continue;
+    const c = byId.get(id); if(!c || !inventoryCount(v)) continue;
     const finish=$('cFinish').value||'all';
-    const q=finish==='foil'?0:(v.q||0), foil=finish==='normal'?0:(v.f||0);
-    if(!q&&!foil)continue;
+    const q=finish==='all'||finish==='normal'?(v.q||0):0, foil=finish==='all'||finish==='foil'?(v.f||0):0, rf=finish==='all'||finish==='rainbow'?(v.rf||0):0;
+    if(!q&&!foil&&!rf)continue;
     if (!inkMatch(c, collInks)) continue;
     if (f && !norm(c.n+c.v+c.sn+c.i+c.r+c.cl).includes(f) && !(norm(setLabel(c))+norm(c.c)).includes(f)) continue;
-    const estimate=InkSafety.valuation([{c,q,f:foil}]);
-    rows.push({c,q,f:foil,val:estimate.value,unpriced:estimate.unpriced});
+    const estimate=InkSafety.valuation([{c:valuedCard(c),q,f:foil,rf}]);
+    rows.push({c:valuedCard(c),q,f:foil,rf,val:estimate.value,unpriced:estimate.unpriced});
   }
   const bySet = (a,b)=>bySetOrder(a.c,b.c);
   const s = $('sortSel').value;
@@ -524,20 +596,20 @@ function renderCollCards(){
   }
   if (layout==='grid'){
     el.className='grid';
-    el.innerHTML = rows.map(r=>tileHTML(r.c,{q:r.q+r.f,f:r.f,cap: `${money(r.val)}${r.unpriced?' (partial)':''}`})).join('');
+    el.innerHTML = rows.map(r=>tileHTML(r.c,{q:r.q+r.f+r.rf,f:r.f,rf:r.rf,cap: `${money(r.val)}${r.unpriced?' (partial)':''}`})).join('');
   } else {
     el.className='list';
-    el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}</div></div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}</div><div class="p">${money(r.val)}</div></div></div></div>`).join('');
+    el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}</div></div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}${r.rf?` <span class="chip rainbow">Rainbow foil ×${r.rf}</span>`:''}</div><div class="p">${money(r.val)}${r.unpriced?' (partial)':''}</div></div></div></div>`).join('');
   }
 }
 function renderSets(){
   const rows = DB.sets.map(s=>{
-    const cs = setCards.get(s.code)||[]; let own=0, val=0, miss=0;
-    for (const c of cs){ const n=ownedOf(c.id); if(n){ own++; val+= (inv[c.id].q||0)*(priceOf(c,false)||0)+(inv[c.id].f||0)*(priceOf(c,true)||0); } else miss += (c.p ?? c.pf ?? 0); }
-    return {s, total:cs.length, own, val, miss};
+    const cs = setCards.get(s.code)||[]; let own=0, val=0, miss=0, unpriced=0, missingUnpriced=0;
+    for (const c of cs){ const n=ownedOf(c.id); if(n){own++;const estimate=InkSafety.valuation([inventoryRows(c,inv[c.id])]);val+=estimate.value;unpriced+=estimate.unpriced;}else{const price=priceOf(c,false)??priceOf(c,true);if(price===null)missingUnpriced++;else miss+=price;} }
+    return {s, total:cs.length, own, val, miss, unpriced, missingUnpriced};
   }).filter(r=>r.total);
   const started = rows.filter(r=>r.own), rest = rows.filter(r=>!r.own);
-  const row = r => `<div class="item"><button class="item-main" data-set="${esc(r.s.code)}"><div class="who"><div class="n">${esc(r.s.name)}</div><div class="m">${/^\d+$/.test(r.s.code)?'Set '+esc(r.s.code)+' · ':''}${r.own}/${r.total} cards · ${money0(r.val)} owned · ${money0(r.miss)} to finish</div><div class="bar"><i style="width:${(100*r.own/r.total).toFixed(1)}%"></i></div></div><span class="note">${Math.round(100*r.own/r.total)}%</span></button></div>`;
+  const row = r => `<div class="item"><button class="item-main" data-set="${esc(r.s.code)}"><div class="who"><div class="n">${esc(r.s.name)}</div><div class="m">${/^\d+$/.test(r.s.code)?'Set '+esc(r.s.code)+' · ':''}${r.own}/${r.total} cards · ${money0(r.val)} owned${r.unpriced?` (${r.unpriced} copies unpriced)`:''} · ${money0(r.miss)} to finish${r.missingUnpriced?' (partial estimate)':''}</div><div class="bar"><i style="width:${(100*r.own/r.total).toFixed(1)}%"></i></div></div><span class="note">${Math.round(100*r.own/r.total)}%</span></button></div>`;
   $('setList').innerHTML = (started.length?`<div class="group">Started<span>${started.length} sets</span></div>`+started.map(row).join(''):'') + (rest.length?`<div class="group">Not started<span>${rest.length} sets</span></div>`+rest.map(row).join(''):'');
 }
 $('setList').addEventListener('click', e=>{
@@ -547,8 +619,8 @@ $('setList').addEventListener('click', e=>{
 });
 function renderWish(){
   const rows = Object.entries(wish).map(([id,q])=>({c:byId.get(id),q})).filter(r=>r.c).sort((a,b)=>bySetOrder(a.c,b.c));
-  let total=0, n=0; for (const r of rows){ total += r.q*(priceOf(r.c, foilPriceOnly(r.c))||0); n+=r.q; }
-  $('wishSum').innerHTML = rows.length ? `<div><strong>${n}</strong>cards wanted</div><div><strong>${money(total)}</strong>at TCGplayer market</div><button class="btn primary" id="wishBuy" style="margin-left:auto;align-self:center">Buy on TCGplayer</button>` : '';
+  let total=0,n=0,unpriced=0;for(const r of rows){const price=priceOf(r.c,foilPriceOnly(r.c));if(price===null)unpriced+=r.q;else total+=r.q*price;n+=r.q;}
+  $('wishSum').innerHTML = rows.length ? `<div><strong>${n}</strong>cards wanted</div><div><strong>${money(total)}${unpriced?' (partial)':''}</strong>${unpriced?`${unpriced} copies unpriced`:'at TCGplayer market'}</div><button class="btn primary" id="wishBuy" style="margin-left:auto;align-self:center">Buy on TCGplayer</button>` : '';
   if (rows.length) $('wishBuy').onclick = ()=>openTcg(rows.map(r=>({q:r.q, c:r.c})));
   $('wishList').innerHTML = rows.length ? rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${metaLine(r.c,foilPriceOnly(r.c))}${ownedNV(r.c.nv)?` · own ${ownedNV(r.c.nv)}`:''}</div></div>
     <div class="acts"><button data-act="w" data-id="${r.c.id}" data-d="-1" aria-label="Want one fewer">−</button><output>${r.q}</output><button data-act="w" data-id="${r.c.id}" data-d="1" aria-label="Want one more">+</button></div></div>
@@ -593,21 +665,21 @@ function renderBrowse(){
     if (type && !isType(c,type)) return false;
     if (cost && (cost==='7' ? (c.co??0)<7 : c.co!=+cost)) return false;
     if (rar && c.r!==rar) return false;
-    const owned=finish==='normal'?(inv[c.id]?.q||0):finish==='foil'?(inv[c.id]?.f||0):ownedOf(c.id);
+    const owned=finish==='normal'?(inv[c.id]?.q||0):finish==='foil'?(inv[c.id]?.f||0):finish==='rainbow'?(inv[c.id]?.rf||0):ownedOf(c.id);
     if (own==='own' && !owned) return false;
     if (own==='miss' && owned) return false;
     if (q && !norm(c.n+c.v+c.cl+c.tx).includes(q)) return false;
     return true;
   });
-  const shownPrice=c=>finish==='normal'?priceOf(c,false):finish==='foil'?priceOf(c,true):(priceOf(c,false)??priceOf(c,true));
+  const shownPrice=c=>finish==='all'?(priceOf(c,false)??priceOf(c,true)??priceOf(c,'rainbow')):priceOf(c,finish);
   const s=$('bSort').value;
   list.sort(s==='name'?(a,b)=>a.n.localeCompare(b.n)||a.v.localeCompare(b.v)||bySetOrder(a,b)
     :s==='cost'?(a,b)=>(a.co??99)-(b.co??99)||a.n.localeCompare(b.n)
     :s==='price'?(a,b)=>((shownPrice(b)??-1)-(shownPrice(a)??-1))||bySetOrder(a,b):bySetOrder);
   let missCost=0, unpriced=0; if(own==='miss') for(const c of list){const p=shownPrice(c);if(p===null)unpriced++;else missCost+=p;}
   $('bCount').textContent = `${list.length.toLocaleString()} cards${own==='miss'&&list.length?` · ${money(missCost)} ${unpriced?`priced portion; ${unpriced} unpriced`:'estimated to buy them all'}`:''}`;
-  $('bValue').textContent=valueSummary(list.map(c=>({c,q:inv[c.id]?.q||0,f:inv[c.id]?.f||0})),finish);
-  chunked($('bGrid'), $('bSentinel'), list, c=>{const q=finish==='foil'?0:(inv[c.id]?.q||0),f=finish==='normal'?0:(inv[c.id]?.f||0);return tileHTML(c,{q:q+f,f,dim:true,cap:`${setLabel(c)} #${c.c} · ${money(shownPrice(c))}${finish==='all'?'':' '+finish}`});});
+  $('bValue').textContent=valueSummary(list.map(c=>inventoryRows(c,inv[c.id])),finish);
+  chunked($('bGrid'), $('bSentinel'), list, c=>{const q=finish==='all'||finish==='normal'?(inv[c.id]?.q||0):0,f=finish==='all'||finish==='foil'?(inv[c.id]?.f||0):0,rf=finish==='all'||finish==='rainbow'?(inv[c.id]?.rf||0):0;return tileHTML(c,{q:q+f+rf,f,rf,dim:true,cap:`${setLabel(c)} #${c.c} · ${money(shownPrice(c))}${finish==='all'?'':' '+finish}`});});
 }
 function refreshBrowseBadges(){
   document.querySelectorAll('#bGrid .tile').forEach(t=>{
@@ -626,15 +698,15 @@ const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).sli
 function deckCount(d){ return Object.values(d.cards).reduce((a,b)=>a+b,0); }
 function deckInks(d){ const s=new Set(); for (const nv of Object.keys(d.cards)) for (const i of (repOf(nv)?.inks||[])) s.add(i); return [...s].sort((a,b)=>INKS.indexOf(a)-INKS.indexOf(b)); }
 function deckStats(d){
-  let total=0, inkable=0, missing=0, missCost=0, value=0; const curve=Array(8).fill(0); const types={};
+  let total=0, inkable=0, missing=0, missCost=0, missingUnpriced=0, value=0; const curve=Array(8).fill(0); const types={};
   for (const [nv,q] of Object.entries(d.cards)){
     const c = repOf(nv); if(!c) continue;
     total+=q; if (c.ik) inkable+=q;
     curve[Math.min(7, Math.max(0,c.co||0))]+=q;
     const t = c.ty.split('/')[0]; types[t]=(types[t]||0)+q;
-    const m = Math.max(0, q-ownedNV(nv)); missing+=m; missCost += m*(cheapest(nv)||0);
+    const m=Math.max(0,q-ownedNV(nv)),price=cheapest(nv);missing+=m;if(price===null)missingUnpriced+=m;else missCost+=m*price;
   }
-  return {total, inkable, missing, missCost, curve, types, inks: deckInks(d)};
+  return {total, inkable, missing, missCost, missingUnpriced, curve, types, inks: deckInks(d)};
 }
 /* returns true or a message explaining why it couldn't add */
 function deckAdd(d, nv, n){
@@ -655,7 +727,7 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML = sorted.length ? sorted.map(d=>{
     const st = deckStats(d); const lead = Object.entries(d.cards).sort((a,b)=>(repOf(b[0])?.co||0)-(repOf(a[0])?.co||0))[0];
     const c = lead && repOf(lead[0]);
-    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.total}/60 cards${st.missing?` · missing ${st.missing} (${money(st.missCost)})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip ok">Ready</span>':''}</button></div>`;
+    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.total}/60 cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip ok">Ready</span>':''}</button></div>`;
   }).join('') : `<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`;
 }
 $('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
@@ -678,7 +750,7 @@ function renderDeckEdit(keepScroll){
   if (st.total<60) warns.push(`<span class="chip warn">${60-st.total} more cards needed</span>`);
   if (st.inks.length>2) warns.push(`<span class="chip warn">More than 2 inks</span>`);
   if (st.total>=60 && st.inks.length<=2) warns.push(`<span class="chip ok">Legal deck</span>`);
-  if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}</span>`);
+  if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div><div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div><div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
     <div class="warns">${warns.join('')}</div>`;
@@ -823,7 +895,7 @@ function previewCollectionImport(deck){
   const receiptId=uid();
   const row=(line,i)=>{
     const candidates=line.nv?(byNV.get(line.nv)||[]):[];
-    return `<div class="own"><p>${line.qty} new copies: ${esc(line.raw)}</p><label>Printing <select id="purchasePrint${i}"><option value="">Choose printing</option>${candidates.map(c=>`<option value="${esc(c.id)}">${esc(c.sn)} #${esc(c.c)} - ${esc(c.n)} ${esc(c.v)}</option>`).join('')}<option value="__skip">Keep unresolved; do not add this line</option></select></label><label>Finish <select id="purchaseFinish${i}"><option value="">Choose finish</option><option value="normal">Normal</option><option value="foil">Foil</option></select></label></div>`;
+    return `<div class="own"><p>${line.qty} new copies: ${esc(line.raw)}</p><label>Printing <select id="purchasePrint${i}"><option value="">Choose printing</option>${candidates.map(c=>`<option value="${esc(c.id)}">${esc(c.sn)} #${esc(c.c)} - ${esc(c.n)} ${esc(c.v)}</option>`).join('')}<option value="__skip">Keep unresolved; do not add this line</option></select></label><label>Finish <select id="purchaseFinish${i}"><option value="">Choose finish</option><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label></div>`;
   };
   openSheet('Add new physical cards',`<p>Every listed copy will be added on top of what you own. No deductions or top-ups happen automatically.</p>${lines.map(row).join('')}<p class="note">${(deck.unresolved||[]).length} unresolved source line(s) are retained with this deck on this device. Unparsed lines cannot be added until corrected.</p><button class="btn primary" id="previewPurchase">Preview quantities</button><button class="btn" id="cancelPurchase">Cancel</button><p id="purchaseError" role="alert"></p>`);
   $('cancelPurchase').onclick=()=>closeSheet();
@@ -834,13 +906,13 @@ function previewCollectionImport(deck){
         const cardId=$(`purchasePrint${i}`).value, finish=$(`purchaseFinish${i}`).value;
         if(cardId==='__skip')continue;
         const card=byId.get(cardId);
-        if(!card || !['normal','foil'].includes(finish))throw Error('Choose a printing and finish, or explicitly keep each line unresolved.');
+        if(!card || !FINISHES.includes(finish))throw Error('Choose a printing and finish, or explicitly keep each line unresolved.');
         // A missing price is not evidence that a physical finish is unavailable.
         items.push({cardId,finish,qty:lines[i].qty});
       }
       if(!items.length)throw Error('No cards selected to add. Cancel to keep the imported deck only.');
       const plan=InkSafety.collectionAddition(inv,items,receiptId,savedState.imports||{}), revision=localRevision, expectedRaw=knownStoredRaw;
-      openSheet('Confirm collection additions',`<p>This adds ${items.reduce((n,x)=>n+x.qty,0)} new physical cards.</p>${plan.changes.map(c=>`<p>${esc(byId.get(c.cardId)?.n||c.cardId)} (${esc(c.finish)}): ${c.before} + ${c.qty} = <b>${c.after}</b></p>`).join('')}<p class="note">Confirm only once for this purchase. You can intentionally import the same list again for another purchase.</p><button class="btn primary" id="confirmPurchase">Confirm: add new cards</button><button class="btn" id="cancelPurchase">Cancel</button><p id="purchaseError" role="alert"></p>`);
+      openSheet('Confirm collection additions',`<p>This adds ${items.reduce((n,x)=>n+x.qty,0)} new physical cards.</p>${plan.changes.map(c=>`<p>${esc(byId.get(c.cardId)?.n||c.cardId)} (${esc(finishLabel(c.finish))}): ${c.before} + ${c.qty} = <b>${c.after}</b></p>`).join('')}<p class="note">Confirm only once for this purchase. You can intentionally import the same list again for another purchase.</p><button class="btn primary" id="confirmPurchase">Confirm: add new cards</button><button class="btn" id="cancelPurchase">Cancel</button><p id="purchaseError" role="alert"></p>`);
       let applied=false;
       $('cancelPurchase').onclick=()=>closeSheet();
       $('confirmPurchase').onclick=()=>{
@@ -848,7 +920,7 @@ function previewCollectionImport(deck){
         if(localRevision!==revision || knownStoredRaw!==expectedRaw){$('purchaseError').textContent='Collection changed during review. Cancel and preview the latest quantities.';return;}
         const checked=InkSafety.collectionAddition(inv,items,receiptId,savedState.imports||{});
         const next={...snapshotState(),inv:checked.inv,imports:checked.receipts,recovery:recoveryPoints('Before confirmed new-card purchase'),revision:localRevision+1};
-        try{InkSafety.save(localStorage,next,knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}catch(e){storageError='Addition was not saved or applied. Keep this tab open and back up. '+e.message;renderSaveStatus();$('purchaseError').textContent=storageError;return;}
+        try{InkSafety.save(localStorage,next,knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}catch(e){storageError='Addition could not be confirmed. Keep this tab open and back up before retrying. '+e.message;renderSaveStatus();$('purchaseError').textContent=storageError;return;}
         applied=true;inv=next.inv;savedState.imports=next.imports;savedState.recovery=next.recovery;localRevision=next.revision;storageError=null;renderAll();renderSaveStatus();closeSheet();toast('New cards saved on this device. Tap Update to send them to the cloud.');
       };
     }catch(e){$('purchaseError').textContent=e.message;}
@@ -890,11 +962,18 @@ async function token(){
 async function rest(method, path, body, extra){
   const t = await token(); if (!t){ const e=new Error('Not signed in'); e.status=401; throw e; }
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {method, headers:{...sbHeaders(t), ...(extra||{})}, body: body ? JSON.stringify(body) : undefined});
-  if (!r.ok){ const j = await r.json().catch(()=>({})); const e = new Error(j.message || `Sync error ${r.status}`); e.status=r.status; throw e; }
+  if (!r.ok){ const j = await r.json().catch(()=>({})); const e = new Error(j.message || `Sync error ${r.status}`); e.status=r.status;e.code=j.code; throw e; }
   return r.status===204 ? null : r.json();
 }
 // Full owner-scoped reads avoid timestamp-only pagination and detect missing rows.
 const TABLES={inv:'collection',wish:'wishlist',decks:'decks'};
+let cloudRainbow=false;
+async function probeRainbowCloud(){
+  // Called only from explicit Update, never at startup or sign-in.
+  try{await rest('GET',`collection?user_id=eq.${encodeURIComponent(session.uid)}&select=rainbow_foil&limit=0`);return true;}
+  catch(e){if(e.code==='42703' && /rainbow_foil/i.test(e.message))return false;throw e;}
+}
+function hasRainbow(values){return Object.values(values||{}).some(v=>(v?.rf||0)>0);}
 function ensureCloudOrigin(){
   if(location.origin!=='https://raestin.github.io' || !location.pathname.startsWith('/inkscan/'))
     throw Error('Cloud access is disabled in this isolated development preview.');
@@ -907,13 +986,19 @@ async function pullAll(section){
   }
 }
 function remoteMaps(rows){
-  return InkSafety.maps({inv:Object.fromEntries(rows.inv.map(r=>[r.card_id,{q:r.q,f:r.f}])),wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted)});
+  const inventory=Object.fromEntries(rows.inv.map(r=>{
+    if(cloudRainbow && (!Number.isSafeInteger(r.rainbow_foil)||r.rainbow_foil<0))throw Error('Cloud rainbow quantities are missing or invalid. No collection changes were applied.');
+    const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
+    return [r.card_id,value];
+  }));
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted)};
+  InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
   return new Promise(resolve=>{
     let settled=false;
     const finish=value=>{if(settled)return;settled=true;observer.disconnect();closeObserver.disconnect();closeSheet();resolve(value);};
-    openSheet('Review cloud update',`<p>${plan.writes.length} cloud item(s) to send; ${plan.pulls.length} local item(s) to receive. Quantities include normal and foil separately.</p><p class="note">A concurrent edit stops the update. A failed update may have confirmed some items; your local data and remaining changes are kept for retry.</p><button class="btn primary" id="applyUpdate">Apply update</button><button class="btn" id="cancelUpdate">Cancel</button>`);
+    openSheet('Review cloud update',`<p>${plan.writes.length} cloud item(s) to send; ${plan.pulls.length} local item(s) to receive. Quantities include normal, foil and rainbow foil separately.</p><p class="note">A concurrent edit stops the update. A failed update may have confirmed some items; your local data and remaining changes are kept for retry.</p><button class="btn primary" id="applyUpdate">Apply update</button><button class="btn" id="cancelUpdate">Cancel</button>`);
     const observer=new MutationObserver(()=>{if(!$('applyUpdate'))finish(false);});
     observer.observe($('sheetBody'),{childList:true,subtree:true});
     $('applyUpdate').onclick=()=>finish(true); $('cancelUpdate').onclick=()=>finish(false);
@@ -929,13 +1014,14 @@ function replaceLocalMaps(values){
 }
 async function guardedWrite(operation,previous){
   const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
-  const row=section==='inv'?{user_id:session.uid,card_id:id,q:value?.q||0,f:value?.f||0}
+  if(section==='inv' && !cloudRainbow && (value?.rf||previous?.rainbow_foil))throw Error('Cloud rainbow support is unavailable. Nothing was downgraded to generic foil.');
+  const row=section==='inv'?{user_id:session.uid,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
     :section==='wish'?{user_id:session.uid,card_id:id,qty:value||0}
     :{user_id:session.uid,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value};
   let path=table, method='POST';
   if(previous){
     method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
-    const columns=section==='inv'?['q','f']:section==='wish'?['qty']:['name','cards','deleted'];
+    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted'];
     path+=`?${eq('user_id',session.uid)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>eq(k,previous[k])).join('&');
   }
   const result=await rest(method,path,row,{Prefer:'return=representation'});
@@ -953,6 +1039,8 @@ async function sync(manual){
     if(!persistState()) throw Error('Local saving must succeed before a cloud update. Download a backup first.');
     if(base?.uid && base.uid!==session.uid) throw Error('This device has a different account baseline. Nothing was merged. Back up and review the account before updating.');
     const captured=InkSafety.maps({inv,wish,decks}), revision=localRevision;
+    cloudRainbow=await probeRainbowCloud();
+    if(!cloudRainbow && (hasRainbow(captured.inv)||hasRainbow(base?.inv)))throw Error('The cloud database does not support rainbow foil yet. No cloud items were written. Your distinct rainbow quantities stay on this device; back up before updating the app or database.');
     const rows={inv:await pullAll('inv'),wish:await pullAll('wish'),decks:await pullAll('decks')};
     const remote=remoteMaps(rows), agreed=base||{inv:{},wish:{},decks:{}};
     const plan=InkSafety.plan(captured,remote,agreed);
@@ -1028,13 +1116,16 @@ $('sheetBody').addEventListener('click', async e=>{
   else if (a==='out'){ session=null; lsSet('inkscan.session', null); renderSyncBox(); toast('Signed out. Everything stays on this phone.'); }
 });
 $('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${syncBoxHTML()}</div>`); };
-$('safetyBackup').onclick=()=>{
-  if(savedState)download(`inkscan-backup-${today()}.json`,JSON.stringify({app:'inkscan',...snapshotState()}),'application/json');
-  else {
-    const keys=['inkscan.state.v5','inkscan.inv','inkscan.decks','inkscan.wish','inkscan.base'];
-    download(`inkscan-recovery-${today()}.json`,JSON.stringify({app:'inkscan-raw-recovery',raw:Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]))}),'application/json');
-  }
-};
+function backupPayload(){
+  const keys=[InkSafety.KEY,...InkSafety.LEGACY_KEYS];
+  const raw=()=>Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]));
+  return savedState?{app:InkSafety.BACKUP_APP,...snapshotState(),saved:new Date().toISOString(),...(storageError?{recoveryRaw:raw()}: {})}:{app:'inkscan-raw-recovery',raw:raw()};
+}
+function downloadBackup(){
+  try{download(`inkscan-${storageError?'recovery':'backup'}-${today()}.json`,JSON.stringify(backupPayload()),'application/json');}
+  catch(e){toast('Backup could not read saved data. Keep this tab open for recovery.');}
+}
+$('safetyBackup').onclick=downloadBackup;
 
 /* =========================================================
    TOOLS: export, backup, restore, prices, clear
@@ -1055,21 +1146,22 @@ $('sheetBody').addEventListener('click', e=>{
   const b = e.target.closest('[data-tool]'); if(!b) return;
   const a = b.dataset.tool;
   if (a==='csv'){ if(!Object.keys(inv).length){ toast('Nothing to export yet'); return; } download(`lorcana-collection-${today()}.csv`, '﻿'+buildCsv(), 'text/csv'); toast('CSV downloaded'); }
-  else if (a==='backup'){ download(`inkscan-backup-${today()}.json`, JSON.stringify({app:'inkscan',...snapshotState(),saved:new Date().toISOString()}), 'application/json'); toast('Backup downloaded'); }
+  else if (a==='backup'){ downloadBackup(); }
   else if (a==='restore'){ $('fileIn').click(); }
   else if (a==='prices'){ refreshFromLorcast(true, b); }
   else if (a==='wipe'){ $('wipeRow').innerHTML = `<span class="note">Remove every card from your collection? Decks and wishlist stay.</span><button class="btn danger tiny" data-tool="wipeyes">Remove all</button><button class="btn ghost tiny" data-tool="wipeno">Keep</button>`; }
   else if (a==='wipeyes'){ inv={}; log=[]; saveInv(); renderAll(); closeSheet(); toast('Collection cleared'); }
   else if (a==='wipeno'){ $('wipeRow').innerHTML = `<button class="btn danger tiny" data-tool="wipe">Clear collection</button>`; }
 });
-const HEAD = ['Name','Version','Set Code','Set Name','Card Number','Rarity','Ink','Finish','Quantity','Market Price','Total Value','TCGplayer Product ID','TCGplayer URL','Lorcast ID'];
+const LEGACY_HEAD = ['Name','Version','Set Code','Set Name','Card Number','Rarity','Ink','Finish','Quantity','Market Price','Total Value','TCGplayer Product ID','TCGplayer URL','Lorcast ID'];
+const HEAD=LEGACY_HEAD.map(name=>'InkScan v6 '+name);
 function csvCell(v){ v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 function buildCsv(){
   const rows=[HEAD];
-  const sorted = Object.entries(inv).map(([id,v])=>({c:byId.get(id),v})).filter(x=>x.c).sort((a,b)=>bySetOrder(a.c,b.c));
-  for (const {c,v} of sorted) for (const [foil,n] of [[false,v.q||0],[true,v.f||0]]){
-    if (!n) continue; const p = priceOf(c,foil);
-    rows.push([c.n,c.v,c.s,c.sn,c.c,rarityLabel(c.r),c.i,foil?'Foil':'Normal',n,p==null?'':p.toFixed(2),p==null?'':(p*n).toFixed(2),c.t||'',c.t?`https://www.tcgplayer.com/product/${c.t}`:'',c.id]);
+  const sorted=Object.entries(inv).map(([id,v])=>({id,c:byId.get(id),v})).sort((a,b)=>a.c&&b.c?bySetOrder(a.c,b.c):a.id.localeCompare(b.id));
+  for(const {id,c,v} of sorted)for(const finish of FINISHES){
+    const n=v[finishField(finish)]||0;if(!n)continue;const price=priceOf(c,finish);
+    rows.push([c?.n||'Unknown printing',c?.v||'',c?.s||'',c?.sn||'',c?.c||'',rarityLabel(c?.r),c?.i||'',finish==='rainbow'?'Rainbow Foil':finishLabel(finish),n,price==null?'':price.toFixed(2),price==null?'':(price*n).toFixed(2),c?.t||'',c?.t?`https://www.tcgplayer.com/product/${c.t}`:'',id]);
   }
   return rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
 }
@@ -1087,17 +1179,20 @@ function parseCsv(text){
 function previewRestore(restored, label){
   if(!savedState)throw Error('Current saved data needs recovery. Back up the raw saved state before restoring. Nothing was replaced.');
   const revision=localRevision, expectedRaw=knownStoredRaw;
-  const copies=Object.values(restored.inv).reduce((n,v)=>n+(v.q||0)+(v.f||0),0);
+  const copies=Object.values(restored.inv).reduce((n,v)=>n+inventoryCount(v),0);
   const unknown=Object.keys(restored.inv).filter(id=>!byId.has(id)).length;
-  openSheet('Review device restore',`<p>${esc(label)} will replace this device's collection, decks and wishlist with <b>${copies} physical cards</b> (${Object.keys(restored.inv).length} printings), <b>${restored.decks.length} decks</b> and <b>${Object.keys(restored.wish).length} wishlist items</b>.</p><p>${unknown} unknown printing ID(s) will be retained. Your current data will be kept in a local recovery snapshot. This does not update the cloud; this device's cloud baseline stays unchanged.</p><button class="btn primary" id="confirmRestore">Replace device data</button><button class="btn" id="cancelRestore">Cancel</button><p id="restoreError" role="alert"></p>`);
+  const rainbow=Object.values(restored.inv).reduce((n,v)=>n+(v.rf||0),0);
+  const restoreNote=restored.restoreKind==='legacy'?`Existing rainbow foil quantities are preserved (${restored.preservedRainbowCopies||0} copies).`:`This complete v6 restore replaces all finish quantities, including rainbow foil; ${rainbow} rainbow foil copies will remain.`;
+  openSheet('Review device restore',`<p>${esc(label)} will replace this device's collection, decks and wishlist with <b>${copies} physical cards</b> (${Object.keys(restored.inv).length} printings), <b>${restored.decks.length} decks</b> and <b>${Object.keys(restored.wish).length} wishlist items</b>.</p><p>${unknown} unknown printing ID(s) will be retained. ${restoreNote} Your current data will be kept in a local recovery snapshot. This does not update the cloud; this device's cloud baseline stays unchanged.</p><button class="btn primary" id="confirmRestore">Replace device data</button><button class="btn" id="cancelRestore">Cancel</button><p id="restoreError" role="alert"></p>`);
   let applied=false;
   $('cancelRestore').onclick=()=>closeSheet();
   $('confirmRestore').onclick=()=>{
     if(applied)return;
     if(localRevision!==revision || knownStoredRaw!==expectedRaw){$('restoreError').textContent='Device data changed during review. Cancel and choose the file again to review the latest state.';return;}
-    const next={...snapshotState(),...InkSafety.clone(restored),recovery:recoveryPoints('Before confirmed device restore'),revision:localRevision+1};
+    const {restoreKind,preservedRainbowCopies,...payload}=InkSafety.clone(restored);
+    const next={...snapshotState(),...payload,recovery:recoveryPoints('Before confirmed device restore'),revision:localRevision+1};
     try{InkSafety.save(localStorage,next,expectedRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}
-    catch(e){storageError='Restore was not applied. '+e.message;renderSaveStatus();$('restoreError').textContent=storageError;return;}
+    catch(e){storageError='Restore could not be confirmed. Keep this tab open and back up before retrying. '+e.message;renderSaveStatus();$('restoreError').textContent=storageError;return;}
     applied=true;inv=next.inv;decks=next.decks;wish=next.wish;savedState.imports=next.imports;savedState.recovery=next.recovery;localRevision=next.revision;storageError=null;curDeck=null;log=[];
     closeSheet();renderAll();renderSaveStatus();toast(`Restored ${copies} cards and ${decks.length} decks on this device. Cloud unchanged.`);
   };
@@ -1107,23 +1202,36 @@ $('fileIn').onchange = async e=>{
   const text = (await f.text()).replace(/^﻿/,'');
   if (/^\s*\{/.test(text)){
     try{
-      previewRestore(InkSafety.restoreSnapshot(JSON.parse(text)), 'This backup');
+      const backup=JSON.parse(text), restored=InkSafety.restoreSnapshot(backup,inv);
+      previewRestore(restored, backup.app==='inkscan'?'This legacy backup (existing rainbow foil quantities are preserved)':'This complete v6 backup');
     }catch(err){ toast(err.message||'That file isn’t a complete InkScan backup. Nothing was replaced.'); }
     return;
   }
-  const rows = parseCsv(text); const h = rows.shift()||[]; const ix = n => h.indexOf(n);
-  const iId=ix('Lorcast ID'), iSet=ix('Set Code'), iNum=ix('Card Number'), iFin=ix('Finish'), iQty=ix('Quantity');
-  if (iQty<0 || iFin<0 || (iId<0 && (iSet<0||iNum<0))){ toast('That file isn’t a complete InkScan export. Nothing was replaced.'); return; }
-  let n=0, miss=0; const next={};
-  for (const r of rows){
-    const c = iId>=0&&r[iId]?byId.get(r[iId]):bySetNum.get(norm(r[iSet])+'|'+norm(r[iNum]));
+  const rows=parseCsv(text),h=rows.shift()||[];
+  const modern=h.includes('InkScan v6 Quantity');
+  const ix=name=>h.indexOf((modern?'InkScan v6 ':'')+name);
+  const iId=ix('Lorcast ID'),iSet=ix('Set Code'),iNum=ix('Card Number'),iFin=ix('Finish'),iQty=ix('Quantity');
+  if(iQty<0 || iFin<0 || (iId<0&&(iSet<0||iNum<0)) || (modern && !HEAD.every(name=>h.includes(name)))){toast('That file isn’t a complete InkScan export. Nothing was replaced.');return;}
+  let n=0,miss=0;const next={};
+  for(const r of rows){
     if(r.every(cell=>!cell.trim()))continue;
-    const qty = /^\d+$/.test(r[iQty]||'')?Number(r[iQty]):NaN; if(!c || !Number.isSafeInteger(qty) || qty<=0 || (iFin>=0&&!['normal','foil'].includes((r[iFin]||'').toLowerCase()))){ miss++; continue; }
-    const v = next[c.id] || (next[c.id]={q:0,f:0}); if ((r[iFin]||'').toLowerCase()==='foil') v.f+=qty; else v.q+=qty; n+=qty;
+    const sourceId=iId>=0?(r[iId]||'').trim():'';
+    const c=sourceId?byId.get(sourceId):bySetNum.get(norm(r[iSet])+'|'+norm(r[iNum]));
+    const id=c?.id||(modern?sourceId:'');
+    const qty=/^\d+$/.test(r[iQty]||'')?Number(r[iQty]):NaN;
+    const label=(r[iFin]||'').trim().toLowerCase();
+    const finish=label==='rainbow foil'&&modern?'rainbow':label;
+    if(!id || ['__proto__','prototype','constructor'].includes(id) || !Number.isSafeInteger(qty)||qty<=0||!FINISHES.includes(finish)||(!modern&&finish==='rainbow')){miss++;continue;}
+    const v=next[id]||(next[id]={q:0,f:0}),field=finishField(finish);v[field]=(v[field]||0)+qty;n+=qty;
   }
-  if(miss || !n){toast(`CSV restore stopped: ${miss?`${miss} unrecognized or invalid row(s)`:'no valid card rows'}. Nothing was replaced.`);return;}
-  try{previewRestore(InkSafety.validate({inv:next,decks:InkSafety.clone(decks),wish:InkSafety.clone(wish)}),'This collection CSV (decks and wishlist are kept)');}
-  catch(err){toast('CSV restore stopped. '+err.message);}
+  if(miss||!n){toast(`CSV restore stopped: ${miss?`${miss} unrecognized or invalid row(s)`:'no valid card rows'}. Nothing was replaced.`);return;}
+  try{
+    let restored=InkSafety.validate({inv:next,decks:InkSafety.clone(decks),wish:InkSafety.clone(wish)});
+    if(!modern){restored.inv=InkSafety.preserveRainbow(restored.inv,inv);restored.restoreKind='legacy';restored.preservedRainbowCopies=Object.values(inv).reduce((n,v)=>n+(v.rf||0),0);}
+    else restored.restoreKind='v6';
+    previewRestore(restored, modern?'This complete v6 collection CSV (decks and wishlist are kept)':'This legacy collection CSV (rainbow foil, decks and wishlist are kept)');
+  }catch(err){toast('CSV restore stopped. '+err.message);}
+
 };
 
 /* =========================================================
@@ -1135,7 +1243,7 @@ async function boot(){
   renderSaveStatus();
   renderLog();
   let d;
-  try{ d = await loadCards(); }
+  try{ [d] = await Promise.all([loadCards(),loadFinishQuotes()]); }
   catch(e){ $('loadBanner').textContent='The card list didn’t load. Check your connection and reload.'; $('loadBanner').classList.add('bad'); return; }
   indexCards(d); $('loadBanner').hidden = true;
   // Legacy catalog/localStorage keys remain intact for recovery.

@@ -1,0 +1,1032 @@
+{
+  "schemaVersion": 1,
+  "status": "verified-source-snapshot",
+  "currency": "USD",
+  "priceType": "marketPrice",
+  "provider": "TCGplayer via TCGCSV",
+  "buildAsOf": "2026-10-24T20:05:44+00:00",
+  "observedAt": "2026-10-25T15:50:36.782804+00:00",
+  "sourceURL": null,
+  "sourceBuildURL": "https://tcgcsv.com/last-updated.txt",
+  "usageDocumentation": [
+    "https://tcgcsv.com/docs",
+    "https://tcgcsv.com/faq"
+  ],
+  "scope": "Only twelve individually source-backed starter Rainbow Foil printings in Fabled, Whispers in the Well and Wilds Unknown. Aggregate market quotes, not condition-specific offers. No generic foil fallback or universal Holofoil-to-rainbow mapping.",
+  "quotes": {
+    "crd_c7f3b3cbe19c44f7943c510392ea88db|rainbow": {
+      "printingId": "crd_c7f3b3cbe19c44f7943c510392ea88db",
+      "finish": "rainbow",
+      "name": "Jessie",
+      "version": "Lively Cowgirl",
+      "setCode": "12",
+      "collectorNumber": "20",
+      "tcgplayerProductId": 690204,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 7.89,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24617/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:46:00.959400+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://www.disneylorcana.com/en-US/product/wilds-unknown",
+        "https://lorcanaplayer.com/card/jessie-lively-cowgirl/",
+        "https://www.tcgplayer.com/product/690204/lorcana-tcg-wilds-unknown-jessie-lively-cowgirl?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Card-page Rainbow Foil link explicitly targets this product ID with Printing=Holofoil; TCGCSV row independently supplies price by exact product ID and subtype. Link target inspected; marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_a7974610679d43d190ee370d23d6e0b3|rainbow": {
+      "printingId": "crd_a7974610679d43d190ee370d23d6e0b3",
+      "finish": "rainbow",
+      "name": "Mrs. Incredible",
+      "version": "Super Stretchy",
+      "setCode": "12",
+      "collectorNumber": "49",
+      "tcgplayerProductId": 678237,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 4.66,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24617/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:46:00.959400+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://www.disneylorcana.com/en-US/product/wilds-unknown",
+        "https://lorcanaplayer.com/card/mrs-incredible-super-stretchy/",
+        "https://www.tcgplayer.com/product/678237/lorcana-tcg-wilds-unknown-mrs-incredible-super-stretchy?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Card-page Rainbow Foil link explicitly targets this product ID with Printing=Holofoil; TCGCSV row independently supplies price by exact product ID and subtype. Link target inspected; marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_e2c38bf30c48489f914581f55acd67fb|rainbow": {
+      "printingId": "crd_e2c38bf30c48489f914581f55acd67fb",
+      "finish": "rainbow",
+      "name": "Buzz Lightyear",
+      "version": "On the Way",
+      "setCode": "12",
+      "collectorNumber": "85",
+      "tcgplayerProductId": 678236,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 2.25,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24617/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:46:00.959400+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://www.disneylorcana.com/en-US/product/wilds-unknown",
+        "https://lorcanaplayer.com/card/buzz-lightyear-on-the-way/",
+        "https://www.tcgplayer.com/product/678236/lorcana-tcg-wilds-unknown-buzz-lightyear-on-the-way?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Card-page Rainbow Foil link explicitly targets this product ID with Printing=Holofoil; TCGCSV row independently supplies price by exact product ID and subtype. Link target inspected; marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_7f47cc5a26eb4220a9622e8ee83c528d|rainbow": {
+      "printingId": "crd_7f47cc5a26eb4220a9622e8ee83c528d",
+      "finish": "rainbow",
+      "name": "Jack-Jack Parr",
+      "version": "Incredible Potential",
+      "setCode": "12",
+      "collectorNumber": "121",
+      "tcgplayerProductId": 678238,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 2.07,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24617/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:46:00.959400+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://www.disneylorcana.com/en-US/product/wilds-unknown",
+        "https://lorcanaplayer.com/card/jack-jack-parr-incredible-potential/",
+        "https://www.tcgplayer.com/product/678238/lorcana-tcg-wilds-unknown-jack-jack-parr-incredible-potential?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Card-page Rainbow Foil link explicitly targets this product ID with Printing=Holofoil; TCGCSV row independently supplies price by exact product ID and subtype. Link target inspected; marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_977a785a450a4621b0dcff4404592877|rainbow": {
+      "printingId": "crd_977a785a450a4621b0dcff4404592877",
+      "finish": "rainbow",
+      "name": "Judy Hopps",
+      "version": "Uncovering Clues",
+      "setCode": "10",
+      "collectorNumber": "156",
+      "tcgplayerProductId": 653916,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 2.44,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24414/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/judy-hopps-uncovering-clues/",
+        "https://www.tcgplayer.com/product/653916/lorcana-tcg-whispers-in-the-well-judy-hopps-uncovering-clues?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_fb78388845f54934a97c596a774bb98f|rainbow": {
+      "printingId": "crd_fb78388845f54934a97c596a774bb98f",
+      "finish": "rainbow",
+      "name": "Megara",
+      "version": "Secret Keeper",
+      "setCode": "10",
+      "collectorNumber": "86",
+      "tcgplayerProductId": 657892,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 0.84,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24414/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/megara-secret-keeper/",
+        "https://www.tcgplayer.com/product/657892/lorcana-tcg-whispers-in-the-well-megara-secret-keeper?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_3881a0b53f854152ad578f5151143244|rainbow": {
+      "printingId": "crd_3881a0b53f854152ad578f5151143244",
+      "finish": "rainbow",
+      "name": "Robin Hood",
+      "version": "Ephemeral Archer",
+      "setCode": "10",
+      "collectorNumber": "171",
+      "tcgplayerProductId": 657893,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 0.83,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24414/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/robin-hood-ephemeral-archer/",
+        "https://www.tcgplayer.com/product/657893/lorcana-tcg-whispers-in-the-well-robin-hood-ephemeral-archer?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_01ba964bb84745b09a29da266cddccfd|rainbow": {
+      "printingId": "crd_01ba964bb84745b09a29da266cddccfd",
+      "finish": "rainbow",
+      "name": "Simba",
+      "version": "King in the Making",
+      "setCode": "10",
+      "collectorNumber": "20",
+      "tcgplayerProductId": 657894,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 1.19,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24414/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/simba-king-in-the-making/",
+        "https://www.tcgplayer.com/product/657894/lorcana-tcg-whispers-in-the-well-simba-king-in-the-making?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_4b656001901d4c34829cfe124d5c166b|rainbow": {
+      "printingId": "crd_4b656001901d4c34829cfe124d5c166b",
+      "finish": "rainbow",
+      "name": "Ariel",
+      "version": "Singing Mermaid",
+      "setCode": "9",
+      "collectorNumber": "15",
+      "tcgplayerProductId": 647652,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 1.19,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24348/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/ariel-singing-mermaid-fabled/",
+        "https://www.tcgplayer.com/product/647652/lorcana-tcg-fabled-ariel-singing-mermaid?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_0599c55386a649bb9af21a906ed52db5|rainbow": {
+      "printingId": "crd_0599c55386a649bb9af21a906ed52db5",
+      "finish": "rainbow",
+      "name": "Max Goof",
+      "version": "Rebellious Teen",
+      "setCode": "9",
+      "collectorNumber": "75",
+      "tcgplayerProductId": 647681,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 6.52,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24348/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/max-goof-rebellious-teen/",
+        "https://www.tcgplayer.com/product/647681/lorcana-tcg-fabled-max-goof-rebellious-teen?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_3a5f83e2f53f4bf0b0d621014cd8f6cf|rainbow": {
+      "printingId": "crd_3a5f83e2f53f4bf0b0d621014cd8f6cf",
+      "finish": "rainbow",
+      "name": "Powerline",
+      "version": "World's Greatest Rock Star",
+      "setCode": "9",
+      "collectorNumber": "110",
+      "tcgplayerProductId": 649224,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 8.84,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24348/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/powerline-worlds-greatest-rock-star/",
+        "https://www.tcgplayer.com/product/649224/lorcana-tcg-fabled-powerline-worlds-greatest-rock-star?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    },
+    "crd_1a90e72da27d4638ad9aed26776feee5|rainbow": {
+      "printingId": "crd_1a90e72da27d4638ad9aed26776feee5",
+      "finish": "rainbow",
+      "name": "Mulan",
+      "version": "Considerate Diplomat",
+      "setCode": "9",
+      "collectorNumber": "142",
+      "tcgplayerProductId": 650077,
+      "rawSubtype": "Holofoil",
+      "currency": "USD",
+      "marketPrice": 1.45,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24348/prices",
+      "buildAsOf": "2026-10-24T20:05:44+00:00",
+      "observedAt": "2026-10-25T15:50:36.782804+00:00",
+      "exactMappingEvidenceURLs": [
+        "https://lorcanaplayer.com/card/mulan-considerate-diplomat/",
+        "https://www.tcgplayer.com/product/650077/lorcana-tcg-fabled-mulan-considerate-diplomat?Printing=Holofoil"
+      ],
+      "mappingEvidenceNote": "Named Rainbow Foil card-page link target uses exact product ID and Printing=Holofoil; link target inspected, marketplace destination not fetched.",
+      "fallbackPolicy": "unknown-null-if-exact-quote-unavailable"
+    }
+  },
+  "productMappings": [
+    {
+      "printingId": "crd_db6db54405ff449ba819ed521fae7df0",
+      "expectedIdentity": {
+        "n": "Mickey Mouse",
+        "v": "Playful Sorcerer",
+        "s": "D23",
+        "c": "7",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 559564,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_a2a3f642e4704e159e4e65233aacc2fb",
+      "expectedIdentity": {
+        "n": "Iago",
+        "v": "Out of Reach",
+        "s": "D23",
+        "c": "8",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 630086,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_45b622335cca43a6af2a902987571db8",
+      "expectedIdentity": {
+        "n": "Woody",
+        "v": "Leader of the Toys",
+        "s": "D23",
+        "c": "9",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711367,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_1e5358b1c77448a494db44aee6a77602",
+      "expectedIdentity": {
+        "n": "Angel",
+        "v": "Siren Singer",
+        "s": "D23",
+        "c": "10",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711353,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_b6ce9dfc0c3d4f62b962a6225f1f227f",
+      "expectedIdentity": {
+        "n": "Pocahontas",
+        "v": "Following the Wind",
+        "s": "D23",
+        "c": "11",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711355,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_7422061cabf943a19d4d197fa055609e",
+      "expectedIdentity": {
+        "n": "Mushu",
+        "v": "Stealthy Dragon",
+        "s": "D23",
+        "c": "12",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711358,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_5f7b5237476649afba3b201770efe75f",
+      "expectedIdentity": {
+        "n": "H\u00e9ctor Rivera",
+        "v": "Gone to Pieces",
+        "s": "D23",
+        "c": "13",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711361,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_16c1121f26454ec89877082d7d011dcd",
+      "expectedIdentity": {
+        "n": "Judy Hopps",
+        "v": "Uncovering Clues",
+        "s": "D23",
+        "c": "14",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711359,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_14376a4c7b894cff902e5022c71297c3",
+      "expectedIdentity": {
+        "n": "Mr. Incredible",
+        "v": "Taking Out the Trash",
+        "s": "D23",
+        "c": "15",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 711360,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_b01c656daf06443fb63d76d9df3ff108",
+      "expectedIdentity": {
+        "n": "Mad Hatter",
+        "v": "Unruly Eccentric",
+        "s": "D23",
+        "c": "16",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 679565,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/17690/products"
+    },
+    {
+      "printingId": "crd_adca393d2367497aac99f2c4dd29b8ce",
+      "expectedIdentity": {
+        "n": "Stitch",
+        "v": "Carefree Snowboarder",
+        "s": "11",
+        "c": "207",
+        "r": "Epic"
+      },
+      "tcgplayerProductId": 675380,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24500/products"
+    },
+    {
+      "printingId": "crd_3515b2c02dd04daa83e5f77d46738b97",
+      "expectedIdentity": {
+        "n": "Ariel",
+        "v": "Spectacular Singer",
+        "s": "CC1",
+        "c": "1",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 702517,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/products"
+    },
+    {
+      "printingId": "crd_19f369d68227447d89e02d4f90af8219",
+      "expectedIdentity": {
+        "n": "Elsa",
+        "v": "Trusted Sister",
+        "s": "CC1",
+        "c": "2",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 702518,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/products"
+    },
+    {
+      "printingId": "crd_f03ca16e877d48388ae735b3a78798a1",
+      "expectedIdentity": {
+        "n": "Jasmine",
+        "v": "Royal Seafarer",
+        "s": "CC1",
+        "c": "3",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 702519,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/products"
+    },
+    {
+      "printingId": "crd_cc7245fe6887454fb31fa94f4b346a5c",
+      "expectedIdentity": {
+        "n": "Mulan",
+        "v": "Elite Archer",
+        "s": "CC1",
+        "c": "4",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 702520,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/products"
+    },
+    {
+      "printingId": "crd_cb9c6ff9f1cb4f7bbf88c20f3b6ed5b4",
+      "expectedIdentity": {
+        "n": "Anna",
+        "v": "Trusting Sister",
+        "s": "CC1",
+        "c": "5",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 702521,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/products"
+    },
+    {
+      "printingId": "crd_b379b6dbf8f14fa886a99b625e3c42a9",
+      "expectedIdentity": {
+        "n": "Tinker Bell",
+        "v": "Giant Fairy",
+        "s": "CC1",
+        "c": "6",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 702603,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/23234/products"
+    },
+    {
+      "printingId": "crd_a71335b727b7435fb679377e9ba03f79",
+      "expectedIdentity": {
+        "n": "Mickey Mouse",
+        "v": "Rescued from the Entrance",
+        "s": "Q3",
+        "c": "1",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722201,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_01c88d91c2f54301a5e48069b22c2422",
+      "expectedIdentity": {
+        "n": "Rapunzel",
+        "v": "Rescued from the Darkness",
+        "s": "Q3",
+        "c": "2",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722203,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_a2cf763f12574b29b7e29ff53ab0932e",
+      "expectedIdentity": {
+        "n": "Chamber Guardian",
+        "v": "Vine Protector",
+        "s": "Q3",
+        "c": "3",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722204,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_9aa01dc24bbb4a80972acd346f5b8f21",
+      "expectedIdentity": {
+        "n": "Sulley",
+        "v": "Rescued from the Garden",
+        "s": "Q3",
+        "c": "4",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722207,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_dc85ef2e77364381bd20a1c2f65eddf0",
+      "expectedIdentity": {
+        "n": "Maleficent",
+        "v": "Rescued from the Staircase",
+        "s": "Q3",
+        "c": "5",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722208,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_8ad6ff466ac343e397f66a948d1a5906",
+      "expectedIdentity": {
+        "n": "The Vine Maw",
+        "v": "Final Foe",
+        "s": "Q3",
+        "c": "6",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722209,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_323bfaf8178847d78ea4f1a457e1f8c3",
+      "expectedIdentity": {
+        "n": "Yzma",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "7",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722244,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_7c094f88041745dd8333c6a56e90ba50",
+      "expectedIdentity": {
+        "n": "Kronk",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "8",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722263,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_01ff35680c55403d9d6730a2c0c2164a",
+      "expectedIdentity": {
+        "n": "Flynn Rider",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "9",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722265,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_edde3129a66445daa488a36e67ed6f94",
+      "expectedIdentity": {
+        "n": "Bramble Bully",
+        "v": "Protecting the Stalk",
+        "s": "Q3",
+        "c": "10",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 709875,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_cebbb466866f4b5fa80eafe4ca738c21",
+      "expectedIdentity": {
+        "n": "Vine Sprout",
+        "v": "Thrasher",
+        "s": "Q3",
+        "c": "11",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722274,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_f413c74c3a5b49cab71d220443648858",
+      "expectedIdentity": {
+        "n": "Isabela Madrigal",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "12",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722668,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_d46c1b1aabce48daac5d30392c49f44f",
+      "expectedIdentity": {
+        "n": "Sulley",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "13",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722669,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_003bb6ce802342259aa29241c0a9a7c6",
+      "expectedIdentity": {
+        "n": "Pete",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "14",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 709862,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_2f4ee5fc030a46ca9b399ee6c242a050",
+      "expectedIdentity": {
+        "n": "Cruella De Vil",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "15",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 709874,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_d94d7cde21d344d5ba38df15d4ba267c",
+      "expectedIdentity": {
+        "n": "Budding Stalk",
+        "v": "Mass of Tendrils",
+        "s": "Q3",
+        "c": "16",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722670,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_04ca713ea92c49648091f197b755f0fe",
+      "expectedIdentity": {
+        "n": "Rapunzel",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "17",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722671,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_f83ff6d9c1ae4f9c81ca93acb6509a54",
+      "expectedIdentity": {
+        "n": "Vine Sprout",
+        "v": "Buzzer",
+        "s": "Q3",
+        "c": "18",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 709870,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_3d4470412fad49a09fa0e0adcb11337e",
+      "expectedIdentity": {
+        "n": "Ming Lee",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "19",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722672,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_4c57e6c594114e4ea8da00defd4bc078",
+      "expectedIdentity": {
+        "n": "Vine Cluster",
+        "v": "Aggressive Chomper",
+        "s": "Q3",
+        "c": "20",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722673,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_90941f639bbc4a43a0d5817e3a8f6dda",
+      "expectedIdentity": {
+        "n": "Vine Sprout",
+        "v": "Flicker",
+        "s": "Q3",
+        "c": "21",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722674,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_d719b646aacc4d379af27767f2f7a55f",
+      "expectedIdentity": {
+        "n": "4*Town",
+        "v": "Made by the Vine",
+        "s": "Q3",
+        "c": "22",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722675,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_1876364435f648a983007fee69f248ba",
+      "expectedIdentity": {
+        "n": "Vine Sprout",
+        "v": "Bruiser",
+        "s": "Q3",
+        "c": "23",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722676,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_d86f34aeede3486aa70e231af733df80",
+      "expectedIdentity": {
+        "n": "Accelerated Growth",
+        "v": "",
+        "s": "Q3",
+        "c": "24",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722678,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_9febeafec10643448b803d65442fe1c8",
+      "expectedIdentity": {
+        "n": "Overwhelm",
+        "v": "",
+        "s": "Q3",
+        "c": "25",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722680,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_2687d0c03cdb47bcab169aad5e233e19",
+      "expectedIdentity": {
+        "n": "Catastrophic Rupture",
+        "v": "",
+        "s": "Q3",
+        "c": "26",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722681,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_d59517f8a7ac47dd8ccc079b5cf55adf",
+      "expectedIdentity": {
+        "n": "Wild Growth",
+        "v": "",
+        "s": "Q3",
+        "c": "27",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722682,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_e500365448a14e2c90748fc963025f85",
+      "expectedIdentity": {
+        "n": "Tightening Grip",
+        "v": "",
+        "s": "Q3",
+        "c": "28",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722683,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_bdfb73844651458081a8fd9ecd3fa180",
+      "expectedIdentity": {
+        "n": "Uproot",
+        "v": "",
+        "s": "Q3",
+        "c": "29",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722684,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_36909db345394a529a7e288241f55392",
+      "expectedIdentity": {
+        "n": "Regenerate",
+        "v": "",
+        "s": "Q3",
+        "c": "30",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722685,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_0958e2fc55ce4b459ebc9de4893a12f4",
+      "expectedIdentity": {
+        "n": "Ink Vortex",
+        "v": "",
+        "s": "Q3",
+        "c": "31",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722686,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_a532e823535543cbbd4b3785b8a9902c",
+      "expectedIdentity": {
+        "n": "Unseen Attack",
+        "v": "",
+        "s": "Q3",
+        "c": "32",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722687,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_dbe08ef4fe714de7aa530fe5cd4c5f43",
+      "expectedIdentity": {
+        "n": "Overprune",
+        "v": "",
+        "s": "Q3",
+        "c": "33",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722688,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_8edf64aeb13f4490b3aefc26bc491876",
+      "expectedIdentity": {
+        "n": "Cut Down",
+        "v": "",
+        "s": "Q3",
+        "c": "34",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722689,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_93768cbd124b4e41a565c1b3cd41991d",
+      "expectedIdentity": {
+        "n": "Overgrown Defenses",
+        "v": "",
+        "s": "Q3",
+        "c": "35",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722691,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_be397693978b40f79de80e88c4bf4f3d",
+      "expectedIdentity": {
+        "n": "Sprouting Seed",
+        "v": "",
+        "s": "Q3",
+        "c": "36",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722692,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    },
+    {
+      "printingId": "crd_a60b82f7028a43479eed43e070c3125e",
+      "expectedIdentity": {
+        "n": "Story Star Cage",
+        "v": "",
+        "s": "Q3",
+        "c": "37",
+        "r": "Promo"
+      },
+      "tcgplayerProductId": 722693,
+      "expectedCurrentTcgplayerId": null,
+      "sourceURL": "https://tcgcsv.com/tcgplayer/71/24734/products"
+    }
+  ],
+  "ambiguousFoilPrintings": [
+    {
+      "printingId": "crd_fd8709ece8b04d599379c9d168510c43",
+      "tcgplayerProductId": 722508
+    },
+    {
+      "printingId": "crd_e2c38bf30c48489f914581f55acd67fb",
+      "tcgplayerProductId": 678236
+    },
+    {
+      "printingId": "crd_a7974610679d43d190ee370d23d6e0b3",
+      "tcgplayerProductId": 678237
+    },
+    {
+      "printingId": "crd_7f47cc5a26eb4220a9622e8ee83c528d",
+      "tcgplayerProductId": 678238
+    },
+    {
+      "printingId": "crd_c7f3b3cbe19c44f7943c510392ea88db",
+      "tcgplayerProductId": 690204
+    },
+    {
+      "printingId": "crd_977a785a450a4621b0dcff4404592877",
+      "tcgplayerProductId": 653916
+    },
+    {
+      "printingId": "crd_fb78388845f54934a97c596a774bb98f",
+      "tcgplayerProductId": 657892
+    },
+    {
+      "printingId": "crd_3881a0b53f854152ad578f5151143244",
+      "tcgplayerProductId": 657893
+    },
+    {
+      "printingId": "crd_01ba964bb84745b09a29da266cddccfd",
+      "tcgplayerProductId": 657894
+    },
+    {
+      "printingId": "crd_4b656001901d4c34829cfe124d5c166b",
+      "tcgplayerProductId": 647652
+    },
+    {
+      "printingId": "crd_0599c55386a649bb9af21a906ed52db5",
+      "tcgplayerProductId": 647681
+    },
+    {
+      "printingId": "crd_3a5f83e2f53f4bf0b0d621014cd8f6cf",
+      "tcgplayerProductId": 649224
+    },
+    {
+      "printingId": "crd_1a90e72da27d4638ad9aed26776feee5",
+      "tcgplayerProductId": 650077
+    }
+  ]
+}
