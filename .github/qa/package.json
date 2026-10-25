@@ -1,0 +1,15 @@
+{
+  "name": "inkscan-production-release-validation",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "test:unit": "cd fixture && node --test tests.cjs household-contract.test.cjs",
+    "check": "node --check ../../app.js && node --check ../../safety.js && node --check ../../sw.js && node --check browser/inkscan.spec.cjs",
+    "test:browser": "playwright test",
+    "prepare:fixture": "node prepare-fixture.cjs",
+    "verify:release": "node verify-release.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

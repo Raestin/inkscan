@@ -21,6 +21,27 @@ let toastT;
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2600); }
 function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+let savedState=null, storageError=null, localRevision=0, knownStoredRaw=null;
+try { savedState=InkSafety.load(localStorage); localRevision=savedState.revision||0;knownStoredRaw=localStorage.getItem(InkSafety.KEY); }
+catch(e){ storageError='Saved data could not be read. Nothing was reset. Back up this browser before recovery: '+e.message; }
+function snapshotState(){ return {v:5,inv,decks,wish,base,last:syncState.last,imports:savedState?.imports||{},recovery:savedState?.recovery||[],revision:localRevision}; }
+function recoveryPoints(reason){return [...(savedState.recovery||[]),{reason,at:new Date().toISOString(),inv:InkSafety.clone(inv),decks:InkSafety.clone(decks),wish:InkSafety.clone(wish),imports:InkSafety.clone(savedState.imports||{})}].slice(-3);}
+function persistState(){
+  try { if(!savedState) throw Error('Saved data needs recovery.'); InkSafety.save(localStorage,snapshotState(),knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY); storageError=null; renderSaveStatus(); return true; }
+  catch(e){ storageError='Not saved on this device. Keep this tab open and download a backup. '+e.message; renderSaveStatus(); return false; }
+}
+function edited(){ localRevision++; persistState(); renderSyncBox(); }
+window.addEventListener('storage',event=>{if(event.key===InkSafety.KEY && event.newValue!==knownStoredRaw){storageError='Another tab saved changes. Keep this tab open and back up both tabs before reconciling. Cloud updates are stopped until local saving is safe.';renderSaveStatus();}});
+function renderSaveStatus(){
+  const el=$('saveStatus'); if(!el) return;
+  const unknown=typeof byId!=='undefined'&&byId ? Object.keys(inv).filter(id=>!byId.has(id)).length : 0;
+  el.textContent=storageError || (unknown?`${unknown} collection printing(s) are missing from the catalog. They are retained in your collection and backup.`:'Saved on this device. Cloud updates run only when you tap Update.');
+  el.classList.toggle('bad',!!storageError);
+  const sheetStatus=$('sheetSaveStatus');
+  if(sheetStatus){sheetStatus.textContent=storageError||'';sheetStatus.hidden=!storageError;}
+  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}});$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
+}
+
 function download(name, text, type){
   const blob = new Blob([text], {type}); const a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
@@ -60,10 +81,9 @@ function repOf(nv){
   for (const c of list){ const v=inv[c.id]; const n=v?(v.q||0)+(v.f||0):0; if(n>bestN){best=c;bestN=n;} }
   return best || list.find(c=>!SPECIAL.has(c.r)) || list[0];
 }
-function priceOf(c, foil){ if(!c) return null; return foil ? (c.pf ?? c.p) : (c.p ?? c.pf); }
+function priceOf(c, foil){ return c?InkSafety.price(foil?c.pf:c.p):null; }
 function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=c.p ?? c.pf; if(p!=null && (m==null||p<m)) m=p; } return m; }
-function foilOnly(c){ return c && c.p == null && c.pf != null; }
-function normalOnly(c){ return c && c.pf == null && c.p != null; }
+function foilPriceOnly(c){ return c && priceOf(c,false)===null && priceOf(c,true)!==null; }
 function setLabel(c){ return /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
 function imgUrl(c, size){ return c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
 function inkDot(c){
@@ -104,7 +124,7 @@ async function refreshFromLorcast(manual, btn){
     if (cards.length < 1000) throw 0;
     const d = {asof:today(), sets:sets.map(s=>({code:s.code,name:s.name,rel:s.released_at})), cards};
     try{ await (await caches.open('inkscan-data')).put('cards-live.json', new Response(JSON.stringify(d), {headers:{'content-type':'application/json'}})); }catch(e){}
-    indexCards(d); renderAll();
+    indexCards(d); renderAll(); renderSaveStatus();
     if (manual) toast('Prices and cards updated');
   }catch(e){ if (manual) toast('Couldn’t reach Lorcast. Check your connection and try again.'); }
   finally{ if (btn){ btn.textContent = label; btn.disabled = false; } }
@@ -116,9 +136,9 @@ async function refreshFromLorcast(manual, btn){
 let inv = {};     // cardId -> {q, f}
 let decks = [];   // [{id, name, cards:{nv:qty}, updated}]
 let wish = {};    // cardId -> qty wanted
-function saveInv(){ if(!lsSet('inkscan.inv', inv)) toast('Couldn’t save. Your phone may be out of storage.'); renderTotals(); scheduleSync(); }
-function saveDecks(){ lsSet('inkscan.decks', decks); scheduleSync(); }
-function saveWish(){ lsSet('inkscan.wish', wish); scheduleSync(); }
+function saveInv(){ edited(); renderTotals(); }
+function saveDecks(){ edited(); }
+function saveWish(){ edited(); }
 function ownedOf(id){ const v=inv[id]; return v ? (v.q||0)+(v.f||0) : 0; }
 function ownedNV(nv){ let n=0; for (const c of byNV.get(nv)||[]) n+=ownedOf(c.id); return n; }
 function addQty(id, foil, n){
@@ -129,11 +149,11 @@ function addQty(id, foil, n){
   saveInv();
 }
 function totals(){
-  let u=0, copies=0, val=0;
-  for (const [id,v] of Object.entries(inv)){ const c=byId.get(id); if(!c) continue; const n=(v.q||0)+(v.f||0); if(!n) continue; u++; copies+=n; val += (v.q||0)*(priceOf(c,false)||0) + (v.f||0)*(priceOf(c,true)||0); }
-  return {u,copies,val};
+  let u=0, copies=0, val=0, unpriced=0;
+  for (const [id,v] of Object.entries(inv)){ const c=byId.get(id); const n=(v.q||0)+(v.f||0); if(!n) continue; u++; copies+=n; const estimate=InkSafety.valuation([{c:c||{},q:v.q||0,f:v.f||0}]);val+=estimate.value;unpriced+=estimate.unpriced; }
+  return {u,copies,val,unpriced};
 }
-function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocaleString(); $('tCopies').textContent=t.copies.toLocaleString(); $('tValue').textContent=money0(t.val); }
+function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocaleString(); $('tCopies').textContent=t.copies.toLocaleString(); $('tValue').textContent=money0(t.val)+(t.unpriced?' (partial)':'');$('tValue').title=`Overall collection estimate; ${t.unpriced} copies unpriced. TCGplayer via Lorcast, catalog ${DB?.asof||'unknown'}.`; }
 
 /* =========================================================
    Shared rendering
@@ -144,7 +164,7 @@ function artHTML(c, size){
 }
 /* the img sits above the placeholder text, which only shows if the image fails */
 function tileHTML(c, opts={}){
-  const q = opts.q ?? ownedOf(c.id), f = inv[c.id]?.f||0;
+  const q = opts.q ?? ownedOf(c.id), f = opts.f ?? (inv[c.id]?.f||0);
   const badge = opts.badge != null ? opts.badge : (q ? `<span class="badge${f&&f===q?' foil':''}">${q}</span>` : '');
   return `<button class="tile${opts.dim && !q ? ' missing':''}" data-card="${c.id}" aria-label="${esc(c.n+(c.v?' – '+c.v:''))}"><div class="art">${artHTML(c)}${badge}</div>${opts.cap!==false?`<div class="cap">${esc(opts.cap || (setLabel(c)+' · #'+c.c))}</div>`:''}</button>`;
 }
@@ -182,6 +202,7 @@ let sheetOpen = false, sheetOnClose = null;
 function openSheet(title, html, onClose){
   $('sheetTitle').textContent = title; $('sheetBody').innerHTML = html; $('sheetBody').scrollTop = 0;
   $('sheet').hidden = false; $('scrim').hidden = false; sheetOnClose = onClose || null;
+  renderSaveStatus();
   if (!sheetOpen){ sheetOpen = true; try{ history.pushState({sheet:1}, ''); }catch(e){} }
 }
 function closeSheet(fromPop){
@@ -230,8 +251,8 @@ function cardDetailHTML(c){
         <dt>Core format</dt><dd>${c.lc?'Legal':'Not legal (Infinity only)'}</dd>
       </dl>
       <div class="own" id="ownBox">
-        <div class="step"><label>Normal</label><button data-own="q" data-d="-1" aria-label="One fewer normal">−</button><output>${v.q||0}</output><button data-own="q" data-d="1" aria-label="One more normal" ${foilOnly(c)?'disabled':''}>+</button></div>
-        <div class="step"><label>Foil</label><button data-own="f" data-d="-1" aria-label="One fewer foil">−</button><output>${v.f||0}</output><button data-own="f" data-d="1" aria-label="One more foil" ${normalOnly(c)?'disabled':''}>+</button></div>
+        <div class="step"><label>Normal</label><button data-own="q" data-d="-1" aria-label="One fewer normal">−</button><output>${v.q||0}</output><button data-own="q" data-d="1" aria-label="One more normal">+</button></div>
+        <div class="step"><label>Foil</label><button data-own="f" data-d="-1" aria-label="One fewer foil">−</button><output>${v.f||0}</output><button data-own="f" data-d="1" aria-label="One more foil">+</button></div>
         <div class="step"><label>Wishlist</label><button data-want="-1" aria-label="Want one fewer">−</button><output>${w}</output><button data-want="1" aria-label="Want one more">+</button></div>
       </div>
       ${decks.length?`<div class="row"><select id="deckPick" class="slim" aria-label="Deck">${deckOpts}</select><button class="btn" id="deckAddOne">Add to deck</button></div>`:''}
@@ -276,7 +297,7 @@ function showTab(t){
 }
 document.querySelector('.tabbar').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab); });
 function renderAll(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
-function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(true); if(tab==='browse') refreshBrowseBadges(); }
+function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(true); if(tab==='browse') renderBrowse(); }
 
 /* =========================================================
    SCAN
@@ -284,7 +305,7 @@ function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') render
 let log = []; // {key, cardId, foil}
 let seq = 0;
 function logAdd(card, foil){
-  if (foilOnly(card)) foil = true; if (normalOnly(card)) foil = false;
+  // Price availability does not identify the finish of the user's physical card.
   addQty(card.id, foil, 1);
   log.unshift({key:++seq, cardId:card.id, foil});
   renderLog();
@@ -296,7 +317,7 @@ function renderLog(){
   el.innerHTML = log.slice(0,60).map(x=>{
     const c = byId.get(x.cardId); if(!c) return '';
     return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,x.foil)}</div></div>
-      <div class="acts"><button data-act="lf" data-k="${x.key}" aria-pressed="${x.foil}" ${foilOnly(c)||normalOnly(c)?'disabled':''}>Foil</button><button data-act="lu" data-k="${x.key}">Undo</button></div></div></div>`;
+      <div class="acts"><button data-act="lf" data-k="${x.key}" aria-pressed="${x.foil}">Foil</button><button data-act="lu" data-k="${x.key}">Undo</button></div></div></div>`;
   }).join('');
 }
 $('log').addEventListener('click', e=>{
@@ -322,7 +343,7 @@ $('q').addEventListener('input', ()=>{ clearTimeout(qT); qT=setTimeout(renderQui
 function renderQuick(){
   const res = quickSearch($('q').value); const el=$('qres');
   el.hidden = !$('q').value.trim();
-  el.innerHTML = res.length ? res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilOnly(c))}</div></div><div class="acts"><button data-act="add" data-id="${c.id}">Add</button></div></div></div>`).join('') : `<div class="empty" style="padding:16px">No cards match. Try part of the name, or a set and number like <b>5 207</b>.</div>`;
+  el.innerHTML = res.length ? res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}</div></div><div class="acts"><button data-act="add" data-id="${c.id}">Add</button></div></div></div>`).join('') : `<div class="empty" style="padding:16px">No cards match. Try part of the name, or a set and number like <b>5 207</b>.</div>`;
 }
 $('qres').addEventListener('click', e=>{
   const b=e.target.closest('button[data-act="add"]'); if(!b) return;
@@ -446,7 +467,7 @@ function hit(card){
 }
 $('startBtn').onclick = startCam;
 $('stopBtn').onclick = stopCam;
-$('foilBtn').onclick = ()=>{ foilMode=!foilMode; $('foilBtn').setAttribute('aria-pressed',foilMode); toast(foilMode?'Foil mode on: scans count as foil':'Foil mode off'); };
+$('foilBtn').onclick = ()=>{ foilMode=!foilMode; $('foilBtn').setAttribute('aria-pressed',foilMode); renderQuick(); toast(foilMode?'Foil mode on: scans count as foil':'Foil mode off'); };
 $('torchBtn').onclick = async ()=>{
   const t = stream?.getVideoTracks()[0]; if(!t) return; const on = $('torchBtn').getAttribute('aria-pressed')!=='true';
   try{ await t.applyConstraints({advanced:[{torch:on}]}); $('torchBtn').setAttribute('aria-pressed',on); }catch(e){ toast('This camera’s light can’t be controlled here.'); }
@@ -462,6 +483,12 @@ document.querySelectorAll('[data-csub]').forEach(b=>b.onclick=()=>{ csub=b.datas
 document.querySelectorAll('[data-lay]').forEach(b=>b.onclick=()=>{ layout=b.dataset.lay; lsSet('inkscan.layout',layout); renderColl(); });
 let cfT; $('cf').addEventListener('input',()=>{ clearTimeout(cfT); cfT=setTimeout(renderColl,120); });
 $('sortSel').onchange = renderColl;
+$('cFinish').onchange=renderColl;
+$('cReset').onclick=()=>{$('cf').value='';collInks.clear();$('cFinish').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
+function valueSummary(rows,finish){
+  const result=InkSafety.valuation(rows,finish);
+  return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies across all matching results. ${result.unpriced} copies unpriced. TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}.`;
+}
 
 function renderColl(){
   $('collCards').hidden = csub!=='cards'; $('collSets').hidden = csub!=='sets'; $('collWish').hidden = csub!=='wish';
@@ -471,9 +498,13 @@ function collRows(){
   const f = norm($('cf').value); const rows = [];
   for (const [id,v] of Object.entries(inv)){
     const c = byId.get(id); if(!c || !((v.q||0)+(v.f||0))) continue;
+    const finish=$('cFinish').value||'all';
+    const q=finish==='foil'?0:(v.q||0), foil=finish==='normal'?0:(v.f||0);
+    if(!q&&!foil)continue;
     if (!inkMatch(c, collInks)) continue;
     if (f && !norm(c.n+c.v+c.sn+c.i+c.r+c.cl).includes(f) && !(norm(setLabel(c))+norm(c.c)).includes(f)) continue;
-    rows.push({c, q:v.q||0, f:v.f||0, val:(v.q||0)*(priceOf(c,false)||0)+(v.f||0)*(priceOf(c,true)||0)});
+    const estimate=InkSafety.valuation([{c,q,f:foil}]);
+    rows.push({c,q,f:foil,val:estimate.value,unpriced:estimate.unpriced});
   }
   const bySet = (a,b)=>bySetOrder(a.c,b.c);
   const s = $('sortSel').value;
@@ -486,13 +517,14 @@ function collRows(){
 function renderCollCards(){
   document.querySelectorAll('[data-lay]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.lay===layout));
   const el = $('coll'); const rows = collRows();
+  $('cValue').textContent=valueSummary(rows,'all');
   if (!rows.length){
     el.className=''; el.innerHTML = Object.keys(inv).length ? `<div class="list"><div class="empty"><strong>No matches</strong>Nothing in your collection matches that filter.</div></div>` : `<div class="list"><div class="empty"><strong>Your collection is empty</strong>Scan cards on the Scan tab, or open any card in Browse and add it.</div></div>`;
     return;
   }
   if (layout==='grid'){
     el.className='grid';
-    el.innerHTML = rows.map(r=>tileHTML(r.c,{cap: money(r.val)})).join('');
+    el.innerHTML = rows.map(r=>tileHTML(r.c,{q:r.q+r.f,f:r.f,cap: `${money(r.val)}${r.unpriced?' (partial)':''}`})).join('');
   } else {
     el.className='list';
     el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}</div></div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}</div><div class="p">${money(r.val)}</div></div></div></div>`).join('');
@@ -515,10 +547,10 @@ $('setList').addEventListener('click', e=>{
 });
 function renderWish(){
   const rows = Object.entries(wish).map(([id,q])=>({c:byId.get(id),q})).filter(r=>r.c).sort((a,b)=>bySetOrder(a.c,b.c));
-  let total=0, n=0; for (const r of rows){ total += r.q*(priceOf(r.c, foilOnly(r.c))||0); n+=r.q; }
+  let total=0, n=0; for (const r of rows){ total += r.q*(priceOf(r.c, foilPriceOnly(r.c))||0); n+=r.q; }
   $('wishSum').innerHTML = rows.length ? `<div><strong>${n}</strong>cards wanted</div><div><strong>${money(total)}</strong>at TCGplayer market</div><button class="btn primary" id="wishBuy" style="margin-left:auto;align-self:center">Buy on TCGplayer</button>` : '';
   if (rows.length) $('wishBuy').onclick = ()=>openTcg(rows.map(r=>({q:r.q, c:r.c})));
-  $('wishList').innerHTML = rows.length ? rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${metaLine(r.c,foilOnly(r.c))}${ownedNV(r.c.nv)?` · own ${ownedNV(r.c.nv)}`:''}</div></div>
+  $('wishList').innerHTML = rows.length ? rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${metaLine(r.c,foilPriceOnly(r.c))}${ownedNV(r.c.nv)?` · own ${ownedNV(r.c.nv)}`:''}</div></div>
     <div class="acts"><button data-act="w" data-id="${r.c.id}" data-d="-1" aria-label="Want one fewer">−</button><output>${r.q}</output><button data-act="w" data-id="${r.c.id}" data-d="1" aria-label="Want one more">+</button></div></div>
     ${r.c.t?`<div style="padding:0 12px 10px 62px"><a class="link tiny" href="https://www.tcgplayer.com/product/${r.c.t}" target="_blank" rel="noopener">Buy on TCGplayer ↗</a></div>`:''}</div>`).join('')
     : `<div class="empty"><strong>Your wishlist is empty</strong>Open any card and tap + next to Wishlist, or use "Wishlist missing" on a deck.</div>`;
@@ -545,33 +577,37 @@ function fillSetSelect(){
   $('bSet').innerHTML = `<option value="">All sets</option>` + DB.sets.map(s=>`<option value="${esc(s.code)}">${/^\d+$/.test(s.code)?esc(s.code)+' · ':''}${esc(s.name)}</option>`).join('');
 }
 function resetBrowse(){
-  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); $('bSort').value='set';
+  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); $('bSort').value='set';$('bFinish').value='all';
   inkChips($('bInks'), bInks, renderBrowse);
 }
 $('bReset').onclick = ()=>{ resetBrowse(); renderBrowse(); };
 let bT; $('bq').addEventListener('input',()=>{ clearTimeout(bT); bT=setTimeout(renderBrowse,150); });
-['bSet','bType','bCost','bRar','bOwn','bSort'].forEach(id=>$(id).onchange=renderBrowse);
+['bSet','bType','bCost','bRar','bOwn','bSort','bFinish'].forEach(id=>$(id).onchange=renderBrowse);
 function renderBrowse(){
   if (!DB) return;
   const q = norm($('bq').value), set=$('bSet').value, type=$('bType').value, cost=$('bCost').value, rar=$('bRar').value, own=$('bOwn').value;
+  const finish=$('bFinish').value||'all';
   let list = DB.cards.filter(c=>{
     if (set && c.s!==set) return false;
     if (!inkMatch(c,bInks)) return false;
     if (type && !isType(c,type)) return false;
     if (cost && (cost==='7' ? (c.co??0)<7 : c.co!=+cost)) return false;
     if (rar && c.r!==rar) return false;
-    if (own==='own' && !ownedOf(c.id)) return false;
-    if (own==='miss' && ownedOf(c.id)) return false;
+    const owned=finish==='normal'?(inv[c.id]?.q||0):finish==='foil'?(inv[c.id]?.f||0):ownedOf(c.id);
+    if (own==='own' && !owned) return false;
+    if (own==='miss' && owned) return false;
     if (q && !norm(c.n+c.v+c.cl+c.tx).includes(q)) return false;
     return true;
   });
+  const shownPrice=c=>finish==='normal'?priceOf(c,false):finish==='foil'?priceOf(c,true):(priceOf(c,false)??priceOf(c,true));
   const s=$('bSort').value;
   list.sort(s==='name'?(a,b)=>a.n.localeCompare(b.n)||a.v.localeCompare(b.v)||bySetOrder(a,b)
     :s==='cost'?(a,b)=>(a.co??99)-(b.co??99)||a.n.localeCompare(b.n)
-    :s==='price'?(a,b)=>((b.p??b.pf??0)-(a.p??a.pf??0))||bySetOrder(a,b):bySetOrder);
-  let missCost = 0; if (own==='miss') for (const c of list) missCost += (c.p ?? c.pf ?? 0);
-  $('bCount').textContent = `${list.length.toLocaleString()} cards${own==='miss'&&list.length?` · ${money(missCost)} to buy them all`:''}`;
-  chunked($('bGrid'), $('bSentinel'), list, c=>tileHTML(c,{dim:true, cap:`${setLabel(c)} #${c.c} · ${money(c.p ?? c.pf)}`}));
+    :s==='price'?(a,b)=>((shownPrice(b)??-1)-(shownPrice(a)??-1))||bySetOrder(a,b):bySetOrder);
+  let missCost=0, unpriced=0; if(own==='miss') for(const c of list){const p=shownPrice(c);if(p===null)unpriced++;else missCost+=p;}
+  $('bCount').textContent = `${list.length.toLocaleString()} cards${own==='miss'&&list.length?` · ${money(missCost)} ${unpriced?`priced portion; ${unpriced} unpriced`:'estimated to buy them all'}`:''}`;
+  $('bValue').textContent=valueSummary(list.map(c=>({c,q:inv[c.id]?.q||0,f:inv[c.id]?.f||0})),finish);
+  chunked($('bGrid'), $('bSentinel'), list, c=>{const q=finish==='foil'?0:(inv[c.id]?.q||0),f=finish==='normal'?0:(inv[c.id]?.f||0);return tileHTML(c,{q:q+f,f,dim:true,cap:`${setLabel(c)} #${c.c} · ${money(shownPrice(c))}${finish==='all'?'':' '+finish}`});});
 }
 function refreshBrowseBadges(){
   document.querySelectorAll('#bGrid .tile').forEach(t=>{
@@ -702,6 +738,8 @@ $('deckMoreBtn').onclick = ()=>{
       <button class="btn" data-dm="wish">Wishlist missing cards</button>
       <button class="btn" data-dm="buy">Buy missing on TCGplayer</button>
       <button class="btn" data-dm="dup">Duplicate deck</button>
+      <button class="btn" data-dm="newcards">Add list as new physical cards</button>
+      ${d.importLines||d.unresolved?'<button class="btn" data-dm="source">Review imported source</button>':''}
     </div>
     <p class="note">Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.</p>
     <div class="confirm row" id="delRow"><button class="btn danger" data-dm="del">Delete deck</button></div>`);
@@ -716,6 +754,8 @@ $('sheetBody').addEventListener('click', async e=>{
   const a = b.dataset.dm;
   if (a==='copy'){ toast(await copyText(deckText(d)) ? 'Decklist copied' : 'Couldn’t copy. Use Download instead.'); }
   else if (a==='txt'){ download(`${d.name.replace(/[^\w\- ]+/g,'').trim()||'deck'}.txt`, deckText(d), 'text/plain'); }
+  else if (a==='newcards'){previewCollectionImport(d);}
+  else if (a==='source'){openSheet('Imported source retained locally',`<p class="note">This source and unresolved lines are included in your device backup. The existing cloud schema stores the recognized deck contents only.</p><pre>${esc((d.importLines||[]).map(l=>l.raw).join('\n'))}</pre><p>Unresolved:</p><pre>${esc((d.unresolved||[]).join('\n'))}</pre>`);}
   else if (a==='buy'){ openTcg(Object.entries(d.cards).map(([nv,q])=>({q:Math.max(0,q-ownedNV(nv)), c:repOf(nv)})), '. You own every card in this deck'); }
   else if (a==='wish'){
     let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-ownedNV(nv)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
@@ -743,30 +783,77 @@ $('deckHandBtn').onclick = ()=>{
   openSheet('Sample hand', ''); show();
 };
 
-/* deck import */
-$('importDeckBtn').onclick = ()=>{
-  openSheet('Import a decklist', `<label for="impName" class="note">Deck name</label><input type="text" id="impName" placeholder="My new deck">
-    <label for="impText" class="note">Paste the list, one card per line, like "4 Elsa - Snow Queen"</label>
-    <textarea id="impText" placeholder="4 Tipo - Growing Son&#10;3 Sail the Azurite Sea&#10;2x Hades - Infernal Schemer"></textarea>
-    <button class="btn primary" id="impGo">Import deck</button><div id="impMsg" class="note"></div>`);
-  $('impGo').onclick = ()=>{
-    const lines = $('impText').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    const cards={}, bad=[];
-    for (const line of lines){
-      const m = line.match(/^(\d+)\s*x?\s+(.+?)\s*$/i); if(!m){ if(!/^(\/\/|#|deck|sideboard)/i.test(line)) bad.push(line); continue; }
-      const q=+m[1]; let name=m[2], ver='';
-      const sp = name.split(/\s+[-–—]\s+/); if (sp.length>1){ name=sp[0]; ver=sp.slice(1).join(' - '); }
-      let nv = norm(name)+'|'+norm(ver);
-      if (!byNV.has(nv)){ const alt=[...byNV.keys()].find(k=>k.startsWith(norm(name)+'|') && (!ver || k.endsWith('|'+norm(ver)))); if (alt) nv=alt; else { bad.push(line); continue; } }
-      cards[nv]=Math.min(4,(cards[nv]||0)+q);
+/* Deck import does not change ownership. Source lines survive unresolved matches. */
+function parseDeckImport(text){
+  const cards={}, lines=[], unresolved=[];
+  for(const raw of text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
+    if(/^(\/\/|#|deck\b|sideboard\b)/i.test(raw)) continue;
+    const m=raw.match(/^(\d+)\s*x?\s+(.+?)\s*$/i);
+    if(!m || !Number.isSafeInteger(+m[1]) || +m[1]<=0){unresolved.push(raw);continue;}
+    const parts=m[2].split(/\s+[-\u2013\u2014]\s+/), name=parts[0], version=parts.slice(1).join(' - ');
+    let nv=norm(name)+'|'+norm(version);
+    if(!byNV.has(nv)){
+      const matches=[...byNV.keys()].filter(k=>k.startsWith(norm(name)+'|') && (!version||k.endsWith('|'+norm(version))));
+      nv=matches.length===1?matches[0]:null;
     }
-    if (!Object.keys(cards).length){ $('impMsg').textContent='No cards recognized. Check the format: a number, a space, then the card name.'; return; }
-    const d={id:uid(), name:$('impName').value.trim()||`Imported deck ${decks.length+1}`, cards, updated:Date.now()};
-    decks.push(d); saveDecks(); curDeck=d.id; dsub='list'; closeSheet(); showTab('decks');
-    toast(`Imported ${deckCount(d)} cards${bad.length?`, ${bad.length} lines not recognized`:''}`);
-    if (bad.length) setTimeout(()=>openSheet('Lines not recognized', `<p class="note">These lines didn’t match a card. Add them by hand from Add cards.</p><div class="rules">${bad.map(esc).join('<br>')}</div>`), 300);
+    const line={raw,qty:+m[1],nv};lines.push(line);
+    if(nv) cards[nv]=(cards[nv]||0)+line.qty; else unresolved.push(raw);
+  }
+  return {cards,lines,unresolved};
+}
+$('importDeckBtn').onclick=()=>{
+  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as 4 Elsa - Snow Queen</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>`);
+  let imported=false;
+  $('impGo').onclick=()=>{
+    if(imported)return;
+    const parsed=parseDeckImport($('impText').value);
+    if(!parsed.lines.length&&!parsed.unresolved.length){$('impMsg').textContent='Paste a decklist first.';return;}
+    const d={id:uid(),name:$('impName').value.trim()||`Imported deck ${decks.length+1}`,cards:parsed.cards,importLines:parsed.lines,unresolved:parsed.unresolved,updated:Date.now()};
+    imported=true; decks.push(d);saveDecks();curDeck=d.id;dsub='list';showTab('decks');
+    openSheet('Deck imported',`<p>Deck saved. Your collection quantities have not changed.</p><p>${parsed.unresolved.length} unresolved line(s) retained locally for review.</p><button class="btn primary" id="importToCollection">Add these as new cards to collection</button><button class="btn" id="importDone">Done</button>`);
+    $('importToCollection').onclick=()=>previewCollectionImport(d);
+    $('importDone').onclick=()=>closeSheet();
   };
 };
+function previewCollectionImport(deck){
+  // The purchase list follows the deck as it exists now, not its original import.
+  // Keep unresolved original lines visible, without guessing identities or quantities.
+  const lines=Object.entries(deck.cards).filter(([,qty])=>qty>0).map(([nv,qty])=>{const c=repOf(nv);return {nv,qty,raw:c?`${qty} ${c.n}${c.v?' - '+c.v:''}`:nv};});
+  for(const line of deck.importLines||[]) if(!line.nv) lines.push({...line});
+  const receiptId=uid();
+  const row=(line,i)=>{
+    const candidates=line.nv?(byNV.get(line.nv)||[]):[];
+    return `<div class="own"><p>${line.qty} new copies: ${esc(line.raw)}</p><label>Printing <select id="purchasePrint${i}"><option value="">Choose printing</option>${candidates.map(c=>`<option value="${esc(c.id)}">${esc(c.sn)} #${esc(c.c)} - ${esc(c.n)} ${esc(c.v)}</option>`).join('')}<option value="__skip">Keep unresolved; do not add this line</option></select></label><label>Finish <select id="purchaseFinish${i}"><option value="">Choose finish</option><option value="normal">Normal</option><option value="foil">Foil</option></select></label></div>`;
+  };
+  openSheet('Add new physical cards',`<p>Every listed copy will be added on top of what you own. No deductions or top-ups happen automatically.</p>${lines.map(row).join('')}<p class="note">${(deck.unresolved||[]).length} unresolved source line(s) are retained with this deck on this device. Unparsed lines cannot be added until corrected.</p><button class="btn primary" id="previewPurchase">Preview quantities</button><button class="btn" id="cancelPurchase">Cancel</button><p id="purchaseError" role="alert"></p>`);
+  $('cancelPurchase').onclick=()=>closeSheet();
+  $('previewPurchase').onclick=()=>{
+    try{
+      const items=[];
+      for(let i=0;i<lines.length;i++){
+        const cardId=$(`purchasePrint${i}`).value, finish=$(`purchaseFinish${i}`).value;
+        if(cardId==='__skip')continue;
+        const card=byId.get(cardId);
+        if(!card || !['normal','foil'].includes(finish))throw Error('Choose a printing and finish, or explicitly keep each line unresolved.');
+        // A missing price is not evidence that a physical finish is unavailable.
+        items.push({cardId,finish,qty:lines[i].qty});
+      }
+      if(!items.length)throw Error('No cards selected to add. Cancel to keep the imported deck only.');
+      const plan=InkSafety.collectionAddition(inv,items,receiptId,savedState.imports||{}), revision=localRevision, expectedRaw=knownStoredRaw;
+      openSheet('Confirm collection additions',`<p>This adds ${items.reduce((n,x)=>n+x.qty,0)} new physical cards.</p>${plan.changes.map(c=>`<p>${esc(byId.get(c.cardId)?.n||c.cardId)} (${esc(c.finish)}): ${c.before} + ${c.qty} = <b>${c.after}</b></p>`).join('')}<p class="note">Confirm only once for this purchase. You can intentionally import the same list again for another purchase.</p><button class="btn primary" id="confirmPurchase">Confirm: add new cards</button><button class="btn" id="cancelPurchase">Cancel</button><p id="purchaseError" role="alert"></p>`);
+      let applied=false;
+      $('cancelPurchase').onclick=()=>closeSheet();
+      $('confirmPurchase').onclick=()=>{
+        if(applied)return;
+        if(localRevision!==revision || knownStoredRaw!==expectedRaw){$('purchaseError').textContent='Collection changed during review. Cancel and preview the latest quantities.';return;}
+        const checked=InkSafety.collectionAddition(inv,items,receiptId,savedState.imports||{});
+        const next={...snapshotState(),inv:checked.inv,imports:checked.receipts,recovery:recoveryPoints('Before confirmed new-card purchase'),revision:localRevision+1};
+        try{InkSafety.save(localStorage,next,knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}catch(e){storageError='Addition was not saved or applied. Keep this tab open and back up. '+e.message;renderSaveStatus();$('purchaseError').textContent=storageError;return;}
+        applied=true;inv=next.inv;savedState.imports=next.imports;savedState.recovery=next.recovery;localRevision=next.revision;storageError=null;renderAll();renderSaveStatus();closeSheet();toast('New cards saved on this device. Tap Update to send them to the cloud.');
+      };
+    }catch(e){$('purchaseError').textContent=e.message;}
+  };
+}
 
 /* =========================================================
    CLOUD SYNC (Supabase). The phone keeps its own copy; the cloud is a second home.
@@ -777,12 +864,12 @@ const SB_URL = 'https://fzavmefambwdhnzmbvxv.supabase.co';
 const SB_KEY = 'sb_publishable_biFosNnFXZK8xSUiJOk0xw_wLrKGrD6';
 const EPOCH = '1970-01-01T00:00:00Z';
 let session = lsGet('inkscan.session', null);
-let base = lsGet('inkscan.base', null);
-const syncState = {busy:false, last: lsGet('inkscan.lastSync', null), err:null, again:false};
-let syncT = null, applying = false;
+let base = savedState?.base || null;
+const syncState = {busy:false, last:savedState?.last||null, err:null, receipt:null};
 
 function sbHeaders(tok){ const h={apikey:SB_KEY,'Content-Type':'application/json'}; if(tok) h.Authorization='Bearer '+tok; return h; }
 async function authCall(path, body){
+  ensureCloudOrigin();
   const r = await fetch(`${SB_URL}/auth/v1/${path}`, {method:'POST', headers:sbHeaders(), body:JSON.stringify(body)});
   const j = await r.json().catch(()=>({}));
   if (!r.ok){ const e = new Error(j.msg || j.error_description || j.message || `Sign-in failed (${r.status})`); e.status=r.status; throw e; }
@@ -790,7 +877,7 @@ async function authCall(path, body){
 }
 function keepSession(j){
   session = {access:j.access_token, refresh:j.refresh_token, exp:Date.now()+(j.expires_in||3600)*1000, uid:j.user?.id||session?.uid, email:j.user?.email||session?.email};
-  lsSet('inkscan.session', session);
+  if(!lsSet('inkscan.session', session)) throw Error('Signed in, but the session could not be saved on this device. Keep a backup before continuing.');
 }
 async function token(){
   if (!session) return null;
@@ -804,108 +891,117 @@ async function rest(method, path, body, extra){
   const t = await token(); if (!t){ const e=new Error('Not signed in'); e.status=401; throw e; }
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {method, headers:{...sbHeaders(t), ...(extra||{})}, body: body ? JSON.stringify(body) : undefined});
   if (!r.ok){ const j = await r.json().catch(()=>({})); const e = new Error(j.message || `Sync error ${r.status}`); e.status=r.status; throw e; }
-  return r.status===204 || r.status===201 ? null : r.json();
+  return r.status===204 ? null : r.json();
 }
-const sortObj = o => Object.keys(o).sort().reduce((a,k)=>(a[k]=o[k],a),{});
-const invVal = id => { const v=inv[id]; return v && (v.q||v.f) ? `${v.q||0}|${v.f||0}` : ''; };
-const wishVal = id => wish[id] ? String(wish[id]) : '';
-const deckVal = d => d ? JSON.stringify({n:d.name, c:sortObj(d.cards)}) : '';
-function freshBase(){ return {uid:session.uid, cur:{collection:EPOCH, wishlist:EPOCH, decks:EPOCH}, inv:{}, wish:{}, decks:{}}; }
-async function pullTable(table){
-  const out=[]; let cursor = base.cur[table];
-  for (;;){
-    const page = await rest('GET', `${table}?select=*&updated_at=gt.${encodeURIComponent(cursor)}&order=updated_at.asc&limit=1000`);
-    out.push(...page); if (page.length<1000) break; cursor = page[page.length-1].updated_at;
+// Full owner-scoped reads avoid timestamp-only pagination and detect missing rows.
+const TABLES={inv:'collection',wish:'wishlist',decks:'decks'};
+function ensureCloudOrigin(){
+  if(location.origin!=='https://raestin.github.io' || !location.pathname.startsWith('/inkscan/'))
+    throw Error('Cloud access is disabled in this isolated development preview.');
+}
+async function pullAll(section){
+  const table=TABLES[section], key=section==='decks'?'id':'card_id', out=[];
+  for(let offset=0;;offset+=1000){
+    const page=await rest('GET',`${table}?user_id=eq.${encodeURIComponent(session.uid)}&select=*&order=${key}.asc&limit=1000&offset=${offset}`);
+    out.push(...page); if(page.length<1000) return out;
   }
-  return out;
 }
-async function upsert(table, rows, conflict){
-  for (let i=0;i<rows.length;i+=500)
-    await rest('POST', `${table}?on_conflict=${conflict}`, rows.slice(i,i+500), {Prefer:'resolution=merge-duplicates,return=minimal'});
+function remoteMaps(rows){
+  return InkSafety.maps({inv:Object.fromEntries(rows.inv.map(r=>[r.card_id,{q:r.q,f:r.f}])),wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted)});
 }
-function scheduleSync(){ if (!session || applying) return; clearTimeout(syncT); syncT = setTimeout(()=>sync(false), 2500); }
+function reviewUpdate(plan){
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;observer.disconnect();closeObserver.disconnect();closeSheet();resolve(value);};
+    openSheet('Review cloud update',`<p>${plan.writes.length} cloud item(s) to send; ${plan.pulls.length} local item(s) to receive. Quantities include normal and foil separately.</p><p class="note">A concurrent edit stops the update. A failed update may have confirmed some items; your local data and remaining changes are kept for retry.</p><button class="btn primary" id="applyUpdate">Apply update</button><button class="btn" id="cancelUpdate">Cancel</button>`);
+    const observer=new MutationObserver(()=>{if(!$('applyUpdate'))finish(false);});
+    observer.observe($('sheetBody'),{childList:true,subtree:true});
+    $('applyUpdate').onclick=()=>finish(true); $('cancelUpdate').onclick=()=>finish(false);
+    // Closing by backdrop / Escape also cancels, never confirms.
+    const sheet=$('sheet');
+    const closeObserver=new MutationObserver(()=>{if(sheet.hidden)finish(false);});
+    closeObserver.observe(sheet,{attributes:true,attributeFilter:['hidden']});
+  });
+}
+function replaceLocalMaps(values){
+  inv=values.inv; wish=values.wish;
+  decks=Object.entries(values.decks).map(([id,d])=>({...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,updated:Date.now()}));
+}
+async function guardedWrite(operation,previous){
+  const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
+  const row=section==='inv'?{user_id:session.uid,card_id:id,q:value?.q||0,f:value?.f||0}
+    :section==='wish'?{user_id:session.uid,card_id:id,qty:value||0}
+    :{user_id:session.uid,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value};
+  let path=table, method='POST';
+  if(previous){
+    method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
+    const columns=section==='inv'?['q','f']:section==='wish'?['qty']:['name','cards','deleted'];
+    path+=`?${eq('user_id',session.uid)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>eq(k,previous[k])).join('&');
+  }
+  const result=await rest(method,path,row,{Prefer:'return=representation'});
+  if(!Array.isArray(result)||result.length!==1) throw Error('A cloud item changed during this update. Stopped without overwriting that item. Review and retry.');
+  return result[0];
+}
 async function sync(manual){
-  if (!session) return;
-  if (syncState.busy){ syncState.again = true; return; }
-  if (!navigator.onLine){ syncState.err = 'Offline. Changes are saved on this phone and will sync later.'; renderSyncBox(); return; }
-  syncState.busy = true; renderSyncBox();
-  let changed = false; const newDecks = []; let wishAdds = 0;
+  if(!manual||syncState.busy) return;
+  if(!session){toast('Sign in first.');return;}
+  syncState.busy=true;syncState.err=null;syncState.receipt=null;renderSyncBox();
+  let acknowledged=0;
   try{
-    const firstEver = !base || base.uid !== session.uid;
-    if (firstEver) base = freshBase();
-    /* ---- pull ---- */
-    const later = (a,b) => (a > b ? a : b);
-    for (const r of await pullTable('collection')){
-      const id = r.card_id, sv = (r.q||r.f) ? `${r.q}|${r.f}` : '';
-      if (invVal(id) === (base.inv[id]||'') && invVal(id) !== sv){ if (sv) inv[id]={q:r.q,f:r.f}; else delete inv[id]; changed = true; }
-      if (sv) base.inv[id]=sv; else delete base.inv[id];
-      base.cur.collection = later(base.cur.collection, r.updated_at);
+    ensureCloudOrigin();
+    if(!navigator.onLine) throw Error('Offline. Local changes are kept. Reconnect and tap Update to retry.');
+    if(!persistState()) throw Error('Local saving must succeed before a cloud update. Download a backup first.');
+    if(base?.uid && base.uid!==session.uid) throw Error('This device has a different account baseline. Nothing was merged. Back up and review the account before updating.');
+    const captured=InkSafety.maps({inv,wish,decks}), revision=localRevision;
+    const rows={inv:await pullAll('inv'),wish:await pullAll('wish'),decks:await pullAll('decks')};
+    const remote=remoteMaps(rows), agreed=base||{inv:{},wish:{},decks:{}};
+    const plan=InkSafety.plan(captured,remote,agreed);
+    if(plan.conflicts.length){
+      syncState.conflicts=plan.conflicts;
+      download(`inkscan-conflicts-${today()}.json`,JSON.stringify({app:'inkscan-conflict-review',saved:new Date().toISOString(),conflicts:plan.conflicts}),'application/json');
+      throw Error(`${plan.conflicts.length} item(s) changed both here and in the cloud. Update stopped before any writes. Local and cloud values were preserved; a conflict review file was downloaded. Resolve against a backup before retrying.`);
     }
-    for (const r of await pullTable('wishlist')){
-      const id = r.card_id, sv = r.qty ? String(r.qty) : '';
-      if (wishVal(id) === (base.wish[id]||'') && wishVal(id) !== sv){ if (sv && r.qty > (wish[id]||0)) wishAdds += r.qty-(wish[id]||0); if (sv) wish[id]=r.qty; else delete wish[id]; changed = true; }
-      if (sv) base.wish[id]=sv; else delete base.wish[id];
-      base.cur.wishlist = later(base.cur.wishlist, r.updated_at);
+    if(!(await reviewUpdate(plan))){syncState.receipt='Update cancelled. No cloud items were written.';return;}
+    if(localRevision!==revision) throw Error('Local data changed during review. Nothing was uploaded. Tap Update to review the latest changes.');
+    savedState.recovery=recoveryPoints('Before confirmed cloud update');
+    if(!persistState())throw Error('Recovery snapshot could not be saved. No cloud items were written. Back up before retrying.');
+    if(!base) base={uid:session.uid,inv:{},wish:{},decks:{}};
+    const finalCloud=InkSafety.clone(remote);
+    for(const operation of plan.writes){
+      if(storageError) throw Error('Local save failed. Remaining cloud writes stopped. Back up and retry.');
+      const key=operation.section==='decks'?'id':'card_id';
+      await guardedWrite(operation,rows[operation.section].find(r=>r[key]===operation.id));
+      acknowledged++;
+      if(operation.value===null){delete base[operation.section][operation.id];delete finalCloud[operation.section][operation.id];}
+      else {base[operation.section][operation.id]=InkSafety.clone(operation.value);finalCloud[operation.section][operation.id]=InkSafety.clone(operation.value);}
+      if(!persistState()) throw Error('Cloud accepted an item, but its local receipt could not be saved. Remaining writes stopped. Keep this tab open, back up and retry.');
     }
-    for (const r of await pullTable('decks')){
-      const local = decks.find(d=>d.id===r.id);
-      const sv = r.deleted ? '' : JSON.stringify({n:r.name, c:sortObj(r.cards||{})});
-      if (deckVal(local) === (base.decks[r.id]||'') && deckVal(local) !== sv){
-        if (!sv) decks = decks.filter(d=>d.id!==r.id);
-        else if (local){ local.name=r.name; local.cards={...r.cards}; local.updated=Date.parse(r.updated_at)||Date.now(); }
-        else { decks.push({id:r.id, name:r.name, cards:{...r.cards}, updated:Date.parse(r.updated_at)||Date.now()}); newDecks.push(r.name); }
-        changed = true;
-      }
-      if (sv) base.decks[r.id]=sv; else delete base.decks[r.id];
-      base.cur.decks = later(base.cur.decks, r.updated_at);
-    }
-    /* ---- push whatever the phone changed ---- */
-    const invIds = new Set([...Object.keys(inv), ...Object.keys(base.inv)]);
-    const invRows = [...invIds].filter(id=>invVal(id)!==(base.inv[id]||'')).map(id=>({user_id:session.uid, card_id:id, q:inv[id]?.q||0, f:inv[id]?.f||0}));
-    const wishIds = new Set([...Object.keys(wish), ...Object.keys(base.wish)]);
-    const wishRows = [...wishIds].filter(id=>wishVal(id)!==(base.wish[id]||'')).map(id=>({user_id:session.uid, card_id:id, qty:wish[id]||0}));
-    const deckIds = new Set([...decks.map(d=>d.id), ...Object.keys(base.decks)]);
-    const deckRows = [...deckIds].map(id=>({id, d:decks.find(x=>x.id===id)})).filter(x=>deckVal(x.d)!==(base.decks[x.id]||''))
-      .map(x=>({id:x.id, user_id:session.uid, name:x.d?.name||'Deleted deck', cards:x.d?.cards||{}, deleted:!x.d}));
-    if (invRows.length) await upsert('collection', invRows, 'user_id,card_id');
-    if (wishRows.length) await upsert('wishlist', wishRows, 'user_id,card_id');
-    if (deckRows.length) await upsert('decks', deckRows, 'id');
-    for (const r of invRows){ const v=invVal(r.card_id); if (v) base.inv[r.card_id]=v; else delete base.inv[r.card_id]; }
-    for (const r of wishRows){ const v=wishVal(r.card_id); if (v) base.wish[r.card_id]=v; else delete base.wish[r.card_id]; }
-    for (const r of deckRows){ const v=deckVal(decks.find(d=>d.id===r.id)); if (v) base.decks[r.id]=v; else delete base.decks[r.id]; }
-    /* ---- save ---- */
-    applying = true;
-    if (changed){ lsSet('inkscan.inv', inv); lsSet('inkscan.wish', wish); lsSet('inkscan.decks', decks); }
-    lsSet('inkscan.base', base);
-    syncState.last = Date.now(); lsSet('inkscan.lastSync', syncState.last); syncState.err = null;
-    if (changed){ if (curDeck && !decks.find(d=>d.id===curDeck)) curDeck=null; renderAll(); }
-    const news = [];
-    if (newDecks.length) news.push(newDecks.length===1 ? `New deck: ${newDecks[0]}` : `${newDecks.length} new decks`);
-    if (wishAdds) news.push(`${wishAdds} card${wishAdds===1?'':'s'} added to your wishlist`);
-    if (news.length && !firstEver) toast(news.join(' · '));
-    else if (manual) toast(changed ? 'Synced. Picked up changes from the cloud.' : 'Synced');
+    const current=InkSafety.maps({inv,wish,decks});
+    replaceLocalMaps(InkSafety.applyPulls(current,captured,plan.pulls));
+    base={uid:session.uid,...finalCloud};
+    const confirmed=Date.now(), previousLast=syncState.last; syncState.last=confirmed;
+    if(!persistState()){syncState.last=previousLast;throw Error('Update completed on the server but local receipt saving failed. Keep this tab open and back up.');}
+    syncState.receipt=`Update confirmed: ${acknowledged} item(s) sent, ${plan.pulls.length} item(s) received. New edits remain pending.`;
+    renderAll();toast('Update confirmed.');
   }catch(e){
-    syncState.err = e.status===401 ? 'Signed out. Sign in again to keep syncing.'
-      : (e instanceof TypeError || e.status>=500) ? 'Can’t reach the cloud right now (offline, or the project is paused). Changes are saved on this phone and will sync later.'
-      : (e.message || 'Sync failed');
-    if (manual) toast(syncState.err);
-  }finally{
-    applying = false; syncState.busy = false; renderSyncBox();
-    if (syncState.again){ syncState.again=false; scheduleSync(); }
-  }
+    syncState.err=`${e.message||'Update failed.'}${acknowledged?` ${acknowledged} item(s) already accepted; remaining changes are kept for retry.`:''}`;
+    toast(syncState.err);
+  }finally{syncState.busy=false;renderSyncBox();renderSaveStatus();}
 }
+
 function syncBoxHTML(){
-  if (!session) return `<h3 class="h2" style="font-size:17px">Cloud sync</h3>
-    <p class="note">Sign in to keep your collection, decks and wishlist in your own cloud database, so they survive a lost phone and Claude can read and add to them.</p>
+  const agreed=session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}};
+  const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),agreed);
+  const when=syncState.last?new Date(syncState.last).toLocaleString():'not yet';
+  const common=`<p class="note">Manual cloud updates only. Pending on this device: ${counts.inv} collection printing(s), ${counts.decks} deck(s), ${counts.wish} wishlist item(s). Last confirmed update: ${esc(when)}.</p>
+    ${syncState.err?`<p class="note" role="alert" style="color:var(--warn)">${esc(syncState.err)}</p>`:''}
+    ${syncState.receipt?`<p class="note">${esc(syncState.receipt)}</p>`:''}`;
+  if(!session) return `<h3 class="h2">Cloud update</h3>${common}<p class="note">Sign in, then tap Update to review cloud changes. Signing in does not sync your collection.</p>
     <input type="email" id="sbEmail" placeholder="Email" autocomplete="email" value="${esc(lsGet('inkscan.email','')||'')}">
     <input type="password" id="sbPass" placeholder="Password (6+ characters)" autocomplete="current-password">
-    <div class="row"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div>
-    <p class="note" id="sbMsg"></p>`;
-  const when = syncState.last ? new Date(syncState.last).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'not yet';
-  return `<h3 class="h2" style="font-size:17px">Cloud sync</h3>
-    <p class="note">Signed in as <b>${esc(session.email||'')}</b>. ${syncState.busy?'Syncing…':`Last synced ${when}.`}</p>
-    ${syncState.err?`<p class="note" style="color:var(--warn)">${esc(syncState.err)}</p>`:''}
-    <div class="row"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Sync now</button><button class="btn ghost" data-sync="out">Sign out</button></div>`;
+    <div class="row"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div><p class="note" id="sbMsg"></p>`;
+  return `<h3 class="h2">Cloud update</h3>${common}<p class="note">${syncState.busy?'Checking / updating...':'Your collection stays local until you confirm an Update.'}</p>
+    <div class="row"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Update</button><button class="btn ghost" data-sync="out" ${syncState.busy?'disabled':''}>Sign out</button></div>`;
 }
 function renderSyncBox(){ const el=$('syncBox'); if (el) el.innerHTML = syncBoxHTML(); }
 $('sheetBody').addEventListener('click', async e=>{
@@ -922,7 +1018,7 @@ $('sheetBody').addEventListener('click', async e=>{
         if (!j.access_token){ $('sbMsg').textContent = 'Account created. Open the confirmation email on this phone, tap the link, then come back here and tap Sign in.'; b.disabled=false; return; }
         keepSession(j);
       }
-      renderSyncBox(); await sync(true);
+      renderSyncBox(); toast('Signed in. Tap Update when you are ready.');
     }catch(err){
       $('sbMsg').textContent = /confirm/i.test(err.message) ? 'Confirm your email first: tap the link in the message Supabase sent you, then Sign in.'
         : /invalid login/i.test(err.message) ? 'That email and password don’t match.' : err.message;
@@ -931,9 +1027,14 @@ $('sheetBody').addEventListener('click', async e=>{
   } else if (a==='now'){ sync(true); }
   else if (a==='out'){ session=null; lsSet('inkscan.session', null); renderSyncBox(); toast('Signed out. Everything stays on this phone.'); }
 });
-window.addEventListener('online', ()=>scheduleSync());
-document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && session) sync(false); });
-setInterval(()=>{ if (!document.hidden && session) sync(false); }, 180000);
+$('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${syncBoxHTML()}</div>`); };
+$('safetyBackup').onclick=()=>{
+  if(savedState)download(`inkscan-backup-${today()}.json`,JSON.stringify({app:'inkscan',...snapshotState()}),'application/json');
+  else {
+    const keys=['inkscan.state.v5','inkscan.inv','inkscan.decks','inkscan.wish','inkscan.base'];
+    download(`inkscan-recovery-${today()}.json`,JSON.stringify({app:'inkscan-raw-recovery',raw:Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]))}),'application/json');
+  }
+};
 
 /* =========================================================
    TOOLS: export, backup, restore, prices, clear
@@ -954,7 +1055,7 @@ $('sheetBody').addEventListener('click', e=>{
   const b = e.target.closest('[data-tool]'); if(!b) return;
   const a = b.dataset.tool;
   if (a==='csv'){ if(!Object.keys(inv).length){ toast('Nothing to export yet'); return; } download(`lorcana-collection-${today()}.csv`, '﻿'+buildCsv(), 'text/csv'); toast('CSV downloaded'); }
-  else if (a==='backup'){ download(`inkscan-backup-${today()}.json`, JSON.stringify({app:'inkscan', v:2, saved:new Date().toISOString(), inv, decks, wish}), 'application/json'); toast('Backup downloaded'); }
+  else if (a==='backup'){ download(`inkscan-backup-${today()}.json`, JSON.stringify({app:'inkscan',...snapshotState(),saved:new Date().toISOString()}), 'application/json'); toast('Backup downloaded'); }
   else if (a==='restore'){ $('fileIn').click(); }
   else if (a==='prices'){ refreshFromLorcast(true, b); }
   else if (a==='wipe'){ $('wipeRow').innerHTML = `<span class="note">Remove every card from your collection? Decks and wishlist stay.</span><button class="btn danger tiny" data-tool="wipeyes">Remove all</button><button class="btn ghost tiny" data-tool="wipeno">Keep</button>`; }
@@ -983,43 +1084,63 @@ function parseCsv(text){
   if (cell||row.length){ row.push(cell); rows.push(row); }
   return rows;
 }
+function previewRestore(restored, label){
+  if(!savedState)throw Error('Current saved data needs recovery. Back up the raw saved state before restoring. Nothing was replaced.');
+  const revision=localRevision, expectedRaw=knownStoredRaw;
+  const copies=Object.values(restored.inv).reduce((n,v)=>n+(v.q||0)+(v.f||0),0);
+  const unknown=Object.keys(restored.inv).filter(id=>!byId.has(id)).length;
+  openSheet('Review device restore',`<p>${esc(label)} will replace this device's collection, decks and wishlist with <b>${copies} physical cards</b> (${Object.keys(restored.inv).length} printings), <b>${restored.decks.length} decks</b> and <b>${Object.keys(restored.wish).length} wishlist items</b>.</p><p>${unknown} unknown printing ID(s) will be retained. Your current data will be kept in a local recovery snapshot. This does not update the cloud; this device's cloud baseline stays unchanged.</p><button class="btn primary" id="confirmRestore">Replace device data</button><button class="btn" id="cancelRestore">Cancel</button><p id="restoreError" role="alert"></p>`);
+  let applied=false;
+  $('cancelRestore').onclick=()=>closeSheet();
+  $('confirmRestore').onclick=()=>{
+    if(applied)return;
+    if(localRevision!==revision || knownStoredRaw!==expectedRaw){$('restoreError').textContent='Device data changed during review. Cancel and choose the file again to review the latest state.';return;}
+    const next={...snapshotState(),...InkSafety.clone(restored),recovery:recoveryPoints('Before confirmed device restore'),revision:localRevision+1};
+    try{InkSafety.save(localStorage,next,expectedRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}
+    catch(e){storageError='Restore was not applied. '+e.message;renderSaveStatus();$('restoreError').textContent=storageError;return;}
+    applied=true;inv=next.inv;decks=next.decks;wish=next.wish;savedState.imports=next.imports;savedState.recovery=next.recovery;localRevision=next.revision;storageError=null;curDeck=null;log=[];
+    closeSheet();renderAll();renderSaveStatus();toast(`Restored ${copies} cards and ${decks.length} decks on this device. Cloud unchanged.`);
+  };
+}
 $('fileIn').onchange = async e=>{
   const f=e.target.files[0]; e.target.value=''; if(!f) return;
   const text = (await f.text()).replace(/^﻿/,'');
   if (/^\s*\{/.test(text)){
     try{
-      const b = JSON.parse(text); if (b.app!=='inkscan') throw 0;
-      inv = b.inv||{}; decks = b.decks||[]; wish = b.wish||{};
-      saveInv(); saveDecks(); saveWish(); curDeck=null; closeSheet(); renderAll();
-      toast(`Restored ${totals().copies} cards, ${decks.length} decks`);
-    }catch(err){ toast('That file isn’t an InkScan backup.'); }
+      previewRestore(InkSafety.restoreSnapshot(JSON.parse(text)), 'This backup');
+    }catch(err){ toast(err.message||'That file isn’t a complete InkScan backup. Nothing was replaced.'); }
     return;
   }
   const rows = parseCsv(text); const h = rows.shift()||[]; const ix = n => h.indexOf(n);
   const iId=ix('Lorcast ID'), iSet=ix('Set Code'), iNum=ix('Card Number'), iFin=ix('Finish'), iQty=ix('Quantity');
-  if (iQty<0 || (iId<0 && (iSet<0||iNum<0))){ toast('That file isn’t an InkScan export.'); return; }
+  if (iQty<0 || iFin<0 || (iId<0 && (iSet<0||iNum<0))){ toast('That file isn’t a complete InkScan export. Nothing was replaced.'); return; }
   let n=0, miss=0; const next={};
   for (const r of rows){
-    const c = (iId>=0 && byId.get(r[iId])) || bySetNum.get(norm(r[iSet])+'|'+norm(r[iNum]));
-    const qty = parseInt(r[iQty],10); if(!c || !(qty>0)){ if(r.length>1) miss++; continue; }
+    const c = iId>=0&&r[iId]?byId.get(r[iId]):bySetNum.get(norm(r[iSet])+'|'+norm(r[iNum]));
+    if(r.every(cell=>!cell.trim()))continue;
+    const qty = /^\d+$/.test(r[iQty]||'')?Number(r[iQty]):NaN; if(!c || !Number.isSafeInteger(qty) || qty<=0 || (iFin>=0&&!['normal','foil'].includes((r[iFin]||'').toLowerCase()))){ miss++; continue; }
     const v = next[c.id] || (next[c.id]={q:0,f:0}); if ((r[iFin]||'').toLowerCase()==='foil') v.f+=qty; else v.q+=qty; n+=qty;
   }
-  inv = next; saveInv(); closeSheet(); renderAll(); toast(`Restored ${n} cards${miss?`, ${miss} rows skipped`:''}`);
+  if(miss || !n){toast(`CSV restore stopped: ${miss?`${miss} unrecognized or invalid row(s)`:'no valid card rows'}. Nothing was replaced.`);return;}
+  try{previewRestore(InkSafety.validate({inv:next,decks:InkSafety.clone(decks),wish:InkSafety.clone(wish)}),'This collection CSV (decks and wishlist are kept)');}
+  catch(err){toast('CSV restore stopped. '+err.message);}
 };
 
 /* =========================================================
    Boot
    ========================================================= */
 async function boot(){
-  inv = lsGet('inkscan.inv', {}) || {}; decks = lsGet('inkscan.decks', []) || []; wish = lsGet('inkscan.wish', {}) || {};
+  if(!savedState){ $('loadBanner').textContent=storageError; $('loadBanner').classList.add('bad'); renderSaveStatus(); return; }
+  inv=InkSafety.clone(savedState.inv); decks=InkSafety.clone(savedState.decks); wish=InkSafety.clone(savedState.wish);
+  renderSaveStatus();
   renderLog();
   let d;
   try{ d = await loadCards(); }
   catch(e){ $('loadBanner').textContent='The card list didn’t load. Check your connection and reload.'; $('loadBanner').classList.add('bad'); return; }
   indexCards(d); $('loadBanner').hidden = true;
-  /* v1 kept a slimmer card list in localStorage; drop it now that data lives in the cache */
-  try{ localStorage.removeItem('inkscan.cards'); }catch(e){}
-  for (const id of Object.keys(inv)) if(!byId.has(id)) delete inv[id];
+  // Legacy catalog/localStorage keys remain intact for recovery.
+  // Unknown printing IDs are retained, including while a catalog is stale or incomplete.
+  renderSaveStatus();
   fillSetSelect(); inkChips($('collInks'), collInks, renderColl); inkChips($('bInks'), bInks, renderBrowse);
   renderTotals();
   $('startBtn').disabled = !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -1029,7 +1150,7 @@ async function boot(){
   const age = (Date.now() - new Date(DB.asof+'T00:00:00').getTime())/86400000;
   if (age > 3 && navigator.onLine) refreshFromLorcast(false);
   getWorker().catch(()=>{});
-  if (session) sync(false);
+  // Cloud reads and writes require an explicit Update confirmation.
 }
 boot();
 if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
