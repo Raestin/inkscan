@@ -194,11 +194,7 @@ function priceOf(c, finish){ const value=valuedCard(c); return InkSafety.price(v
 function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=priceOf(c,false) ?? priceOf(c,true); if(p!=null && (m==null||p<m)) m=p; } return m; }
 function foilPriceOnly(c){ return c && priceOf(c,false)===null && priceOf(c,true)!==null; }
 function setLabel(c){ return /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
-function imgUrl(c,size){
-  if(!c)return '';
-  if(c.supplemental || String(c.id).startsWith('tcgplayer_'))return typeof InkCatalog!=='undefined'&&typeof InkCatalog.validatedArtworkURL==='function'?InkCatalog.validatedArtworkURL(c)||'':'';
-  return c.iv===null?'':`${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`;
-}
+function imgUrl(c, size){ return c.supplemental || c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
 function inkDot(c){
   if (c.inks.length > 1) return `<span class="ink dual" style="--c1:var(--${c.inks[0].toLowerCase()});--c2:var(--${c.inks[1].toLowerCase()})"></span>`;
   return `<span class="ink ${esc(c.inks[0]||'')}"></span>`;
@@ -285,20 +281,23 @@ function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocale
 /* =========================================================
    Shared rendering
    ========================================================= */
-// The optional fallback is consumed before a retry, so no image can loop.
-// Supplemental artwork never receives a base-card or Lorcast fallback.
+// A decorative local placeholder is never substituted into a real card <img>.
+// Consume the optional normal-to-small fallback before retrying, then stop.
 const IMAGE_ERROR="const fallback=this.dataset.fallbackSrc;this.removeAttribute('data-fallback-src');if(fallback&&this.src!==fallback){this.src=fallback;}else{this.nextElementSibling?.removeAttribute('hidden');this.remove();}";
-function artLabel(c){return `${c.n}${c.v?' – '+c.v:''} · ${c.s} #${c.c}`;}
+function placeholderHTML(card,variant,hidden){
+  const identity=`${card.n}${card.v?' – '+card.v:''} · ${card.s} #${card.c}`;
+  const metadata=variant==='thumb'?'':`<span class="art-placeholder__identity" aria-hidden="true"><strong>${esc(card.n)}</strong>${card.v?`<span>${esc(card.v)}</span>`:''}<span>${esc(card.s)} #${esc(card.c)}</span></span>`;
+  return `<span class="art-placeholder art-placeholder--${variant}" data-art-placeholder ${hidden?'hidden':''} role="img" aria-label="${esc('No image available for '+identity)}"><span class="art-placeholder__message" aria-hidden="true">No image available</span>${metadata}</span>`;
+}
 function artHTML(c,size){
   const url=imgUrl(c,size||'small');
-  const placeholder=`<span class="ph" data-art-placeholder ${url?'hidden':''}>${esc(c.n)}<br>${esc(c.v)}<br>${esc(c.s)} #${esc(c.c)}<br>Artwork unavailable</span>`;
-  return (url?`<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="${esc(IMAGE_ERROR)}">`:'')+placeholder;
+  return (url?`<img data-card-art src="${esc(url)}" alt="" loading="lazy" decoding="async" onerror="${esc(IMAGE_ERROR)}">`:'')+placeholderHTML(c,'grid',!!url);
 }
 function detailArtHTML(c){
   const url=imgUrl(c,'normal'),small=imgUrl(c,'small');
-  const fallback=!c.supplemental&&small&&small!==url?` data-fallback-src="${esc(small)}"`:'';
-  const image=url?`<img src="${esc(url)}" alt="${esc(artLabel(c))}" referrerpolicy="no-referrer"${fallback} onerror="${esc(IMAGE_ERROR)}">`:'';
-  return image+`<div class="note" data-art-placeholder ${url?'hidden':''} style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px;overflow-wrap:anywhere"><strong>${esc(c.n)}</strong><span>${esc(c.v)}</span><span>${esc(c.s)} #${esc(c.c)}</span><span>Artwork unavailable</span></div>`;
+  const fallback=small&&small!==url?` data-fallback-src="${esc(small)}"`:'';
+  const image=url?`<img data-card-art src="${esc(url)}" alt="${esc(c.n+(c.v?' – '+c.v:''))}"${fallback} onerror="${esc(IMAGE_ERROR)}">`:'';
+  return image+placeholderHTML(c,'detail',!!url);
 }
 
 /* the img sits above the placeholder text, which only shows if the image fails */
@@ -309,7 +308,7 @@ function tileHTML(c, opts={}){
 }
 function thumbHTML(c){
   const url=imgUrl(c,'small');
-  return `<span class="thumb">${url?`<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="${esc(IMAGE_ERROR)}">`:''}<span data-art-placeholder ${url?'hidden':''} title="${esc(artLabel(c))}: artwork unavailable" style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9px;line-height:1.15;padding:2px;overflow-wrap:anywhere">No art<br>${esc(c.s)} #${esc(c.c)}</span></span>`;
+  return `<span class="thumb">${url?`<img data-card-art src="${esc(url)}" alt="" loading="lazy" onerror="${esc(IMAGE_ERROR)}">`:''}${placeholderHTML(c,'thumb',!!url)}</span>`;
 }
 function printingProvider(card){return card?card.supplemental?.provider||'Lorcast':'Unknown';}
 function printingNote(card){
@@ -321,10 +320,8 @@ function supplementalDetails(card){
   const meta=card?.supplemental;if(!meta)return '';
   const sources=(meta.evidence||[]).map(item=>item.url).filter(url=>typeof url==='string'&&/^https:\/\//.test(url));
   const quote=promoFoilQuote(card),price=promoFoilPrice(card);
-  const artwork=imgUrl(card,'normal')?meta.artwork:null;
-  const artSource=artwork?`<dt>Artwork source</dt><dd><a class="link" href="${esc(artwork.evidenceURL)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Public ${esc(artwork.provider)} image ↗</a> · this stamped printing; no base-card image substitution.</dd>`:'';
   const priceNote=`TCGplayer via TCGCSV; Holofoil (provider label), built ${quote?.buildAsOf||'unavailable'}. ${price===null?'No current exact quote: this foil is unpriced.':'This exact market quote applies to generic Foil only.'} Normal and Rainbow remain unpriced. Quotes expire after 7 days; no base-card or other-finish fallback.`;
-  return `<dt>Printing</dt><dd>${esc(printingNote(card))}</dd><dt>Catalog provider</dt><dd>${esc(meta.provider)} · ${esc(card.id)} (not a Lorcast ID)</dd><dt>Provider finish term</dt><dd>${esc(meta.rawSubtype||'Unspecified')}; choose the actual physical finish separately. No rainbow or cold-foil classification is inferred.</dd><dt>Exact foil price source</dt><dd>${esc(priceNote)}</dd>${artSource}<dt>Printing evidence</dt><dd>${sources.map((url,index)=>`<a class="link" href="${esc(url)}" target="_blank" rel="noopener">Source ${index+1} ↗</a>`).join(' · ')}</dd>`;
+  return `<dt>Printing</dt><dd>${esc(printingNote(card))}</dd><dt>Catalog provider</dt><dd>${esc(meta.provider)} · ${esc(card.id)} (not a Lorcast ID)</dd><dt>Provider finish term</dt><dd>${esc(meta.rawSubtype||'Unspecified')}; choose the actual physical finish separately. No rainbow or cold-foil classification is inferred.</dd><dt>Exact foil price source</dt><dd>${esc(priceNote)}</dd><dt>Printing evidence</dt><dd>${sources.map((url,index)=>`<a class="link" href="${esc(url)}" target="_blank" rel="noopener">Source ${index+1} ↗</a>`).join(' · ')}</dd>`;
 }
 function metaLine(c,foil){return `${esc(setLabel(c))} · #${esc(c.c)} · ${esc(rarityLabel(c.r))} · ${money(priceOf(c,foil))}${c.supplemental?' · '+esc(printingNote(c)):''}`;}
 

@@ -1,5 +1,5 @@
 'use strict';
-// Public-card artwork regressions against this exact runtime. No user photos or live network.
+// Placeholder renderer regressions against this exact runtime. No source art or live network.
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 const path=require('node:path');
 const runtime=fs.existsSync(path.join(__dirname,'app.js'))?__dirname:path.resolve(__dirname,'../../..');
@@ -25,59 +25,52 @@ function harness(seed={}){
  for(const id of ['cFinish','bFinish'])el(id).value='all';for(const id of ['sortSel','bSort'])el(id).value='set';
  return {api:context.testAPI,context,el,events,timers,network,storage:localStorage};
 }
-const json=x=>JSON.parse(JSON.stringify(x));
 const root=path.resolve(__dirname,'../../..');
 const read=name=>JSON.parse(fs.readFileSync(path.join(root,name),'utf8'));
-const copied=value=>JSON.parse(JSON.stringify(value));
-function artSupplement(){
- const supplement=read('promo-catalog.json');
- assert.equal(supplement.records.length,6,'All six approved promo records must be staged');
- for(const entry of supplement.records)assert(entry.artwork,'Each shipped promo must carry its actual approved artwork mapping');
- return supplement;
-}
-async function loadArt(h,supplement=artSupplement()){
- h.context.fetch=async url=>{assert.equal(url,'promo-catalog.json','Only the same-origin public catalog fixture may be requested');return new Response(JSON.stringify(supplement));};
- await h.api.loadPromoCatalog();h.api.setCatalog(read('cards.json'));
- return supplement.records.map(entry=>{const card=h.api.quickSearch(entry.printing.s+' '+entry.printing.c).find(c=>c.id===entry.id);assert(card);return card;});
-}
-test('all six exact supplemental images render in grids, thumbnails and details with no referrer',async()=>{
- const h=harness(),cards=await loadArt(h);assert.equal(cards.length,6);
+const promos=()=>require(path.join(runtime,'catalog.js')).validateSupplement(read('promo-catalog.json'),read('cards.json'));
+const json=value=>JSON.parse(JSON.stringify(value));
+test('all six exact missing promos use accessible local placeholders without a manufactured image URL',()=>{
+ const h=harness(),cards=promos();assert.equal(cards.length,6);
  for(const c of cards){
-  const url=c.supplemental.artwork.url;assert.equal(h.api.imgUrl(c,'small'),url);assert.equal(h.api.imgUrl(c,'normal'),url);
+  assert.equal(h.api.imgUrl(c,'small'),'');assert.equal(h.api.imgUrl(c,'normal'),'');
   for(const html of [h.api.artHTML(c),h.api.thumbHTML(c),h.api.detailArtHTML(c)]){
-   assert(html.includes(`src="${url}"`));assert.match(html,/referrerpolicy="no-referrer"/);assert.match(html,/data-art-placeholder hidden/);assert.doesNotMatch(html,/data-fallback-src=/);assert.doesNotMatch(html,/cards\.lorcast\.io/);
+   assert.match(html,/class="art-placeholder art-placeholder--(?:grid|thumb|detail)"/);assert.match(html,/data-art-placeholder/);assert.match(html,/role="img"/);assert.match(html,/aria-label="No image available for/);assert(html.includes(c.n));assert(html.includes(c.s+' #'+c.c));
+   assert.match(html,/No image available<\/span>/);assert.doesNotMatch(html,/<img\b/);assert.doesNotMatch(html,/data-art-placeholder hidden/);assert.doesNotMatch(html,/cards\.lorcast\.io|lorcanaplayer\.com|tcgplayer-cdn/);
   }
-  const detail=h.api.cardDetailHTML(c);assert.match(detail,/Artwork source/);assert.match(detail,/no base-card image substitution/);assert.equal(c.iv,null);assert.equal(c.p,null);assert.equal(c.pf,null);assert.equal(c.prf,null);
  }
 });
-test('missing artwork and untrusted provider namespace never manufacture a Lorcast URL',async()=>{
- const h=harness(),supplement=artSupplement();supplement.records.forEach(entry=>delete entry.artwork);const cards=await loadArt(h,supplement);
- for(const c of cards){assert.equal(h.api.imgUrl(c,'normal'),'');assert.doesNotMatch(h.api.detailArtHTML(c),/<img\b/);assert.match(h.api.detailArtHTML(c),/Artwork unavailable/);assert.doesNotMatch(h.api.detailArtHTML(c),/data-art-placeholder hidden/);}
- assert.equal(h.api.imgUrl({id:'tcgplayer_722993',iv:'malformed'},'normal'),'');assert.equal(h.api.imgUrl(null,'small'),'');
-});
-test('changed identity, product and non-approved artwork URLs fail closed without a base image',async()=>{
- const h=harness(),[original]=await loadArt(h);
- for(const mutate of [c=>c.c='999',c=>c.supplemental.artwork.productId++,c=>c.supplemental.artwork.url='https://unapproved.example/card.jpg',c=>c.supplemental.artwork.url=c.supplemental.artwork.url.replace(/\.jpg$/,'.png'),c=>c.supplemental.artwork.url+='?redirect=other',c=>c.supplemental.artwork.url='javascript:alert(1)']){
-  const card=copied(original);mutate(card);assert.equal(h.api.imgUrl(card,'normal'),'');assert.doesNotMatch(h.api.detailArtHTML(card),/<img\b/);
- }
+test('ordinary missing artwork uses the same placeholder while a genuine image remains primary and separately marked',()=>{
+ const h=harness(),c=catalog().cards[0];
+ for(const html of [h.api.artHTML(c),h.api.thumbHTML(c),h.api.detailArtHTML(c)]){assert.match(html,/No image available/);assert.doesNotMatch(html,/<img\b/);}
+ c.iv='fixture';
+ for(const html of [h.api.artHTML(c),h.api.thumbHTML(c),h.api.detailArtHTML(c)]){assert.match(html,/<img data-card-art /);assert.match(html,/data-art-placeholder hidden/);assert.doesNotMatch(html,/<img[^>]*no-image\.svg/);assert.match(html,/cards\.lorcast\.io\/card\/digital\//);}
+ assert.match(h.api.detailArtHTML(c),/data-fallback-src=/);assert.doesNotMatch(h.api.thumbHTML(c),/data-fallback-src=/);
 });
 function errorImage(fallback){
  const state={visible:false,removed:false,requests:0};let current='https://example.invalid/normal';
  const img={dataset:fallback?{fallbackSrc:fallback}:{},get src(){return current;},set src(value){current=value;state.requests++;},removeAttribute(name){if(name==='data-fallback-src')delete this.dataset.fallbackSrc;},nextElementSibling:{removeAttribute(name){if(name==='hidden')state.visible=true;}},remove(){state.removed=true;}};
  return {state,img};
 }
-test('failure removes a promo image immediately; normal fallback is consumed once then stops',()=>{
+test('error handler reveals the sibling HTML placeholder and consumes at most one normal-to-small retry',()=>{
  const h=harness(),failure=new Function(h.api.IMAGE_ERROR);
  let result=errorImage();failure.call(result.img);assert.deepEqual(result.state,{visible:true,removed:true,requests:0});
  result=errorImage('https://example.invalid/small');failure.call(result.img);assert.equal(result.state.requests,1);assert.equal(result.state.removed,false);assert.equal(result.img.dataset.fallbackSrc,undefined);failure.call(result.img);assert.deepEqual(result.state,{visible:true,removed:true,requests:1});failure.call(result.img);assert.equal(result.state.requests,1);
  result=errorImage('https://example.invalid/normal');failure.call(result.img);assert.deepEqual(result.state,{visible:true,removed:true,requests:0});
 });
-test('normal art attributes remain escaped and the normal-to-small fallback is retained',()=>{
- const h=harness(),card={...catalog().cards[0],id:'crd_synthetic',n:'Synthetic <name>',v:'"quoted" & version',iv:'v" onload="unsafe()'};
- const detail=h.api.detailArtHTML(card);assert.match(detail,/data-fallback-src=/);assert.match(detail,/&quot;/);assert.match(detail,/&lt;name&gt;/);assert.match(detail,/&amp;/);assert.doesNotMatch(detail,/ onload="unsafe/);assert.doesNotMatch(detail,/<name>/);assert.match(detail,/cards\.lorcast\.io\/card\/digital\/normal/);assert.match(detail,/cards\.lorcast\.io\/card\/digital\/small/);
+test('names versions and image attributes are escaped without hiding identity behind the decorative asset',()=>{
+ const h=harness(),c={...catalog().cards[0],n:'Synthetic <name>',v:'"quoted" & version',s:'P<3',c:'2"3'};
+ for(const html of [h.api.artHTML(c),h.api.thumbHTML(c),h.api.detailArtHTML(c)]){assert.match(html,/&lt;name&gt;/);assert.match(html,/&quot;/);assert.match(html,/&amp;/);assert.doesNotMatch(html,/<name>/);assert.match(html,/No image available/);}
+ c.iv='v" onload="unsafe()';const html=h.api.detailArtHTML(c);assert.doesNotMatch(html,/ onload="unsafe/);assert.match(html,/&quot;/);
 });
-test('artwork renderers do not modify collection, decks, wishlist, durable storage or cloud state',async()=>{
- const h=harness(),cards=await loadArt(h);h.api.setState({inv:{[cards[0].id]:{q:2,f:3,rf:4}},decks:[{id:'synthetic',name:'Preserve',cards:{'synthetic|':2}}],wish:{[cards[0].id]:1}});
- const before=json(h.api.getState()),stored=[...h.storage.values];for(const card of cards){h.api.artHTML(card);h.api.thumbHTML(card);h.api.detailArtHTML(card);h.api.cardDetailHTML(card);}
+test('placeholder asset is original same-origin decorative SVG without scripts text or external references',()=>{
+ const svg=fs.readFileSync(path.join(runtime,'no-image.svg'),'utf8'),css=fs.readFileSync(path.join(runtime,'app.css'),'utf8');
+ assert.match(svg,/width="734" height="1024"/);assert.match(svg,/viewBox="0 0 734 1024"/);
+ assert.doesNotMatch(svg,/<(?:script|image|foreignObject|iframe|text)\b|\bon\w+\s*=|\b(?:href|src)\s*=/i);
+ assert.doesNotMatch(svg,/url\((?!#)/);assert.match(css,/background-image:url\("no-image\.svg"\)/);
+ assert.match(css,/\[hidden\]\s*\{[^}]*display\s*:\s*none\s*!important/);
+});
+test('placeholder rendering leaves inventory decks wishlist storage and cloud state unchanged',()=>{
+ const h=harness(),cards=promos();h.api.setState({inv:{[cards[0].id]:{q:2,f:3,rf:4}},decks:[{id:'synthetic',name:'Keep',cards:{'synthetic|':2}}],wish:{[cards[0].id]:1}});
+ const before=json(h.api.getState()),stored=[...h.storage.values];for(const c of cards){h.api.artHTML(c);h.api.thumbHTML(c);h.api.detailArtHTML(c);}
  assert.deepEqual(json(h.api.getState()),before);assert.deepEqual([...h.storage.values],stored);assert.equal(h.network.length,0);
 });

@@ -1,21 +1,22 @@
-# Exact promo artwork validation
+# Original no-image placeholder validation
 
-This artwork-only candidate starts from production `5e37b40a92fd1f371aee607f058b785d243c0575`. It connects the six already-verified Hyperia prerelease printings (PD1 #9–14) to their exact public stamped artwork. It does not substitute the regular printing, infer finish, or change quantities, decks, prices, Standard rules, credentials, schema or permissions.
+This candidate is rebuilt from production `5e37b40a92fd1f371aee607f058b785d243c0575`. The user replaced the external-artwork request with an original themed **No image available** placeholder. The rejected external-image and photo-crop approaches are cancelled, not pending.
 
-## Scope and preservation
+## Bounded scope
 
-- Optional explicit artwork metadata is bound to the same provider product and full printing identity. Only validated external HTTPS image routes are rendered. No user photograph or copied card-image asset is committed to the repository.
-- The source image is used in Scan search, list/grid cards and details. Image errors display an identified placeholder; promo images never fall back to base-card artwork. External image elements suppress the referring page URL.
-- Existing managed promo records may gain/remove only their validated artwork metadata; conflicting identities are never repaired or aliased. Raw Lorcast image/version fields remain untouched.
-- `artwork-baseline.json` binds all 14 unrelated runtime files and every pre-existing promo-catalog property. Existing catalog, finish quotes, safety/storage/sync code and dated Core rules remain exact.
-- Asset cache v9 uses the normal service-worker lifecycle. No forced takeover, browser-storage clearing or automatic cloud sync.
+- An original repository-native SVG uses abstract blue/purple ink swirls, gold accents and a neutral missing-image symbol. It contains no official logo, actual card artwork, user photograph, script or external resource.
+- Visible HTML says **No image available** and retains the exact escaped card name/version/printing identity. The decorative SVG is only a background; the text remains readable if that asset fails.
+- Missing artwork and failed real image requests use this placeholder across grids, thumbnails and card details. Existing valid Lorcast image URLs remain byte-identical. Actual card images have `data-card-art`; the placeholder is not reported as loaded card art.
+- Detail images retain one bounded normal-to-small fallback, then reveal the placeholder. No error loop or regular-card substitution for a promo.
+- All 15 unrelated runtime files remain byte-exact, including catalogs, prices, rules, storage/sync safety and configuration. No database, inventory, deck, schema, permission, credential or policy changes.
+- Cache v9 includes the local SVG and uses the normal worker lifecycle. No forced takeover, storage clearing or automatic sync.
 
-## Verification
+## Checks and limitations
 
-`verify-release.cjs` checks unchanged production constants/assets, all original printing identities, unchanged quotes/rules, the six artwork mappings and cache wiring. `prepare-fixture.cjs` builds a disposable localhost copy of this actual candidate, replacing only cloud constants and synthetic ownership/catalog inputs. No production session or collection is loaded.
+`placeholder-baseline.json` and `verify-release.cjs` bind the unchanged runtime and original image URL helper. The cancelled external-art downloader and mappings are absent. Tests preserve the previous regression suite and add actual placeholder rendering, SVG decoding, accessible naming, missing-SVG text fallback, valid-card-image preservation and bounded HTTP/decode failure handling.
 
-Local syntax, preservation verification and **169 unit/reference checks pass**. The **94 desktop/mobile checks** must pass in hosted CI before release. The existing desktop/mobile regressions remain, with new artwork tests that require real decoded image dimensions (`naturalWidth`/`naturalHeight`), not merely an `<img>` tag. The six public assets are fetched by a bounded exact-URL preflight, then their actual bytes are served through exact browser route interceptions. No app request is allowed to reach production database/auth services. Source URL health and downloaded bytes are recorded separately from browser pixel checks; this does not promise every phone/network will accept external image loading.
+The disposable localhost copy uses synthetic ownership and disabled cloud constants. For valid/failed card-image rendering tests only, a strict single-constant adapter points the unchanged renderer at a localhost synthetic image fixture; those tests do not claim to load real external card artwork. The native placeholder SVG itself is tested unchanged. CSP and browser routes block all external traffic. No public-image downloads, proxies or private photographs are used.
 
-The workflow uses same-repository, exact-branch gating, read-only permissions, pinned official actions and Playwright, bounded runtime and seven-day synthetic test retention. It has no deployment or production database step. Service workers are blocked in browser QA: offline/PWA lifecycle, Safari and physical camera recognition are not covered. Historical deliberately-aborting rainbow SQL proposals are not executed.
+Local syntax, preservation verification and **163 unit/reference checks pass**; **98 desktop/mobile checks** are prepared. Hosted screenshots and independent source review are required before merge. Service workers are blocked in browser QA; physical cameras, Safari and offline/PWA lifecycle are not covered. Existing disposable PostgreSQL/PostgREST compatibility remains a test-only regression, not production access. The workflow is exact-branch gated, contents-read only, pinned official actions/Playwright, bounded runtime and seven-day artifact retention, with no deployment or live database step.
 
-Publication and deployment are explicitly authorized for this bounded artwork fix, conditional on independent source review, exact-head green CI and visual review. Do not replay earlier inventory or saved-deck operations. The previous production SHA above is the code rollback reference, not a data rollback.
+The user's latest instruction narrows the already approved artwork fix to this self-contained placeholder. Publication/deployment is conditional on final review and exact-head green QA. Previous live SHA above is the code rollback reference, not a data rollback; never replay earlier inventory or deck batches.

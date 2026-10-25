@@ -34,7 +34,7 @@ function rejected(changer,expected=/./){
 
 test('UMD exports same isolated API in browser and Node',()=>{
   const context={URL};vm.runInNewContext(fs.readFileSync(modulePath,'utf8'),context);
-  assert.deepEqual(Object.keys(context.InkCatalog),['validateSupplement','merge','validatedFoilQuote','validatedArtworkURL']);
+  assert.deepEqual(Object.keys(context.InkCatalog),['validateSupplement','merge','validatedFoilQuote']);
   assert.equal(typeof context.InkCatalog.merge,'function');assert(Object.isFrozen(InkCatalog));
 });
 test('exact supplemental printing has transparent provider ID and independent print identity',()=>{
@@ -210,75 +210,4 @@ test('quotes expire dynamically at seven days, reject every future instant and m
     const bad=foilQuote();bad.buildAsOf=date;assert.equal(InkCatalog.validatedFoilQuote(c,bad,quoteTime),null,String(date));
   }
   for(const now of [NaN,Infinity,'2026-10-25',null])assert.equal(InkCatalog.validatedFoilQuote(c,q,now),null);
-});
-
-const artwork=()=>({provider:'LorcanaPlayer',url:'https://lorcanaplayer.com/wp-content/uploads/2026/09/11-PD1-EN-14-Above-the-Crowd-Prerelease-Promo-Lorcana-Player.jpg',productId:722993,
-  expectedPrinting:{n:'Above the Crowd',v:'',s:'PD1',c:'11',r:'Promo',language:'EN',printedSet:'14',stamp:'Hyperia City'},
-  verifiedAt:'2026-10-25',evidenceURL:'https://lorcanaplayer.com/card/above-the-crowd-prerelease-promo/'});
-const artSupplement=()=>{const s=supplement(),a=artwork();s.records[0].evidence.push(...[a.url,a.evidenceURL].map(url=>({url,supports:['printing']})));s.records[0].artwork=a;return s;};
-const preArtSupplement=()=>{const s=artSupplement();delete s.records[0].artwork;return s;};
-test('explicit exact-provider artwork is validated without changing prices, identity or base artwork',()=>{
-  const b=frozen(base()),s=frozen(artSupplement()),before=JSON.stringify({b,s}),result=InkCatalog.merge(b,s);
-  assert.deepEqual(result.warnings,[]);assert.deepEqual(result.catalog.cards[0],b.cards[0]);
-  const c=result.catalog.cards.at(-1);assert.equal(InkCatalog.validatedArtworkURL(c),artwork().url);
-  assert.equal(c.id,PROMO);assert.equal(c.s,'PD1');assert.equal(c.c,'11');
-  for(const key of ['p','pf','prf','iv'])assert.equal(c[key],null,key);
-  assert.equal(JSON.stringify({b,s}),before);
-  c.supplemental.artwork.expectedPrinting.n='Changed';assert.equal(InkCatalog.validatedArtworkURL(c),null);assert.equal(s.records[0].artwork.expectedPrinting.n,'Above the Crowd');
-});
-test('artwork never falls back to base art or arbitrary evidence images',()=>{
-  const s=supplement();s.records[0].evidence.push({url:artwork().url,supports:['printing']});
-  const c=InkCatalog.merge(base(),s).catalog.cards.at(-1);assert.equal(InkCatalog.validatedArtworkURL(c),null);
-  assert.equal(InkCatalog.validatedArtworkURL(base().cards[0]),null);assert.equal(InkCatalog.validatedArtworkURL(null),null);
-  assert(!Object.hasOwn(c.supplemental,'artwork'));
-});
-test('unsafe or noncanonical artwork URLs are dropped without losing the exact promo',()=>{
-  for(const url of [
-    artwork().url.replace('https:','http:'),artwork().url.replace('lorcanaplayer.com','evil.example'),
-    artwork().url.replace('lorcanaplayer.com','lorcanaplayer.com.evil.example'),
-    artwork().url.replace('lorcanaplayer.com','lorcanaplayer.com@evil.example'),
-    artwork().url.replace('lorcanaplayer.com','user:pass@lorcanaplayer.com'),
-    artwork().url.replace('lorcanaplayer.com','lorcanaplayer.com:443'),
-    artwork().url.replace('/11-PD1-EN-14-','/12-PD1-EN-14-'),
-    artwork().url.replace('/11-PD1-EN-14-','/11-PD1-FR-14-'),
-    artwork().url.replace('/11-PD1-EN-14-','/11-PD1-EN-13-'),
-    artwork().url.replace('/2026/09/','/2026/13/'),
-    artwork().url+'?redirect=evil',artwork().url+'#anything',
-    artwork().url.replace('/uploads/','/uploads/../uploads/'),
-    artwork().url.replace('.jpg','.svg'),
-    'https://tcgplayer-cdn.tcgplayer.com/product/722993_200w.jpg',
-    'javascript:alert(1)','data:image/svg+xml,<svg/>',null
-  ]){
-    const s=artSupplement();s.records[0].artwork.url=url;
-    const result=InkCatalog.merge(base(),s),c=result.catalog.cards.at(-1);
-    assert.equal(result.catalog.cards.length,2,String(url));assert.equal(c.id,PROMO);assert.equal(InkCatalog.validatedArtworkURL(c),null);
-    assert.equal(result.warnings.length,1);assert.match(result.warnings[0],/Artwork unavailable/);
-  }
-});
-test('art mapping requires complete exact printing/product/provider and existing printing evidence',()=>{
-  const badArt=[];
-  for(const key of ['n','v','s','c','r','language','printedSet','stamp']){const a=artwork();a.expectedPrinting[key]='wrong';badArt.push(a);}
-  for(const [key,value]of [['provider','TCGplayer'],['productId',722445],['productId','722993'],['verifiedAt','2026-02-30'],['evidenceURL','https://www.tcgplayer.com/product/722445'],['evidenceURL','javascript:alert(1)']]){const a=artwork();a[key]=value;badArt.push(a);}
-  const extra=artwork();extra.imageURL=extra.url;badArt.push(extra,null,{},[]);
-  for(const a of badArt){const s=artSupplement();s.records[0].artwork=a;const result=InkCatalog.merge(base(),s);assert.equal(result.catalog.cards.length,2);assert.equal(InkCatalog.validatedArtworkURL(result.catalog.cards.at(-1)),null);assert.match(result.warnings[0],/Artwork unavailable/);}
-  const s=artSupplement();s.records[0].artwork.evidenceURL='https://lorcanaplayer.com/card/other-prerelease-promo/';assert.equal(InkCatalog.validatedArtworkURL(InkCatalog.merge(base(),s).catalog.cards.at(-1)),null);
-  const missing=artSupplement();missing.records[0].evidence=missing.records[0].evidence.filter(item=>item.url!==artwork().url);assert.equal(InkCatalog.validatedArtworkURL(InkCatalog.merge(base(),missing).catalog.cards.at(-1)),null);
-});
-test('cached pre-art managed records upgrade only the art field and merge idempotently',()=>{
-  const old=InkCatalog.merge(base(),preArtSupplement()).catalog;
-  old.cards.at(-1).nv='above the crowd|';old.cards.at(-1).inks=['Emerald'];old.cards.at(-1).num=11;
-  old.inv={[PROMO]:{q:0,f:2,rf:0}};
-  const before=clone(old),result=InkCatalog.merge(frozen(old),artSupplement());assert.deepEqual(result.warnings,[]);
-  const upgraded=result.catalog.cards.at(-1);assert.equal(InkCatalog.validatedArtworkURL(upgraded),artwork().url);
-  const stripped=clone(result.catalog);delete stripped.cards.at(-1).supplemental.artwork;assert.deepEqual(stripped,before);
-  assert.deepEqual(InkCatalog.merge(result.catalog,artSupplement()),result);
-});
-test('unavailable/removed art mapping removes stale art only and never repairs other collisions',()=>{
-  const withArt=InkCatalog.merge(base(),artSupplement()).catalog;
-  const noArt=InkCatalog.merge(withArt,preArtSupplement());assert.equal(noArt.catalog.cards.length,2);assert.equal(InkCatalog.validatedArtworkURL(noArt.catalog.cards.at(-1)),null);assert.deepEqual(noArt.warnings,[]);
-  const bad=artSupplement();bad.records[0].artwork.productId=722445;
-  const rejectedArt=InkCatalog.merge(withArt,bad);assert.equal(rejectedArt.catalog.cards.length,2);assert.equal(InkCatalog.validatedArtworkURL(rejectedArt.catalog.cards.at(-1)),null);assert.match(rejectedArt.warnings[0],/Artwork unavailable/);
-  for(const mutate of [c=>c.c='12',c=>c.t=722445,c=>c.p=4,c=>c.iv='base-art',c=>c.supplemental.provider='Lorcast',c=>c.supplemental.evidence[0].url='https://example.com']){
-    const tampered=clone(withArt);mutate(tampered.cards.at(-1));const result=InkCatalog.merge(tampered,artSupplement());assert.deepEqual(result.catalog,tampered);assert.match(result.warnings[0],/collides/);
-  }
 });

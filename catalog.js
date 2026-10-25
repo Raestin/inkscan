@@ -2,8 +2,7 @@
   'use strict';
 
   // Supplemental printings have their own provider namespace. This module never
-  // aliases inventory IDs, supplies prices, borrows base artwork, or classifies
-  // a foil subtype. Optional external artwork is separately identity-validated.
+  // aliases inventory IDs, supplies prices/artwork, or classifies a foil subtype.
   const clone=value=>Array.isArray(value)?value.map(clone):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([key,item])=>[key,clone(item)])):value;
   const record=value=>!!value && typeof value==='object' && !Array.isArray(value);
   const own=(value,key)=>Object.prototype.hasOwnProperty.call(value,key);
@@ -35,37 +34,6 @@
     keys(value,IDENTITY);
     return text(value.n,200) && text(value.v,200,true) && token(value.s) && token(value.c) && text(value.r,50);
   }
-  function artworkValid(card,artwork){
-    try{
-      keys(artwork,['provider','url','productId','expectedPrinting','verifiedAt','evidenceURL']);
-      const meta=card?.supplemental,product=artwork.productId,expected=artwork.expectedPrinting;
-      if(!record(card)||!record(meta)||meta.schemaVersion!==1||meta.game!=='lorcana'||meta.provider!=='TCGplayer'||artwork.provider!=='LorcanaPlayer'||!Number.isSafeInteger(product)||product<=0||product>2147483647||meta.productId!==product||card.t!==product||card.id!=='tcgplayer_'+product||!day(artwork.verifiedAt))return false;
-      keys(expected,['n','v','s','c','r','language','printedSet','stamp']);
-      if(!text(card.n,200)||!text(card.v,200,true)||!token(card.s)||!token(card.c)||card.r!=='Promo'||!IDENTITY.every(key=>expected[key]===card[key])||meta.language!=='EN'||!token(meta.printedSet)||!text(meta.stamp,200)||!['language','printedSet','stamp'].every(key=>expected[key]===meta[key]))return false;
-      // Only an explicitly mapped, previously verified full public promo image
-      // from this bounded route is allowed. No other host, query, encoded path,
-      // credentials or inferred image/evidence URL is used.
-      const prefix=card.c+'-'+card.s+'-'+meta.language+'-'+meta.printedSet+'-';
-      if(typeof artwork.url!=='string'||artwork.url.length>2000||!new RegExp('^https://lorcanaplayer\\.com/wp-content/uploads/20[0-9]{2}/(?:0[1-9]|1[0-2])/'+prefix+'[A-Za-z0-9-]+-Prerelease-Promo-Lorcana-Player\\.jpg$').test(artwork.url))return false;
-      const source=artwork.evidenceURL;
-      if(typeof source!=='string'||source.length>2000||!/^https:\/\/lorcanaplayer\.com\/card\/[a-z0-9-]+-prerelease-promo\/$/.test(source))return false;
-      return Array.isArray(meta.evidence)&&[source,artwork.url].every(url=>meta.evidence.some(item=>item?.url===url&&Array.isArray(item.supports)&&item.supports.includes('printing')));
-    }catch(_){return false;}
-  }
-  function validatedArtworkURL(card){
-    return artworkValid(card,card?.supplemental?.artwork)?card.supplemental.artwork.url:null;
-  }
-  function sameManagedRecord(existing,expected){
-    // Only artwork is upgradable on an already indexed/cached managed record.
-    // All existing identity, prices, provenance and gameplay checks remain exact.
-    return Object.keys(expected).every(key=>{
-      if(key!=='supplemental')return JSON.stringify(existing[key])===JSON.stringify(expected[key]);
-      if(!record(existing.supplemental))return false;
-      const left=clone(existing.supplemental),right=clone(expected.supplemental);
-      delete left.artwork;delete right.artwork;
-      return JSON.stringify(left)===JSON.stringify(right);
-    });
-  }
   function baseIndex(base){
     if(!record(base)||!Array.isArray(base.cards)||base.cards.length>100000||!Array.isArray(base.sets)||base.sets.length>1000)
       fail('The base catalog is missing or invalid.');
@@ -82,7 +50,7 @@
     return index;
   }
   function project(entry,index,verifiedAt){
-    keys(entry,['id','provider','productId','printing','gameplaySource','evidence','rawSubtype'],['artwork']);
+    keys(entry,['id','provider','productId','printing','gameplaySource','evidence','rawSubtype']);
     if(entry.provider!=='TCGplayer'||!Number.isSafeInteger(entry.productId)||entry.productId<=0||entry.productId>2147483647||entry.id!=='tcgplayer_'+entry.productId)
       fail('A supplemental provider/product ID is inconsistent.');
     const p=entry.printing;
@@ -121,7 +89,6 @@
     // Flavor, artist and image identity are printing-specific, not gameplay.
     card.fl='';card.il='';card.iv=null;
     card.supplemental={schemaVersion:1,game:'lorcana',provider:entry.provider,productId:entry.productId,language:p.language,printedSet:p.printedSet,stamp:p.stamp,rawSubtype:entry.rawSubtype,verifiedAt,gameplaySource:clone(source),evidence:clone(entry.evidence)};
-    if(own(entry,'artwork')&&artworkValid(card,entry.artwork))card.supplemental.artwork=clone(entry.artwork);
     return card;
   }
 
@@ -139,7 +106,7 @@
       const existing=index.get(card.id);
       // A second merge of this exact managed record is idempotent. Other base
       // records, including a provider-namespace collision, are never replaced.
-      if(existing&&!sameManagedRecord(existing,card))
+      if(existing&&!Object.keys(card).every(key=>JSON.stringify(existing[key])===JSON.stringify(card[key])))
         fail('A supplemental ID collides with an existing base record: '+card.id+'.');
       cards.push(card);
     }
@@ -153,18 +120,10 @@
     let additions;
     try{additions=validateSupplement(supplement,base);}
     catch(error){return {catalog,warnings:['Supplemental catalog not applied: '+error.message]};}
-    for(let i=0;i<additions.length;i++)if(own(supplement.records[i],'artwork')&&!additions[i].supplemental.artwork)
-      warnings.push('Artwork unavailable for '+additions[i].id+': its optional mapping could not be verified. The exact printing was retained.');
     const ids=new Set(catalog.cards.map(card=>card.id));
-    const existingCards=new Map(catalog.cards.map(card=>[card.id,card]));
     const sets=new Map(catalog.sets.map(set=>[set.code,set]));
     for(const card of additions){
       if(!ids.has(card.id)){catalog.cards.push(card);ids.add(card.id);}
-      else{
-        const existing=existingCards.get(card.id);
-        delete existing.supplemental.artwork;
-        if(card.supplemental.artwork)existing.supplemental.artwork=clone(card.supplemental.artwork);
-      }
       if(!sets.has(card.s)){const set={code:card.s,name:card.sn,rel:null};catalog.sets.push(set);sets.set(card.s,set);}
       else if(sets.get(card.s).name!==card.sn)warnings.push('Supplemental set '+card.s+' has a different base set label; the original label was retained.');
       const duplicates=catalog.cards.filter(other=>other.id!==card.id&&String(other.s??'').toUpperCase()===card.s.toUpperCase()&&String(other.c??'').toUpperCase()===card.c.toUpperCase());
@@ -202,7 +161,7 @@
     return amount;
   }
 
-  const api=Object.freeze({validateSupplement,merge,validatedFoilQuote,validatedArtworkURL});
+  const api=Object.freeze({validateSupplement,merge,validatedFoilQuote});
   if(typeof module==='object'&&module.exports)module.exports=api;
   else root.InkCatalog=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

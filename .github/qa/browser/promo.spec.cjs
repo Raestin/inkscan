@@ -363,12 +363,7 @@ test('actual public catalog resolves the verified supplemental promo without inf
   await expect(page.locator('#sheetBody')).toContainText('TCGplayer');
   await expect(page.locator('#sheetBody')).toContainText('Hyperia');
   await expectEmpty(page);
-  // This suite intentionally aborts every external image request. The separate
-  // artwork suite decodes real public bytes; here failure must remain labelled
-  // and must never substitute the regular printing's image.
   await expect(page.locator('#sheetBody .big img')).toHaveCount(0);
-  await expect(page.locator('#sheetBody .big [data-art-placeholder]')).toBeVisible();
-  await expect(page.locator('#sheetBody .big')).toContainText('Artwork unavailable');
   await page.locator('#sheetBody .kv dd').filter({hasText: 'tcgplayer_722993'}).scrollIntoViewIfNeeded();
   await shot(page, info, 'verified-supplemental-promo-zero-owned');
 });

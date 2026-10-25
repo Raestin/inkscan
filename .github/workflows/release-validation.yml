@@ -1,4 +1,4 @@
-name: Verified promo artwork validation (no deploy step)
+name: Original no-image placeholder validation (no deploy step)
 
 on:
   pull_request:
@@ -49,9 +49,6 @@ jobs:
         id: browser-deps
         if: ${{ !cancelled() && steps.unit.conclusion == 'success' }}
         run: npx --no-install playwright install --with-deps chromium
-      - name: Verify the six exact public promo artwork assets
-        if: ${{ !cancelled() && steps.browser-deps.conclusion == 'success' }}
-        run: node download-public-art.cjs
       - name: Desktop and mobile isolated release UI
         if: ${{ !cancelled() && steps.browser-deps.conclusion == 'success' }}
         run: npm run test:browser
