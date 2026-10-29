@@ -1,0 +1,18 @@
+{
+  "baseCommit": "9ae98e6f78a17f30aa7fc45ecb7ca38f1d644b25",
+  "files": {
+    "app.css": "9b11d13ba38673812d9d7feed7e360346ad0d4a0",
+    "app.js": "63846e25d5bc37b84f0a19411c67de884e8a66c1",
+    "cards.json": "e64ecc22896d8744b5992a91f8a84c000a5fd4ab",
+    "eng.traineddata.gz": "730a6a59010b9440e38dd85f9fe6b6bf0637e6eb",
+    "icon-192.png": "fbc96b0c9ba477638820f5f03748de3888d406c5",
+    "icon-512.png": "2aed3a26881ab859f8c7489d165ec293509c2ca3",
+    "index.html": "713b75d9d3d4c2117959ab41d460bedd32df840c",
+    "manifest.webmanifest": "c3464a1b6ac5bdf9899e6d38cd390cc6d88a6613",
+    "sw.js": "a538b04a50fd0235b2ea95703aca80554026f4e9",
+    "tesseract-core-lstm.wasm.js": "8da8050e8abaaa6e8c7af4ed00bcd0a9919859dd",
+    "tesseract-core-simd-lstm.wasm.js": "8cb0ed1edae5409ebcbd034a514f188451052809",
+    "tesseract.min.js": "428fdae0bb460b1ffdb5091a027bebecc56d809d",
+    "worker.min.js": "3682d39e0c6b03e366ed8d63faf169fb9fd86f11"
+  }
+}

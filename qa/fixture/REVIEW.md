@@ -1,0 +1,44 @@
+# Isolated InkScan development review
+
+This folder is a copied development repository, branch `phase1-manual-sync`. The original v4 files remain untouched. Baseline commit preserves all 13 original files. No pushes, deployments, live app reloads/syncs, production writes or access changes occurred during implementation.
+
+## Implemented client changes
+
+- Unknown printing IDs retained through boot, saves and backups; they contribute to owned counts and are marked unpriced. No catalog cleanup deletes ownership.
+- Collection, decks, wishlist, import receipts and sync baseline use one validated v5 localStorage envelope. The previous durable envelope survives a quota failure. Legacy keys remain intact for recovery. Corrupt state blocks boot without resetting it; header Back up can export raw recovery state (excluding authentication secrets). Save failures remain visible, including decks/wishlist; cloud updates require safe local persistence. Other-tab save changes are detected and blocked rather than knowingly overwritten.
+- Manual Update only: no startup/edit/focus/online/interval/sign-in cloud sync. Header shows pending item counts; dialog shows last confirmed sync, persistent errors and receipts. Fresh owner-scoped full reads, review/cancel, three-way conflict abort, and guarded row PATCH or no-upsert INSERT. Successful-row baseline receipts support retry after partial failure. Development/cloud-QA origins cannot authenticate or access production cloud through this adapter.
+- Optional imported-deck purchase: importing a deck alone never changes ownership. Separate printing/finish choices and quantity preview precede confirmation. 2 owned + 4 imported = 6. Same confirmation cannot apply twice; another intentional purchase gets a fresh receipt ID. Unknown/ambiguous lines are retained locally with source text, never guessed or silently capped to four. Existing deck More menu also exposes the flow. Imported-source metadata is included in JSON backup; existing cloud schema syncs recognized deck contents only.
+- Matching-value summaries reuse Collection's actual `collRows()` and Browse's actual filtered list before chunked rendering. Normal price `p` and foil price `pf` are evaluated separately with exact quantities. Missing/invalid prices are unpriced copies and marked partial; zero is a legitimate known price. Source/date shown. Added normal-only/foil-only selectors and collection reset. Overall estimate remains in header, separately labeled via title and partial marker.
+- Service-worker version increment includes safety.js; no forced skipWaiting/client takeover.
+
+## Verification and limits
+
+Run `node --test tests.cjs household-contract.test.cjs` and `node --check app.js` / `safety.js` / `sw.js`. 39 tests passed at implementation handoff: 34 client/persistence/sync/import/valuation tests and 5 household contract-model tests. The household tests verify the proposed contract's executable reference model, NOT deployed SQL/RPCs or actual RLS. Fixtures and fetch mocks are synthetic; no production credential is used by tests. VM DOM stubs exercise actual application handlers and summary predicates, but are NOT browser visual or device persistence QA.
+
+Browser QA must happen on the parent cloud VM only, never the owner's browser/desktop. Serve this isolated folder over HTTP for local preview; cloud controls intentionally fail closed there. Check small/mobile and desktop layout, sheet close/Escape/backdrop cancellation, actual import preview and confirmation, reload persistence using synthetic state, offline/localStorage quota behavior, filter totals across pagination, and service-worker lifecycle before approving publication. If that browser fails, stop and troubleshoot it.
+
+Before a confirmed cloud update or purchase, the atomic local envelope also retains the last three recovery snapshots (included in JSON backups). These are local recovery points, not an external backup. Known limits: localStorage is browser storage, not a guarantee against OS eviction. Cross-tab check and event detection are conservative but not a cross-process transaction lock. Legacy guarded writes prevent detected row overwrite but are not atomic across rows/tables; partial accepted writes are reported. Household transactional protocol is required before reliable concurrent two-phone use. Catalog/format legality and AI chat integration are not part of this patch. Imported source metadata remains local until household deck schema is reviewed. See HOUSEHOLD-PROPOSAL.md.
+
+No deployment should precede verified phone/cloud reconciliation and backup, reviewed household migration/access protocol, browser QA, and explicit publication approval.
+
+## Independent cloud review corrections
+
+The sanitized cloud QA copy now has 56 passing synthetic tests (51 client/persistence/sync/import/valuation/restore tests plus the same 5 proposal-model tests). Changed application behavior:
+
+- JSON restore requires explicit valid collection, decks and wishlist fields. It previews replacement totals, supports cancellation, and only changes live state after one verified durable save. Quota failure and another-tab/newer local changes stop replacement. The pre-restore recovery snapshot includes ownership, decks, wishlist and import receipts.
+- Restore never imports another device/account cloud baseline or starts a cloud update. Valid v5 import receipts are restored when supplied; legacy complete backups retain this device's receipt metadata. CSV replaces only collection after the same confirmation and preserves current decks/wishlist; any unrecognized ID, invalid row/finish, or empty input blocks the entire CSV restore instead of silently discarding rows. Unknown IDs in complete JSON backups remain preserved.
+- Missing market prices no longer disable normal/foil manual additions, coerce scanner finish, or reject an explicitly selected purchase finish. The catalog does not contain authoritative finish-availability data. No claim is made that any real user's previous entries were wrong.
+- Physical-card purchase previews use current deck composition, not stale imported quantities. Original imported/unresolved source is retained; unresolved parsed lines remain visible to skip explicitly. Confirmations are invalidated by intervening saved cloud pulls as well as local edits.
+- Collection grid and Browse badges reflect selected finishes; Browse prices, sort order and missing-card estimate use that finish's price, with unpriced items marked rather than substituted.
+- Present null/false/scalar v5 saved state is treated as corruption rather than an empty legacy fallback. Primitive inventory rows fail validation. Asset/cache version is 6 (state envelope remains v5), without forced service-worker takeover.
+
+Final checks: `node --test tests.cjs household-contract.test.cjs` and syntax checks for app.js, safety.js and sw.js. Browser QA is still **not run**: this cloud sandbox denies AF_UNIX socket creation needed to launch Chromium, and no supported bundled headless shell is installed. No security bypass, production access, push, deployment, migration, or account change occurred.
+
+## Hosted-browser startup regression
+
+The first GitHub-hosted browser run (2026-10-25) launched Chromium successfully but exposed a new-development signed-out startup error: absent session and baseline IDs compared equal, passing a null baseline into pending-count rendering. Both status and Update-dialog guards now require an actual signed-in user ID before using a matching baseline. Two regression tests exercise signed-out status/dialog and full boot with a synthetic catalog. Local unit total is now 58 passing. Hosted browser rerun is pending; this note is not a browser pass or a statement about the unchanged live app.
+
+
+## Hosted screenshot safety correction
+
+The successful 20-case hosted run's actual mobile screenshot review found that an open card-detail sheet could cover the global unsaved/cross-tab warning. Added a persistent, accessible storage-error strip inside the sheet, outside the rerendered body. It remains visible while reviewing cards and clears only when saving succeeds. Added a unit regression and explicit mobile/desktop viewport visibility checks to the existing stale-tab browser scenario. Local unit total is now 59; the exact hosted result is tracked in the draft PR, not implied by this handoff note. Production root files are still unchanged.
