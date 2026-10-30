@@ -75,27 +75,32 @@
 
     <div id="collCards" class="stack">
       <input type="search" id="cf" placeholder="Filter your collection" autocomplete="off">
-      <div class="chips" id="collInks"></div>
-      <div class="row between">
-        <div class="row">
-          <label for="sortSel" class="note">Sort</label>
-          <select id="sortSel" class="slim">
-            <option value="set">Set &amp; number</option>
-            <option value="value">Value</option>
-            <option value="name">Name</option>
-            <option value="cost">Cost</option>
-            <option value="rarity">Rarity</option>
-          </select>
+      <details class="filterbox" id="cFilters">
+        <summary>Filters <span class="note" id="cFilterCount"></span></summary>
+        <div class="stack">
+          <div class="chips" id="collInks"></div>
+          <div class="row between">
+            <div class="row">
+              <label for="sortSel" class="note">Sort</label>
+              <select id="sortSel" class="slim">
+                <option value="set">Set &amp; number</option>
+                <option value="value">Value</option>
+                <option value="name">Name</option>
+                <option value="cost">Cost</option>
+                <option value="rarity">Rarity</option>
+              </select>
+            </div>
+            <div class="seg" role="group" aria-label="Layout">
+              <button data-lay="grid" aria-pressed="true">Grid</button>
+              <button data-lay="list" aria-pressed="false">List</button>
+            </div>
+          </div>
+          <label>Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
+          <label>Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+          <p class="note legality-info" id="cLegalityInfo"></p>
+          <button class="btn" id="cReset">Reset collection filters</button>
         </div>
-        <div class="seg" role="group" aria-label="Layout">
-          <button data-lay="grid" aria-pressed="true">Grid</button>
-          <button data-lay="list" aria-pressed="false">List</button>
-        </div>
-      </div>
-      <label>Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
-      <label>Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
-      <p class="note legality-info" id="cLegalityInfo"></p>
-      <button class="btn" id="cReset">Reset collection filters</button>
+      </details>
       <p class="summary" id="cValue" role="status"></p>
       <div id="coll"></div>
     </div>

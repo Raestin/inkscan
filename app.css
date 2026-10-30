@@ -207,3 +207,7 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .art-placeholder--detail .art-placeholder__message{font-size:19px}
 .art-placeholder--detail .art-placeholder__identity{bottom:8%;font-size:13px;line-height:1.25;overflow-wrap:anywhere}
 .art-placeholder--thumb .art-placeholder__message{top:64%;left:4%;right:4%;font-size:6px;line-height:1.15;letter-spacing:0}
+.filterbox{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 12px}
+.filterbox>summary{cursor:pointer;padding:10px 0;font-weight:600;list-style-position:inside}
+.filterbox[open]>summary{border-bottom:1px solid var(--line);margin-bottom:10px}
+.filterbox>.stack{padding-bottom:12px}

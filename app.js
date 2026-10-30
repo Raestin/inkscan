@@ -719,7 +719,13 @@ function valueSummary(rows,finish){
   return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies across all matching results. ${result.unpriced} copies unpriced. TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
 }
 
+function renderFilterCount(){
+  const el=$('cFilterCount'); if(!el) return;
+  const n=collInks.size+($('cFinish').value!=='all')+($('cLegality').value!=='all');
+  el.textContent=n?`(${n} on)`:'';
+}
 function renderColl(){
+  renderFilterCount();
   $('collCards').hidden = csub!=='cards'; $('collSets').hidden = csub!=='sets'; $('collWish').hidden = csub!=='wish';
   if (csub==='cards') renderCollCards(); else if (csub==='sets') renderSets(); else renderWish();
 }
