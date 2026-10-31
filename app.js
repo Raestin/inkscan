@@ -235,12 +235,22 @@ async function loadBundledCards(file, fresh){
 /* ---- MTG: live Scryfall lookups. Only cards you look at, own, want or deck are kept on this phone. ---- */
 const SCRYFALL='https://api.scryfall.com';
 let sfLast=0; const liveQueries=new Set();
+/* Scryfall rate-limits bulk lookups to about 2 a second, and its limit replies carry no CORS header,
+   so the browser reports them as network failures. Pace collection calls at 600 ms and retry with backoff. */
 async function scryfall(path, opts){
-  const wait=sfLast+120-Date.now(); if(wait>0) await sleep(wait); sfLast=Date.now();
-  const r=await fetch(SCRYFALL+path,{headers:{Accept:'application/json',...(opts?.body?{'Content-Type':'application/json'}:{})},...(opts||{})});
-  if(r.status===404) return null;
-  if(!r.ok) throw Error(`Scryfall answered ${r.status}`);
-  return r.json();
+  const bulk=path.startsWith('/cards/collection'), gap=bulk?600:120;
+  for(let attempt=0;;attempt++){
+    const wait=sfLast+gap-Date.now(); if(wait>0) await sleep(wait); sfLast=Date.now();
+    let r=null;
+    try{ r=await fetch(SCRYFALL+path,{headers:{Accept:'application/json',...(opts?.body?{'Content-Type':'application/json'}:{})},...(opts||{})}); }
+    catch(e){ if(attempt>=4||!navigator.onLine) throw e; }
+    if(r){
+      if(r.status===404) return null;
+      if(r.ok) return r.json();
+      if(!(r.status===429||r.status>=500)||attempt>=4) throw Error(`Scryfall answered ${r.status}`);
+    }
+    await sleep([2000,4000,8000,15000][attempt]);
+  }
 }
 async function loadLiveCards(){
   const cached=await cacheGet(GAME_ID+'-cards.json');
@@ -1324,7 +1334,7 @@ function parseDeckFile(text){
 function previewDeckFile(list){
   const have=new Set(decks.map(d=>d.name)), fresh=list.filter(d=>!have.has(d.name)), ids=new Set(fresh.flatMap(d=>d.cards.map(c=>c.id)));
   const need=[...ids].filter(id=>!byId.get('sf_'+id)?.lg);
-  openSheet('Import deck file',`<p><b>${fresh.length} deck(s)</b> to add${list.length>fresh.length?`; ${list.length-fresh.length} skipped because a deck with that name is already here`:''}. ${ids.size.toLocaleString()} different cards.</p><p class="note">${need.length?`${need.length.toLocaleString()} cards will be looked up on Scryfall first (needs signal, about ${Math.ceil(need.length/75)} lookups).`:'Every card is already on this phone.'} Decks only: your collection does not change.</p><button class="btn primary" id="deckFileGo" ${fresh.length?'':'disabled'}>Import ${fresh.length} decks</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
+  openSheet('Import deck file',`<p><b>${fresh.length} deck(s)</b> to add${list.length>fresh.length?`; ${list.length-fresh.length} skipped because a deck with that name is already here`:''}. ${ids.size.toLocaleString()} different cards.</p><p class="note">${need.length?`${need.length.toLocaleString()} cards will be looked up on Scryfall first (needs signal, about ${Math.ceil(need.length/75)} lookups, roughly ${Math.max(1,Math.ceil(need.length/75*0.8/60))} minute${need.length>5700?'s':''}).`:'Every card is already on this phone.'} Decks only: your collection does not change.</p><button class="btn primary" id="deckFileGo" ${fresh.length?'':'disabled'}>Import ${fresh.length} decks</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
   $('deckFileCancel').onclick=()=>closeSheet();
   $('deckFileGo').onclick=()=>importDeckFile(fresh, need);
 }
