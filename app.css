@@ -242,3 +242,5 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .helpdoc .tip{border-left:3px solid var(--accent);padding:6px 10px;background:var(--bg,transparent);border-radius:4px}
 #helpGames{flex-wrap:wrap}
 .tabbar button span{white-space:nowrap}
+.famcode{font-family:ui-monospace,monospace;letter-spacing:.15em;font-size:1.15em}
+.btn.tiny{padding:2px 8px;font-size:12px;min-height:0}

@@ -15,7 +15,7 @@ function harness(seed={}){
  source=source.replace('window.__inkscan =',`window.testAPI={boot,totals,saveInv,saveDecks,saveWish,parseDeckImport,previewCollectionImport,previewRestore,collRows,renderCollCards,renderBrowse,resetBrowse,addQty,logAdd,openCard,cardDetailHTML,sync,guardedWrite,rest,reviewUpdate,renderSaveStatus,deckAdd,deckStats,searchPrintings,persistState,
   setState(s){inv=S.clone(s.inv||{});wish=S.clone(s.wish||{});decks=S.clone(s.decks||[]);base=s.base||null;session=Object.hasOwn(s,'session')?s.session:{uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};savedState=savedState||${JSON.stringify(state())};},
   getState(){return {inv,wish,decks,base,session,storageError,localRevision,syncState};},
-  setReview(fn){reviewUpdate=fn;},setRest(fn){rest=async(...args)=>{if(args[0]==='GET'&&args[1].includes('select=rainbow_foil'))return [];const value=await fn(...args);return args[0]==='GET'&&args[1].startsWith('collection')&&Array.isArray(value)?value.map(row=>({rainbow_foil:0,...row})):value;};},setDownload(fn){download=fn;},setRender(fn){renderAll=fn;},setCatalog(d){indexCards(d);},setInk(i){collInks.clear();if(i)collInks.add(i);},setChunk(fn){chunked=fn;}};\nwindow.__inkscan =`);
+  setReview(fn){reviewUpdate=fn;},setRest(fn){rest=async(...args)=>{if(args[0]==='GET'&&args[1].includes('select=rainbow_foil'))return [];if(String(args[1]).startsWith('rpc/inkscan_household'))return window.__family||{owner:session.uid,role:null,members:[]};const value=await fn(...args);return args[0]==='GET'&&args[1].startsWith('collection')&&Array.isArray(value)?value.map(row=>({rainbow_foil:0,...row})):value;};},setDownload(fn){download=fn;},setRender(fn){renderAll=fn;},setCatalog(d){indexCards(d);},setInk(i){collInks.clear();if(i)collInks.add(i);},setChunk(fn){chunked=fn;},setFamily(f){window.__family=f;},getHousehold(){return household;}};\nwindow.__inkscan =`);
  source=source.replace('inv=S.clone','inv=InkSafety.clone').replace('wish=S.clone','wish=InkSafety.clone').replace('decks=S.clone','decks=InkSafety.clone');
  vm.runInNewContext(source,context);context.testAPI.setCatalog(catalog());
  for(const id of ['cFinish','bFinish'])el(id).value='all';for(const id of ['sortSel','bSort'])el(id).value='set';
@@ -28,12 +28,15 @@ test('corrupt existing state is a recovery error, never empty fallback',()=>{ass
 test('unknown IDs remain included in overall owned counts',()=>{const h=harness();h.api.setState({inv:{unknown:{q:2,f:3}}});assert.equal(h.api.totals().copies,5);assert.equal(h.api.totals().u,1);});
 test('collection/deck/wishlist save failure visibly persists and never triggers cloud calls',()=>{const h=harness();h.api.setState({inv:{a:{q:1,f:0}},decks:[{id:'d',name:'Synthetic',cards:{x:1}}],wish:{a:1}});h.storage.fail=true;h.api.saveInv();h.api.saveDecks();h.api.saveWish();assert.match(h.el('saveStatus').textContent,/could not be confirmed/);assert.equal(h.network.length,0);});
 test('edits, online and focus cannot automatically sync',()=>{const h=harness();h.api.setState({});h.api.addQty('card0',false,1);for(const e of h.events.filter(e=>['online','visibilitychange'].includes(e.type)))e.fn();assert.equal(h.network.length,0);assert.equal(h.timers.filter(t=>t.ms===2500||t.ms===180000).length,0);assert.doesNotMatch(fs.readFileSync(__dirname+'/app.js','utf8'),/sync\(false\)|scheduleSync|setInterval\(/);});
-test('three-way same-item conflicts preserve both sides and abort',()=>{const local=empty(),remote=empty(),base=empty();base.inv.a={q:1,f:0};local.inv.a={q:2,f:0};remote.inv.a={q:3,f:0};const plan=S.plan(local,remote,base);assert.equal(plan.conflicts.length,1);assert.equal(local.inv.a.q,2);assert.equal(remote.inv.a.q,3);});
+test('collection counts changed on two devices add together instead of conflicting',()=>{const local=empty(),remote=empty(),base=empty();base.inv.a={q:1,f:0};local.inv.a={q:2,f:0};remote.inv.a={q:3,f:1};const plan=S.plan(local,remote,base);assert.equal(plan.conflicts.length,0);assert.deepEqual(plan.merged.inv.a,{q:4,f:1});assert.equal(plan.writes[0].value.q,4);assert.equal(plan.pulls[0].value.q,4);assert.equal(local.inv.a.q,2);
+ const l2=empty(),r2=empty(),b2=empty();b2.inv.a={q:2,f:0};l2.inv.a={q:0,f:0};r2.inv.a={q:1,f:0};assert.equal(S.plan(l2,r2,b2).merged.inv.a,undefined,'both removing copies lands at zero, not below');
+ const l3=empty(),r3=empty();l3.inv.a={q:2,f:0};r3.inv.a={q:1,f:0};assert.deepEqual(S.plan(l3,r3,empty()).merged.inv.a,{q:3,f:0},'a phone joining a family adds its cards');
+ const l4=empty(),r4=empty(),b4=empty();b4.wish.w=1;l4.wish.w=2;r4.wish.w=3;assert.equal(S.plan(l4,r4,b4).conflicts.length,1,'wishlist and deck edits still stop for review');});
 test('deletion versus concurrent edit conflicts, not silent deletion',()=>{const local=empty(),remote=empty(),base=empty();base.decks.d={name:'Synthetic',cards:{x:1}};remote.decks.d={name:'Synthetic',cards:{x:2}};assert.equal(S.plan(local,remote,base).conflicts.length,1);});
 test('same-value acknowledgement after failed receipt is safe to retry',()=>{const local=empty(),remote=empty();local.inv.a={q:2,f:1};remote.inv.a={q:2,f:1};const p=S.plan(local,remote,empty());assert.equal(p.conflicts.length,0);assert.equal(p.writes.length,0);});
 test('pull application preserves edits made during asynchronous update',()=>{const captured=empty(),current=empty();captured.inv.a={q:1,f:0};current.inv.a={q:2,f:0};const actual=S.applyPulls(current,captured,[{section:'inv',id:'a',value:{q:8,f:0}}]);assert.equal(actual.inv.a.q,2);});
 test('manual update cancellation makes zero writes and retains collection',async()=>{const h=harness();h.api.setState({inv:{card0:{q:2,f:1}}});const calls=[];h.api.setRest(async(method,path)=>{calls.push({method,path});return[];});h.api.setReview(async()=>false);await h.api.sync(true);assert.equal(calls.filter(c=>c.method!=='GET').length,0);assert.equal(h.api.getState().inv.card0.q,2);assert.equal(h.api.getState().syncState.last,null);});
-test('update conflict aborts before any writes',async()=>{const h=harness();h.api.setState({inv:{card0:{q:2,f:0}},base:{uid:'synthetic-owner',inv:{card0:{q:1,f:0}},wish:{},decks:{}}});const calls=[];h.api.setDownload(()=>{});h.api.setRest(async(method,path)=>{calls.push(method);return path.startsWith('collection')?[{card_id:'card0',q:3,f:0}]:[];});await h.api.sync(true);assert.equal(calls.filter(m=>m!=='GET').length,0);assert.match(h.api.getState().syncState.err,/changed both/);assert.equal(h.api.getState().inv.card0.q,2);});
+test('update conflict aborts before any writes',async()=>{const h=harness();h.api.setState({wish:{card0:2},base:{uid:'synthetic-owner',inv:{},wish:{card0:1},decks:{}}});const calls=[];h.api.setDownload(()=>{});h.api.setRest(async(method,path)=>{calls.push(method);return path.startsWith('wishlist')?[{card_id:'card0',qty:3}]:[];});await h.api.sync(true);assert.equal(calls.filter(m=>m!=='GET').length,0);assert.match(h.api.getState().syncState.err,/changed both/);assert.equal(h.api.getState().wish.card0,2);});
 test('server failure preserves local changes, no false success, retry remains pending',async()=>{const h=harness();h.api.setState({inv:{card0:{q:2,f:1}}});h.api.setReview(async()=>true);h.api.setRest(async(method)=>{if(method==='GET')return[];throw Error('Synthetic offline failure');});await h.api.sync(true);const st=h.api.getState();assert.equal(st.inv.card0.q,2);assert.equal(st.syncState.last,null);assert.match(st.syncState.err,/Synthetic offline/);assert.equal(S.pending(S.maps(st),st.base||empty()).inv,1);});
 test('conditional PATCH returning no row is treated as concurrent edit',async()=>{const h=harness();let path;h.api.setState({});h.api.setRest(async(m,p)=>{path=p;return[];});await assert.rejects(h.api.guardedWrite({section:'inv',id:'card0',value:{q:2,f:0}},{updated_at:'2026-10-01T00:00:00Z',q:1,f:0}),/changed during/);assert.match(path,/updated_at=eq/);assert.match(path,/q=eq.1/);assert.match(path,/user_id=eq.synthetic-owner/);});
 test('new rows use INSERT, never upsert overwrite',async()=>{const h=harness();let call;h.api.setState({});h.api.setRest(async(...args)=>{call=args;return[{card_id:'card0'}];});await h.api.guardedWrite({section:'inv',id:'card0',value:{q:1,f:0}},null);assert.equal(call[0],'POST');assert.doesNotMatch(call[1],/on_conflict/);assert.doesNotMatch(JSON.stringify(call[3]),/merge-duplicates/);});
@@ -148,8 +151,8 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=25'));assert.ok(sw.includes(name+'.js?v=25'));}
- assert.match(sw,/const CACHE = 'inkscan-v25'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=26'));assert.ok(sw.includes(name+'.js?v=26'));}
+ assert.match(sw,/const CACHE = 'inkscan-v26'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.
@@ -226,3 +229,26 @@ test('MTG decks are singleton except basic lands, and lines import by name',()=>
  const r=h.api.parseDeckImport('1 Sol Ring (CMM) 410\n30 Forest\n1 Unknown Card');assert.deepEqual(json(r.cards),{'solring|':1,'forest|':30});assert.deepEqual(json(r.unresolved),['1 Unknown Card']);});
 test('MTG and One Piece sync stays inside its own game rows',async()=>{const op=opHarness();op.api.setState({});const rows=[];op.api.setRest(async(m,p,row)=>{rows.push({p,row});return[row];});
  await op.api.guardedWrite({section:'inv',id:'OP01-016',value:{q:1,f:0}},null);assert.equal(rows[0].row.game,'onepiece');});
+
+test('family member: Update reads and writes the family owner rows, and this phone\'s cards add to the family\'s',async()=>{
+ const h=harness();h.api.setState({inv:{card0:{q:2,f:0},card1:{q:1,f:0}},base:{uid:'synthetic-owner',inv:{card0:{q:1,f:0}},wish:{},decks:{}}});
+ h.api.setFamily({owner:'family-owner',role:'member',members:[{id:'family-owner',email:'owner@test.invalid',role:'owner'},{id:'synthetic-owner',email:'me@test.invalid',role:'member'}]});
+ const paths=[],writes=[];h.api.setReview(async()=>true);
+ h.api.setRest(async(method,path,row)=>{paths.push(method+' '+path);if(method==='GET')return path.startsWith('collection')?[{card_id:'card0',q:3,f:0,updated_at:'2026-10-31T00:00:00Z'}]:[];writes.push(row);return [{...row,updated_at:'2026-10-31T00:00:01Z'}];});
+ await h.api.sync(true);const st=h.api.getState();
+ assert.equal(st.syncState.err,null);
+ assert.ok(paths.filter(p=>p.startsWith('GET collection')||p.startsWith('GET decks')||p.startsWith('GET wishlist')).every(p=>p.includes('user_id=eq.family-owner')),'reads are the family rows');
+ assert.ok(writes.length&&writes.every(r=>!r.user_id||r.user_id==='family-owner'),'writes are the family rows');
+ assert.equal(st.inv.card0.q,5,'family 3 plus this phone\'s own 2 (a new family baseline)');assert.equal(st.inv.card1.q,1);assert.equal(st.base.uid,'family-owner');
+});
+test('removed from a family: the next Update keeps this phone\'s cards and saves them to the person\'s own account',async()=>{
+ const h=harness();h.api.setState({});
+ h.api.setFamily({owner:'family-owner',role:'member',members:[]});h.api.setRest(async()=>[]);h.api.setReview(async()=>false);await h.api.sync(true); // an earlier Update saved the family
+ assert.equal(h.api.getHousehold().owner,'family-owner');
+ h.api.setState({inv:{card0:{q:4,f:0}},base:{uid:'family-owner',inv:{card0:{q:4,f:0}},wish:{},decks:{}}});
+ h.api.setFamily({owner:'synthetic-owner',role:null,members:[]});const writes=[];h.api.setReview(async()=>true);
+ h.api.setRest(async(method,path,row)=>{if(method==='GET')return [];writes.push(row);return [{...row,updated_at:'2026-10-31T00:00:01Z'}];});
+ await h.api.sync(true);const st=h.api.getState();
+ assert.equal(st.syncState.err,null);assert.equal(st.inv.card0.q,4,'cards are not deleted because the family rows are now hidden');
+ assert.ok(writes.some(r=>r.user_id==='synthetic-owner'&&r.q===4));assert.equal(st.base.uid,'synthetic-owner');
+});

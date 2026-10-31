@@ -34,7 +34,7 @@ function harness(game='mtg'){
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
  source=source.replace('window.__inkscan =',`window.testAPI={legalityMatches,legalIn,deckRules,toggleFavorite,deckItemHTML,renderDeckGuide,remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;savedState=savedState||InkSafety.load(localStorage);session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
-  getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
+  getDecks(){return decks;},setRest(fn){rest=(m,p,...a)=>String(p).startsWith('rpc/inkscan_household')?Promise.resolve({owner:session.uid,role:null,members:[]}):fn(m,p,...a);},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
  context.testAPI.setCatalog({asof:'2026-10-30',sets:[{code:'tst',name:'Synthetic set'}],cards:JSON.parse(JSON.stringify(CARDS))});
  el('dFav').checked=false; el('dFavFirst').checked=false; for(const [id,v] of Object.entries({dFormat:'all',dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;

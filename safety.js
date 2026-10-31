@@ -43,14 +43,29 @@
     }
     return result;
   }
+  // Collection quantities merge by change: cloud value plus (this device minus last agreed), per finish, never below zero.
+  // Returns undefined when the values are not plain count records, so the caller keeps them as a conflict.
+  function mergeCounts(l, r, b){
+    const keys=new Set(), ok=v=>v===null||(record(v)&&Object.values(v).every(n=>Number.isSafeInteger(n)&&n>=0));
+    if(!ok(l)||!ok(r)||!ok(b)) return undefined;
+    for(const v of [l,r,b]) if(v) Object.keys(v).forEach(k=>keys.add(k));
+    const out={};
+    for(const k of keys){ const n=(r?.[k]||0)+(l?.[k]||0)-(b?.[k]||0); if(n>0||(k!=='rf'&&(l&&Object.hasOwn(l,k)||r&&Object.hasOwn(r,k)))) out[k]=Math.max(0,n); }
+    return Object.values(out).some(n=>n>0)?out:null;
+  }
   function plan(local, remote, agreed){
     const merged=clone(local), writes=[], conflicts=[], pulls=[];
     for(const section of ['inv','wish','decks']){
       merged[section]=merged[section]||{};
       for(const id of new Set([...Object.keys(local[section]||{}),...Object.keys(remote[section]||{}),...Object.keys(agreed[section]||{})])){
         const l=local[section]?.[id]??null, r=remote[section]?.[id]??null, b=agreed[section]?.[id]??null;
-        if(!same(l,b)&&!same(r,b)&&!same(l,r)) {conflicts.push({section,id,local:l,cloud:r,previous:b});continue;}
-        const value=same(l,b)?r:l;
+        let value;
+        if(!same(l,b)&&!same(r,b)&&!same(l,r)){
+          // Card counts changed on two devices (or by two family members) add together: cloud + this device's change.
+          const sum=section==='inv'?mergeCounts(l,r,b):undefined;
+          if(sum===undefined){conflicts.push({section,id,local:l,cloud:r,previous:b});continue;}
+          value=sum;
+        } else value=same(l,b)?r:l;
         if(value===null) delete merged[section][id]; else merged[section][id]=clone(value);
         if(!same(value,r)) writes.push({section,id,value:clone(value)});
         if(!same(value,l)) pulls.push({section,id,value:clone(value)});

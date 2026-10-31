@@ -59,7 +59,7 @@ test('rainbow addition is additive, preserves every other finish and is receipt-
 });
 test('rainbow three-way planning retains remote pulls and detects same-printing conflicts',()=>{
  const base=maps({a:{q:2,f:1,rf:1}}),local=S.clone(base),remote=maps({a:{q:2,f:1,rf:4}});let p=S.plan(local,remote,base);assert.equal(p.writes.length,0);assert.equal(p.pulls[0].value.rf,4);assert.equal(S.applyPulls(local,local,p.pulls).inv.a.rf,4);
- local.inv.a.rf=2;p=S.plan(local,remote,base);assert.equal(p.conflicts.length,1);assert.equal(local.inv.a.rf,2);assert.equal(remote.inv.a.rf,4);assert.equal(S.pending(local,base).inv,1);
+ local.inv.a.rf=2;p=S.plan(local,remote,base);assert.equal(p.conflicts.length,0);assert.equal(p.merged.inv.a.rf,5);assert.equal(local.inv.a.rf,2);assert.equal(remote.inv.a.rf,4);assert.equal(S.pending(local,base).inv,1);
 });
 test('rainbow in-flight local edits are retained pending rather than overwritten by pull',()=>{
  const captured=maps({a:{q:1,f:0,rf:1}}),current=maps({a:{q:1,f:0,rf:2}});const result=S.applyPulls(current,captured,[{section:'inv',id:'a',value:{q:1,f:0,rf:5}}]);assert.equal(result.inv.a.rf,2);

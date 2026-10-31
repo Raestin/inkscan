@@ -146,7 +146,7 @@ function renderSaveStatus(){
   el.classList.toggle('bad',!!storageError);
   const sheetStatus=$('sheetSaveStatus');
   if(sheetStatus){sheetStatus.textContent=storageError||'';sheetStatus.hidden=!storageError;}
-  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}});$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
+  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===owner()?base:noBase());$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
 }
 
 function download(name, text, type){
@@ -618,7 +618,7 @@ async function renderHelp(){
   }
   renderHelpDoc();
 }
-const HELP_V=25;
+const HELP_V=26;
 $('helpGames').addEventListener('click',e=>{ const b=e.target.closest('[data-help]'); if(!b) return; helpGame=b.dataset.help; $('helpQ').value=''; renderHelp(); });
 $('helpQ').addEventListener('input',()=>renderHelpDoc());
 function renderAll(){ renderTotals(); renderLog(); if(tab==='scan')renderQuick(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
@@ -1621,6 +1621,21 @@ const SB_KEY = 'sb_publishable_biFosNnFXZK8xSUiJOk0xw_wLrKGrD6';
 const EPOCH = '1970-01-01T00:00:00Z';
 let session = lsGet('inkscan.session', null);
 let base = savedState?.base || null;
+/* Family sharing: everyone in a family reads and writes the family owner's rows (the database allows it
+   through row-level security). household is cached per signed-in account; owner() is whose rows sync. */
+let household = lsGet('inkscan.household', null), familyCode = null;
+const owner = () => (session && household?.for===session.uid && household.owner) || session?.uid;
+const noBase = () => ({inv:{},wish:{},decks:{}});
+async function rpc(name, args){ return rest('POST', 'rpc/'+name, args||{}); }
+async function refreshHousehold(){
+  if(!session) return null;
+  let h;
+  try{ h=await rest('GET','rpc/inkscan_household'); if(!h||typeof h!=='object'||Array.isArray(h)||!h.owner) h={owner:session.uid,role:null,members:[]}; } // read-only, so a GET
+  catch(e){ if(e.status===404||e.code==='PGRST202') h={owner:session.uid,role:null,members:[]}; else throw e; } // before the family tables exist
+  const prev=household?.for===session.uid && household.owner!==h.owner ? household.owner : household?.prev;
+  household={for:session.uid,...h,...(prev&&prev!==h.owner?{prev}:{})}; lsSet('inkscan.household', household);
+  return household;
+}
 const syncState = {busy:false, last:savedState?.last||null, err:null, receipt:null};
 
 function sbHeaders(tok){ const h={apikey:SB_KEY,'Content-Type':'application/json'}; if(tok) h.Authorization='Bearer '+tok; return h; }
@@ -1656,7 +1671,7 @@ const GAME=GAME_ID;
 let cloudRainbow=false;
 async function probeRainbowCloud(){
   // Called only from explicit Update, never at startup or sign-in.
-  try{await rest('GET',`collection?user_id=eq.${encodeURIComponent(session.uid)}&select=rainbow_foil&limit=0`);return true;}
+  try{await rest('GET',`collection?user_id=eq.${encodeURIComponent(owner())}&select=rainbow_foil&limit=0`);return true;}
   catch(e){if(e.code==='42703' && /rainbow_foil/i.test(e.message))return false;throw e;}
 }
 function hasRainbow(values){return Object.values(values||{}).some(v=>(v?.rf||0)>0);}
@@ -1667,7 +1682,7 @@ function ensureCloudOrigin(){
 async function pullAll(section){
   const table=TABLES[section], key=section==='decks'?'id':'card_id', out=[];
   for(let offset=0;;offset+=1000){
-    const page=await rest('GET',`${table}?user_id=eq.${encodeURIComponent(session.uid)}&game=eq.${GAME}&select=*&order=${key}.asc&limit=1000&offset=${offset}`);
+    const page=await rest('GET',`${table}?user_id=eq.${encodeURIComponent(owner())}&game=eq.${GAME}&select=*&order=${key}.asc&limit=1000&offset=${offset}`);
     out.push(...page); if(page.length<1000) return out;
   }
 }
@@ -1711,14 +1726,14 @@ function deckMeta(value,previous){
 async function guardedWrite(operation,previous){
   const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
   if(section==='inv' && !cloudRainbow && (value?.rf||previous?.rainbow_foil))throw Error('Cloud rainbow support is unavailable. Nothing was downgraded to generic foil.');
-  const row=section==='inv'?{user_id:session.uid,game:GAME,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
-    :section==='wish'?{user_id:session.uid,game:GAME,card_id:id,qty:value||0}
-    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[]}:{}),meta:deckMeta(value,previous)};
+  const row=section==='inv'?{user_id:owner(),game:GAME,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
+    :section==='wish'?{user_id:owner(),game:GAME,card_id:id,qty:value||0}
+    :{user_id:owner(),game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[]}:{}),meta:deckMeta(value,previous)};
   let path=table, method='POST';
   if(previous){
     method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
     const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted','meta',...(G.deck?.commander?['commanders']:[])];
-    path+=`?${eq('user_id',session.uid)}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>previous[k]===null||previous[k]===undefined?`${k}=is.null`:eq(k,previous[k])).join('&');
+    path+=`?${eq('user_id',owner())}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>previous[k]===null||previous[k]===undefined?`${k}=is.null`:eq(k,previous[k])).join('&');
   }
   const result=await rest(method,path,row,{Prefer:'return=representation'});
   if(!Array.isArray(result)||result.length!==1) throw Error('A cloud item changed during this update. Stopped without overwriting that item. Review and retry.');
@@ -1733,12 +1748,19 @@ async function sync(manual){
     ensureCloudOrigin();
     if(!navigator.onLine) throw Error('Offline. Local changes are kept. Reconnect and tap Update to retry.');
     if(!persistState()) throw Error('Local saving must succeed before a cloud update. Download a backup first.');
-    if(base?.uid && base.uid!==session.uid) throw Error('This device has a different account baseline. Nothing was merged. Back up and review the account before updating.');
+    // Checked first from the saved family, so a wrong account never touches the network; then again after refreshing.
+    const known=b=>!b?.uid||b.uid===owner()||b.uid===session.uid||b.uid===household?.prev;
+    if(!known(base)) throw Error('This device has a different account baseline. Nothing was merged. Back up and review the account before updating.');
+    await refreshHousehold();
+    const own=owner();
+    if(base?.uid && base.uid!==own && base.uid!==session.uid && base.uid!==household?.prev) throw Error('This device has a different account baseline. Nothing was merged. Back up and review the account before updating.');
+    // Joining or leaving a family: this phone's cards merge with the family's (counts add), shown for review before any write.
+    if(base?.uid && base.uid!==own) base=null;
     const captured=InkSafety.maps({inv,wish,decks}), revision=localRevision;
     cloudRainbow=await probeRainbowCloud();
     if(!cloudRainbow && (hasRainbow(captured.inv)||hasRainbow(base?.inv)))throw Error('The cloud database does not support rainbow foil yet. No cloud items were written. Your distinct rainbow quantities stay on this device; back up before updating the app or database.');
     const rows={inv:await pullAll('inv'),wish:await pullAll('wish'),decks:await pullAll('decks')};
-    const remote=remoteMaps(rows), agreed=base||{inv:{},wish:{},decks:{}};
+    const remote=remoteMaps(rows), agreed=base||noBase();
     const plan=InkSafety.plan(captured,remote,agreed);
     if(plan.conflicts.length){
       syncState.conflicts=plan.conflicts;
@@ -1749,7 +1771,7 @@ async function sync(manual){
     if(localRevision!==revision) throw Error('Local data changed during review. Nothing was uploaded. Tap Update to review the latest changes.');
     savedState.recovery=recoveryPoints('Before confirmed cloud update');
     if(!persistState())throw Error('Recovery snapshot could not be saved. No cloud items were written. Back up before retrying.');
-    if(!base) base={uid:session.uid,inv:{},wish:{},decks:{}};
+    if(!base) base={uid:own,inv:{},wish:{},decks:{}};
     const finalCloud=InkSafety.clone(remote);
     for(const operation of plan.writes){
       if(storageError) throw Error('Local save failed. Remaining cloud writes stopped. Back up and retry.');
@@ -1762,7 +1784,7 @@ async function sync(manual){
     }
     const current=InkSafety.maps({inv,wish,decks});
     replaceLocalMaps(InkSafety.applyPulls(current,captured,plan.pulls));
-    base={uid:session.uid,...finalCloud};
+    base={uid:own,...finalCloud};
     const confirmed=Date.now(), previousLast=syncState.last; syncState.last=confirmed;
     if(!persistState()){syncState.last=previousLast;throw Error('Update completed on the server but local receipt saving failed. Keep this tab open and back up.');}
     syncState.receipt=`Update confirmed: ${acknowledged} item(s) sent, ${plan.pulls.length} item(s) received. New edits remain pending.`;
@@ -1774,7 +1796,7 @@ async function sync(manual){
 }
 
 function syncBoxHTML(){
-  const agreed=session?.uid && base?.uid===session.uid?base:{inv:{},wish:{},decks:{}};
+  const agreed=session?.uid && base?.uid===owner()?base:noBase();
   const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),agreed);
   const when=syncState.last?new Date(syncState.last).toLocaleString():'not yet';
   const common=`<p class="note">Manual cloud updates only. Pending on this device: ${counts.inv} collection printing(s), ${counts.decks} deck(s), ${counts.wish} wishlist item(s). Last confirmed update: ${esc(when)}.</p>
@@ -1785,7 +1807,18 @@ function syncBoxHTML(){
     <input type="password" id="sbPass" placeholder="Password (6+ characters)" autocomplete="current-password">
     <div class="row"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div><p class="note" id="sbMsg"></p>`;
   return `<h3 class="h2">Cloud update</h3>${common}<p class="note">${syncState.busy?'Checking / updating...':'Your collection stays local until you confirm an Update.'}</p>
-    <div class="row"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Update</button><button class="btn ghost" data-sync="out" ${syncState.busy?'disabled':''}>Sign out</button></div>`;
+    <div class="row"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Update</button><button class="btn ghost" data-sync="out" ${syncState.busy?'disabled':''}>Sign out</button></div>${familyHTML()}`;
+}
+function familyHTML(){
+  const h=household?.for===session?.uid?household:null, others=(h?.members||[]).filter(m=>m.id!==session.uid);
+  const ownerEmail=(h?.members||[]).find(m=>m.role==='owner')?.email||'the family owner';
+  const codeBox=familyCode?`<p class="note">Invite code (one use, 7 days): <b class="famcode">${esc(familyCode)}</b></p><div class="row"><button class="btn" data-sync="share">Send invite</button></div>`:'';
+  let body;
+  if(h?.role==='member') body=`<p class="note">You share <b>${esc(ownerEmail)}</b>'s family collection, decks and wishlist, in every game. Tap Update to bring in changes.</p><div class="row"><button class="btn ghost" data-sync="leave">Leave family</button></div>`;
+  else if(h?.role==='owner') body=`<p class="note">Shared with: ${others.length?others.map(m=>`${esc(m.email||'member')} <button class="btn ghost tiny" data-sync="remove" data-uid="${esc(m.id)}" aria-label="Remove ${esc(m.email||'member')}">Remove</button>`).join(', '):'nobody yet'}.</p><div class="row"><button class="btn" data-sync="invite">Invite someone</button></div>${codeBox}`;
+  else body=`<p class="note">Share one collection with your family: everyone scans into the same cards and decks. Counts from different phones add together.</p><div class="row"><button class="btn" data-sync="invite">Invite family</button></div>${codeBox}
+    <input type="text" id="famJoin" placeholder="Have a code? Enter it here" autocomplete="off" autocapitalize="characters" value="${esc(lsGet('inkscan.joinCode','')||'')}"><div class="row"><button class="btn" data-sync="join">Join family</button></div>`;
+  return `<h3 class="h2">Family</h3>${body}<p class="note" id="famMsg" role="status"></p>`;
 }
 function renderSyncBox(){ const el=$('syncBox'); if (el) el.innerHTML = syncBoxHTML(); }
 $('sheetBody').addEventListener('click', async e=>{
@@ -1802,16 +1835,33 @@ $('sheetBody').addEventListener('click', async e=>{
         if (!j.access_token){ $('sbMsg').textContent = 'Account created. Open the confirmation email on this phone, tap the link, then come back here and tap Sign in.'; b.disabled=false; return; }
         keepSession(j);
       }
-      renderSyncBox(); toast('Signed in. Tap Update when you are ready.');
+      renderSyncBox(); toast('Signed in. Tap Update when you are ready.'); refreshHousehold().then(renderSyncBox).catch(()=>{});
     }catch(err){
       $('sbMsg').textContent = /confirm/i.test(err.message) ? 'Confirm your email first: tap the link in the message Supabase sent you, then Sign in.'
         : /invalid login/i.test(err.message) ? 'That email and password don’t match.' : err.message;
       b.disabled = false;
     }
   } else if (a==='now'){ sync(true); }
+  else if (['invite','join','leave','remove','share'].includes(a)){
+    const msg=t=>{ if($('famMsg')) $('famMsg').textContent=t; };
+    try{
+      if(a==='share'){ const link=`${location.origin}${location.pathname}?join=${familyCode}`, text=`Join my InkScan family collection: open ${link} , create an account, and the code ${familyCode} fills in.`;
+        if(navigator.share) await navigator.share({title:'InkScan family invite',text,url:link}).catch(()=>{}); else { await navigator.clipboard?.writeText(text); msg('Invite copied. Paste it in a text.'); } return; }
+      b.disabled=true;
+      if(a==='invite'){ familyCode=await rpc('inkscan_create_invite'); await refreshHousehold(); }
+      else if(a==='join'){
+        const code=($('famJoin')?.value||'').trim().toUpperCase(); if(!/^[A-Z0-9]{6,12}$/.test(code)){ msg('Enter the 8-character code.'); b.disabled=false; return; }
+        if(!confirm('Join this family? On your next Update, the cards on this phone are added to the family collection, and you will see the family\'s cards and decks in every game. Your own account\'s cloud copy is left as it is.')){ b.disabled=false; return; }
+        await rpc('inkscan_join',{invite:code}); lsSet('inkscan.joinCode',null); await refreshHousehold(); toast('Joined. Tap Update in each game to bring in the family collection.');
+      }
+      else if(a==='leave'){ if(!confirm('Leave the family? This phone keeps its copy of the cards; your next Update saves them to your own account.')){ b.disabled=false; return; } await rpc('inkscan_leave'); await refreshHousehold(); toast('You left the family.'); }
+      else if(a==='remove'){ if(!confirm('Remove this person from the family? Their phone keeps its copy, but they stop seeing changes.')){ b.disabled=false; return; } await rpc('inkscan_remove_member',{member:b.dataset.uid}); await refreshHousehold(); }
+      renderSyncBox();
+    }catch(err){ msg(err.message||'That did not work. Try again.'); b.disabled=false; }
+  }
   else if (a==='out'){ session=null; lsSet('inkscan.session', null); renderSyncBox(); toast('Signed out. Everything stays on this phone.'); }
 });
-$('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${syncBoxHTML()}</div>`); };
+$('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${syncBoxHTML()}</div>`); if(session&&navigator.onLine) refreshHousehold().then(renderSyncBox).catch(()=>{}); };
 function backupPayload(){
   const keys=[InkSafety.KEY,...InkSafety.LEGACY_KEYS];
   const raw=()=>Object.fromEntries(keys.map(k=>[k,STORE.getItem(k)]));
@@ -1960,7 +2010,16 @@ function applyGameLabels(){
   const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='pokemon'?'Size, copy limits (Basic Energy unlimited) and Standard legality by regulation mark (H, I and J since the April 2026 rotation). ACE SPEC and per-name limits across different cards are not checked yet.':G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Each deck is checked against its format (pick it under the deck name): size, copy limits and the format ban list from Scryfall. Commander decks also check the commander, color identity and Game Changers for the bracket. Sideboards are not tracked yet.';
   const promoNotes=document.querySelectorAll('#vScan > p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
 }
+// Invite links (?join=CODE): keep the code for the Family box and open it, then tidy the address bar.
+function takeInviteLink(){
+  if(typeof URLSearchParams==='undefined') return;
+  const code=(new URLSearchParams(location.search).get('join')||'').trim().toUpperCase();
+  if(!/^[A-Z0-9]{6,12}$/.test(code)) return;
+  lsSet('inkscan.joinCode', code); try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  setTimeout(()=>{ $('manualUpdate').click(); toast(session?'Invite code filled in. Tap Join family.':'Sign in or create an account, then tap Join family.'); },300);
+}
 async function boot(){
+  takeInviteLink();
   if(!savedState){ $('loadBanner').textContent=storageError; $('loadBanner').classList.add('bad'); renderSaveStatus(); return; }
   inv=InkSafety.clone(savedState.inv); decks=InkSafety.clone(savedState.decks); wish=InkSafety.clone(savedState.wish);
   renderSaveStatus();
