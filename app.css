@@ -211,6 +211,14 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .filterbox>summary{cursor:pointer;padding:10px 0;font-weight:600;list-style-position:inside}
 .filterbox[open]>summary{border-bottom:1px solid var(--line);margin-bottom:10px}
 .filterbox>.stack{padding-bottom:12px}
+.dguide p{margin:0;line-height:1.45}
+.dguide .phase{display:grid;grid-template-columns:4.5em 1fr;gap:4px 10px;margin:0}
+.dguide .phase dt{font-weight:700;color:var(--muted)}
+.dguide .phase dd{margin:0;line-height:1.4}
+.dguide h4{margin:4px 0 0;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.dguide ul{margin:0;padding-left:1.2em;line-height:1.45}
+.dguide .chips{gap:6px}
+.dguide .keycard{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--fg)}
 .syncbar{margin-bottom:16px}
 .syncbar #saveStatus{flex:1 1 100%;margin:0}
 .brandrow{gap:8px;flex-wrap:nowrap}

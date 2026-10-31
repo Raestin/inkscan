@@ -1190,12 +1190,29 @@ async function fillDeckLegality(d){
     if(getDeck()===d && tab==='decks') renderDeckEdit(true);
   }catch(e){ legalityFilled.delete(d.id); }
 }
+/* Overview & strategy: a collapsible panel at the top of a deck, from the deck file's guide. */
+function renderDeckGuide(d){
+  const g=d.guide, box=$('deckGuide');
+  box.hidden=!g; if(!g){ $('deckGuideBody').innerHTML=''; return; }
+  if(box.dataset.deck!==d.id){ box.dataset.deck=d.id; box.open=lsGet('inkscan.guideOpen',false)===true; }
+  const t=v=>typeof v==='string'?esc(v):'';
+  const keyBtn=name=>{ const nv=G.nvKey?G.nvKey({n:name,v:''}):norm(name)+'|'; const c=repOf(nv)||[...byNV.keys()].filter(k=>k.startsWith(norm(name))).map(repOf)[0]; return c?`<button class="keycard" data-card="${esc(c.id)}">${esc(name)}</button>`:`<span class="keycard">${esc(name)}</span>`; };
+  $('deckGuideBody').innerHTML=`${Array.isArray(g.themes)&&g.themes.length?`<div class="chips">${g.themes.slice(0,6).map(x=>`<span class="chip">${t(x)}</span>`).join('')}</div>`:''}
+    ${g.overview?`<p>${t(g.overview)}</p>`:''}
+    ${g.early||g.middle||g.late?`<h4>How it plays</h4><dl class="phase">${g.early?`<dt>Early</dt><dd>${t(g.early)}</dd>`:''}${g.middle?`<dt>Middle</dt><dd>${t(g.middle)}</dd>`:''}${g.late?`<dt>Closing</dt><dd>${t(g.late)}</dd>`:''}</dl>`:''}
+    ${Array.isArray(g.win)&&g.win.length?`<h4>Wins with</h4><ul>${g.win.map(x=>`<li>${t(x)}</li>`).join('')}</ul>`:''}
+    ${Array.isArray(g.keys)&&g.keys.length?`<h4>Key cards</h4><div class="chips">${g.keys.map(keyBtn).join('')}</div>`:''}
+    ${g.tip?`<h4>Tip</h4><p>${t(g.tip)}</p>`:''}
+    <p class="note">${t(g.source||'Built from EDHREC themes and combos, Scryfall card text and this decklist.')}</p>`;
+}
+$('deckGuide').addEventListener('toggle',()=>lsSet('inkscan.guideOpen',$('deckGuide').open));
 function renderDeckEdit(keepScroll){
   const d = getDeck(); if(!d){ curDeck=null; renderDecks(); return; }
   fillDeckLegality(d);
   $('deckHome').hidden=true; $('deckEdit').hidden=false;
   if (document.activeElement!==$('deckName')) $('deckName').value = d.name;
   $('deckBracketWrap').hidden=!G.deck?.commander; if(G.deck?.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
+  renderDeckGuide(d);
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
   const st = deckStats(d); const max = Math.max(1,...st.curve);
   const warns = [];
@@ -1401,7 +1418,8 @@ function parseDeckFile(text){
     const commanders=(Array.isArray(d.commanders)?d.commanders:[]).filter(id=>SF_ID.test(id)).slice(0,2);
     // owned: these are physical cards in hand, at these exact printings and finishes.
     const bracket=Number.isInteger(d.bracket)&&d.bracket>=1&&d.bracket<=5?d.bracket:null;
-    return {name:d.name.trim(),cards,commanders,owned:d.owned===true,bracket};
+    const guide=d.guide&&typeof d.guide==='object'&&!Array.isArray(d.guide)&&JSON.stringify(d.guide).length<=6000?JSON.parse(JSON.stringify(d.guide)):null;
+    return {name:d.name.trim(),cards,commanders,owned:d.owned===true,bracket,guide};
   });
 }
 const ownedReceipt=d=>'deckfile-owned:'+d.name;
@@ -1415,7 +1433,7 @@ function previewDeckFile(list){
     return {replace,use,need,ids};
   };
   const ownedNote=owned.length?`<p><b>Adds ${addCopies} physical cards to your collection</b> from ${owned.map(d=>esc(d.name)).join(', ')}, at their exact printings and finishes. This happens once per deck; importing the same file again does not add them twice.</p>`:'';
-  openSheet('Import deck file',`<p><b>${fresh.length} new deck(s)</b>${same.length?`, ${same.length} already here by name`:''}.</p>${same.length?`<label class="note"><input type="checkbox" id="deckFileReplace"> Update the ${same.length} deck(s) already here with this file's version (keeps each deck, replaces its cards, commander and bracket)</label>`:''}${ownedNote}<p class="note" id="deckFileNeed"></p><button class="btn primary" id="deckFileGo">Import</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
+  openSheet('Import deck file',`<p><b>${fresh.length} new deck(s)</b>${same.length?`, ${same.length} already here by name`:''}.${list.some(d=>d.guide)?` ${list.filter(d=>d.guide).length} include an overview and strategy.`:''}</p>${same.length?`<label class="note"><input type="checkbox" id="deckFileReplace"> Update the ${same.length} deck(s) already here with this file's version (keeps each deck, replaces its cards, commander, bracket and strategy)</label>`:''}${ownedNote}<p class="note" id="deckFileNeed"></p><button class="btn primary" id="deckFileGo">Import</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
   const refresh=()=>{ const {replace,use,need,ids}=sheet(), work=use.length+owned.length;
     $('deckFileNeed').textContent=`${ids.size.toLocaleString()} different cards. ${need.length?`${need.length.toLocaleString()} will be looked up on Scryfall first (needs signal, about ${Math.ceil(need.length/75)} lookups, roughly ${Math.max(1,Math.ceil(need.length/75*0.8/60))} minute${need.length>5700?'s':''}).`:'Every card is already on this phone.'}${owned.length?'':' Decks only: your collection does not change.'}`;
     const nNew=fresh.length, nUpd=replace?same.length:0;
@@ -1446,9 +1464,9 @@ async function importDeckFile(list, need, owned=[]){
     for(const c of d.cards){ const card=byId.get('sf_'+c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
     unresolved+=miss.length;
     const commanders=d.commanders.map(id=>byId.get('sf_'+id)?.nv).filter(nv=>nv&&cards[nv]);
-    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
+    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(d.guide?{guide:d.guide}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
     const existing=decks.find(x=>x.name===d.name&&!x.deleted);
-    if(existing){ for(const k of ['commanders','bracket','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
+    if(existing){ for(const k of ['commanders','bracket','guide','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
     else decks.push({id:uid(),...fields});
   });
   let added=0;
@@ -1575,7 +1593,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1594,13 +1612,14 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;return o;});
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
 function deckMeta(value,previous){
   const meta={...(previous?.meta&&typeof previous.meta==='object'&&!Array.isArray(previous.meta)?previous.meta:{})};
   if(value?.bracket) meta.bracket=value.bracket; else delete meta.bracket;
+  if(value?.guide) meta.guide=value.guide; else delete meta.guide;
   return meta;
 }
 async function guardedWrite(operation,previous){

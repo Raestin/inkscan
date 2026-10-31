@@ -32,7 +32,7 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+ source=source.replace('window.__inkscan =',`window.testAPI={renderDeckGuide,remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;savedState=savedState||InkSafety.load(localStorage);session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
@@ -275,4 +275,27 @@ test('deck bracket syncs through the meta column and keeps unknown meta keys',as
  assert.equal(JSON.stringify(call[2].meta),'{"tags":["fun"]}');assert.match(call[1],/meta=eq\./);
  const maps=h.api.remoteMaps({inv:[],wish:[],decks:[{id:'d1',name:'A',cards:{x:1},deleted:false,commanders:[],meta:{bracket:4}},{id:'d2',name:'B',cards:{},deleted:false,commanders:[],meta:{}}]});
  assert.equal(maps.decks.d1.bracket,4);assert.equal(maps.decks.d2.bracket,undefined);
+});
+
+const GUIDE={overview:'Counters everywhere.',early:'Ramp.',middle:'Spread counters.',late:'Swing wide.',win:['Combat damage'],keys:['Sol Ring'],tip:'Hold removal.',themes:['+1/+1 Counters']};
+test('deck guide renders collapsed panel with phases, wins, tappable key cards; hidden without a guide',()=>{
+ const h=harness();const d=deck(["Atraxa, Praetors' Voice",'Sol Ring'],["Atraxa, Praetors' Voice"]);d.guide=GUIDE;
+ h.api.renderDeckGuide(d);const html=h.el('deckGuideBody').innerHTML;
+ assert.equal(h.el('deckGuide').hidden,false);assert.match(html,/Counters everywhere/);assert.match(html,/<dt>Closing<\/dt><dd>Swing wide\.<\/dd>/);
+ assert.match(html,/class="keycard" data-card="sf_4"/);assert.match(html,/\+1\/\+1 Counters/);
+ delete d.guide;h.api.renderDeckGuide(d);assert.equal(h.el('deckGuide').hidden,true);
+ d.guide={overview:'<img src=x onerror=alert(1)>'};h.api.renderDeckGuide(d);assert.doesNotMatch(h.el('deckGuideBody').innerHTML,/<img/);
+});
+test('deck guide syncs through meta, survives deck file import and update, and is size-checked',async()=>{
+ const h=harness();h.api.setState({});let call;h.api.setRest(async(...args)=>{call=args;return [{id:'d1'}];});
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{x:1},bracket:2,guide:GUIDE}},null);
+ assert.equal(call[2].meta.guide.overview,'Counters everywhere.');assert.equal(call[2].meta.bracket,2);
+ assert.equal(h.api.remoteMaps({inv:[],wish:[],decks:[{id:'d1',name:'A',cards:{},deleted:false,commanders:[],meta:{guide:GUIDE}}]}).decks.d1.guide.tip,'Hold removal.');
+ assert.throws(()=>S.validate({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},guide:{overview:'x'.repeat(7000)}}]}),/invalid guide/);
+ h.api.setOnline(true);h.api.setScryfall(async(path,opts)=>({data:JSON.parse(opts.body).identifiers.map(x=>SFCARDS[x.id])}));
+ h.api.setState({decks:[{id:'keep',name:'B4 · Atraxa',cards:{},updated:1}]});
+ const file=JSON.parse(DECKFILE());file.decks[0].guide=GUIDE;
+ const list=h.api.parseDeckFile(JSON.stringify(file));
+ await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))]);
+ assert.equal(h.api.getDecks().find(d=>d.id==='keep').guide.overview,'Counters everywhere.');
 });
