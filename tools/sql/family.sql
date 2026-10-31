@@ -39,12 +39,7 @@ language sql stable security definer set search_path = public as $$
   select owner = auth.uid() or owner = (select h.owner_id from household_members m join households h on h.id = m.household_id where m.user_id = auth.uid());
 $$;
 
-drop policy if exists "own rows" on public.collection;
-drop policy if exists "own rows" on public.decks;
-drop policy if exists "own rows" on public.wishlist;
-drop policy if exists "family rows" on public.collection;
-drop policy if exists "family rows" on public.decks;
-drop policy if exists "family rows" on public.wishlist;
+-- Added alongside the existing "own rows" policies; permissive policies combine with OR, so nothing is dropped.
 create policy "family rows" on public.collection for all using (public.inkscan_can_access(user_id)) with check (public.inkscan_can_access(user_id));
 create policy "family rows" on public.decks for all using (public.inkscan_can_access(user_id)) with check (public.inkscan_can_access(user_id));
 create policy "family rows" on public.wishlist for all using (public.inkscan_can_access(user_id)) with check (public.inkscan_can_access(user_id));
