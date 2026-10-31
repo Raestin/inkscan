@@ -46,9 +46,11 @@ async function shot(page, info, label) {
 }
 async function summary(page, selector, value, copies, unpriced) {
   const el = page.locator(selector);
-  await expect(el).toContainText(`$${value.toFixed(2)} for ${copies} owned copies across all matching results.`);
-  await expect(el).toContainText(`${unpriced} copies unpriced.`);
-  await expect(el).toContainText('TCGplayer market prices via Lorcast; catalog as of');
+  const collection = selector === '#cValue';
+  await expect(el).toContainText(`$${value.toFixed(2)} for ${copies} owned copies${collection ? '' : ' across all matching results.'}`);
+  if (!collection) await expect(el).toContainText(`${unpriced} copies unpriced.`);
+  else if (unpriced) await expect(el).toContainText(`${unpriced} copies unpriced`); else await expect(el).not.toContainText('unpriced');
+  await expect(collection ? page.locator('#cValueNote') : el).toContainText('TCGplayer market prices via Lorcast; catalog as of');
   await expect(el).toContainText(unpriced ? 'Partial estimate:' : 'Estimated value:');
 }
 async function importDeck(page, text = '4 Synthetic card 0 - QA edition') {

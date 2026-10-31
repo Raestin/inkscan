@@ -506,7 +506,7 @@ test('fresh exact promo Holofoil quote values generic foil only; stale or mismat
   await page.locator('[data-tab="coll"]').click();
   await page.locator('#cFinish').selectOption('foil');
   await expect(page.locator('#cValue')).toContainText('Estimated value: $4.20 for 1 owned copies');
-  await expect(page.locator('#cValue')).toContainText('0 copies unpriced');
+  await expect(page.locator('#cValue')).not.toContainText('unpriced');
   await page.locator('#cValue').scrollIntoViewIfNeeded();
   await shot(page, info, 'synthetic-exact-promo-foil-quote-not-rainbow');
   for (const finish of ['normal', 'rainbow']) {

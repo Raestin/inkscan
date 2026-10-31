@@ -754,7 +754,9 @@ function renderCollCards(){
   renderLegalityInfo();
   document.querySelectorAll('[data-lay]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.lay===layout));
   const el = $('coll'); const rows = collRows();
-  $('cValue').textContent=valueSummary(rows,'all');
+  const valued=InkSafety.valuation(rows,'all');
+  $('cValue').textContent=`${valued.partial?'Partial estimate':'Estimated value'}: ${money(valued.value)} for ${valued.copies} owned copies${valued.unpriced?` · ${valued.unpriced} copies unpriced`:''}`;
+  const valueNote=$('cValueNote'); if(valueNote) valueNote.textContent=`TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
   if (!rows.length){
     el.className=''; el.innerHTML = Object.keys(inv).length ? `<div class="list"><div class="empty"><strong>No matches</strong>Nothing in your collection matches that filter.</div></div>` : `<div class="list"><div class="empty"><strong>Your collection is empty</strong>Scan cards on the Scan tab, or open any card in Browse and add it.</div></div>`;
     return;

@@ -42,8 +42,8 @@ async function assertNoCloud(page, context) {
 }
 async function summary(page, selector, dollars, copies, unpriced) {
   const el = page.locator(selector);
-  await expect(el).toContainText(`$${dollars.toFixed(2)} for ${copies} owned copies across all matching results.`);
-  await expect(el).toContainText(`${unpriced} copies unpriced.`);
+  await expect(el).toContainText(`$${dollars.toFixed(2)} for ${copies} owned copies`);
+  if (unpriced) await expect(el).toContainText(`${unpriced} copies unpriced`); else await expect(el).not.toContainText('unpriced');
   await expect(el).toContainText(unpriced ? 'Partial estimate:' : 'Estimated value:');
 }
 async function openCard(page, id = 'synthetic-card-0') {
