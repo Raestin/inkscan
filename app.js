@@ -1091,22 +1091,81 @@ function toggleCommander(d, nv){
   return cur.length ? `Commander changed to ${c.n}` : `${c.n} is the commander`;
 }
 function inkSetHTML(inks){ return `<span class="inkset">${inks.map(i=>`<span class="ink ${i}" title="${i}"></span>`).join('')}</span>`; }
+/* Deck home: search plus a collapsible filter box, mirroring Collection. */
+const deckInkSel=new Set();
+let deckHomeScroll=0;
+const deckBracket=d=>(/^B([1-5])\s*[·.\-:]/.exec(d.name)||[])[1]||null;
+function deckRulesState(st){
+  if(!st.cmd) return null;
+  const size=G.deck.size;
+  if(st.main<size) return 'short';
+  return !st.cmd.problem&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.unchecked&&st.main===size?'pass':(st.cmd.problem||st.offColor||st.overCopies||st.banned||st.notLegal||st.main!==size)?'fix':'unchecked';
+}
+function deckLead(d,st){
+  const cmd=st.cmd?.cmds?.[0]; if(cmd) return cmd;
+  const lead=Object.entries(d.cards).sort((a,b)=>(repOf(b[0])?.co||0)-(repOf(a[0])?.co||0))[0];
+  return lead&&repOf(lead[0]);
+}
+function deckFilterCount(){
+  const n=deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
+  $('dFilterCount').textContent=n?`(${n} on)`:'';
+}
+function deckRows(){
+  const q=norm($('df').value), cardQ=norm($('dCard').value), status=$('dStatus').value, br=$('dBracket').value, own=$('dOwn').value, exact=$('dExact').checked;
+  const rows=[];
+  for(const d of decks){
+    const st=deckStats(d);
+    if(q && !norm(d.name+' '+(st.cmd?.cmds||[]).map(c=>c.n).join(' ')).includes(q)) continue;
+    if(deckInkSel.size){
+      const inks=st.inks.filter(i=>i!=='Colorless');
+      if(![...deckInkSel].every(i=>i==='Colorless'?!inks.length:inks.includes(i))) continue;
+      if(exact && (inks.length!==[...deckInkSel].filter(i=>i!=='Colorless').length)) continue;
+    }
+    if(status!=='all' && deckRulesState(st)!==status) continue;
+    if(br!=='all' && deckBracket(d)!==br) continue;
+    if(own==='complete' && (st.missing||!st.total)) continue;
+    if(own==='missing' && !st.missing) continue;
+    if(cardQ && !Object.keys(d.cards).some(nv=>norm(repOf(nv)?.n||'').includes(cardQ))) continue;
+    rows.push({d,st});
+  }
+  const s=$('dSort').value;
+  rows.sort(s==='name'?(a,b)=>a.d.name.localeCompare(b.d.name,undefined,{numeric:true})
+    :s==='owned'?(a,b)=>((b.st.total-b.st.missing)/(b.st.total||1))-((a.st.total-a.st.missing)/(a.st.total||1))||a.st.missCost-b.st.missCost
+    :s==='cost'?(a,b)=>a.st.missCost-b.st.missCost||a.st.missing-b.st.missing
+    :(a,b)=>b.d.updated-a.d.updated);
+  return rows;
+}
+function deckItemHTML({d,st}){
+  const c=deckLead(d,st), rules=deckRulesState(st), cmdNames=(st.cmd?.cmds||[]).map(x=>x.n).join(' + ');
+  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
+}
 function renderDecks(keepScroll){
   if (curDeck){ renderDeckEdit(keepScroll); return; }
   $('deckHome').hidden=false; $('deckEdit').hidden=true;
-  const sorted = decks.slice().sort((a,b)=>b.updated-a.updated);
-  $('deckList').innerHTML = sorted.length ? sorted.map(d=>{
-    const st = deckStats(d); const lead = Object.entries(d.cards).sort((a,b)=>(repOf(b[0])?.co||0)-(repOf(a[0])?.co||0))[0];
-    const c = lead && repOf(lead[0]);
-    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.cmd?(st.main===G.deck.size&&!st.cmd.problem&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.unchecked?'<span class="chip ok">Rules pass</span>':st.cmd.problem||st.offColor||st.overCopies||st.banned||st.notLegal||st.main!==G.deck.size?'<span class="chip warn">Fix rules</span>':''):LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
-  }).join('') : `<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`;
+  const hasDecks=decks.length>0;
+  for(const id of ['df','dFilters','dCount']) $(id).hidden=!hasDecks;
+  $('dStatusWrap').hidden=!G.deck?.commander;
+  const brackets=[...new Set(decks.map(deckBracket).filter(Boolean))].sort();
+  $('dBracketWrap').hidden=!brackets.length;
+  const cur=$('dBracket').value||'all';
+  const opts='<option value="all">All brackets</option>'+brackets.map(b=>`<option value="${b}">Bracket ${b}</option>`).join('');
+  if($('dBracket').innerHTML!==opts){ $('dBracket').innerHTML=opts; $('dBracket').value=brackets.includes(cur)?cur:'all'; }
+  deckFilterCount();
+  if(!hasDecks){ $('deckList').innerHTML=`<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`; return; }
+  const rows=deckRows();
+  $('dCount').textContent=rows.length===decks.length?`${decks.length} decks`:`Showing ${rows.length} of ${decks.length} decks`;
+  $('deckList').innerHTML=rows.length?rows.map(deckItemHTML).join(''):`<div class="empty"><strong>No decks match</strong>Change the search or tap Reset deck filters.</div>`;
 }
-$('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
+let dfT; for(const id of ['df','dCard']) $(id).addEventListener('input',()=>{ clearTimeout(dfT); dfT=setTimeout(()=>renderDecks(),150); });
+for(const id of ['dStatus','dBracket','dOwn','dSort','dExact']) $(id).onchange=()=>renderDecks();
+$('dReset').onclick=()=>{ $('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
+inkChips($('deckInks'),deckInkSel,()=>renderDecks());
+$('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ deckHomeScroll=window.scrollY; curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
 $('newDeckBtn').onclick = ()=>{
   const d = {id:uid(), name:`New deck ${decks.length+1}`, cards:{}, updated:Date.now()};
   decks.push(d); saveDecks(); curDeck=d.id; dsub='add'; renderDecks(); $('deckName').select();
 };
-$('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,0); };
+$('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,deckHomeScroll); };
 $('deckName').addEventListener('change', ()=>{ const d=getDeck(); if(!d) return; d.name=$('deckName').value.trim()||'Untitled deck'; d.updated=Date.now(); saveDecks(); });
 document.querySelectorAll('[data-dsub]').forEach(b=>b.onclick=()=>{ dsub=b.dataset.dsub; renderDeckEdit(); });
 function getDeck(){ return decks.find(d=>d.id===curDeck); }

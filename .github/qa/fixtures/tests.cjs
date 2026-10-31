@@ -148,8 +148,8 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=14'));assert.ok(sw.includes(name+'.js?v=14'));}
- assert.match(sw,/const CACHE = 'inkscan-v14'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=15'));assert.ok(sw.includes(name+'.js?v=15'));}
+ assert.match(sw,/const CACHE = 'inkscan-v15'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.

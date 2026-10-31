@@ -32,12 +32,13 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+ source=source.replace('window.__inkscan =',`window.testAPI={deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
  context.testAPI.setCatalog({asof:'2026-10-30',sets:[{code:'tst',name:'Synthetic set'}],cards:JSON.parse(JSON.stringify(CARDS))});
- return {api:context.testAPI,network};
+ for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
+ return {api:context.testAPI,network,el};
 }
 const deck=(names,commanders=[])=>({id:'d1',name:'Synthetic',cards:Object.fromEntries(names.map(n=>[NV(n),1])),commanders:commanders.map(NV),updated:1});
 
@@ -163,4 +164,38 @@ test('deck file import offline or failing changes nothing',async()=>{
  const h=harness();h.api.setState({});h.api.setOnline(false);
  const list=h.api.parseDeckFile(DECKFILE());await h.api.importDeckFile(list,[ID(101)]);assert.equal(h.api.getDecks().length,0);
  h.api.setOnline(true);h.api.setScryfall(async()=>{throw Error('down');});await h.api.importDeckFile(list,[ID(101)]);assert.equal(h.api.getDecks().length,0);
+});
+
+function filterHarness(){
+ const h=harness();
+ const mk=(id,name,names,cmds,updated)=>({id,name,cards:Object.fromEntries(names.map(n=>[NV(n),1])),commanders:cmds.map(NV),updated});
+ h.api.setState({decks:[
+  mk('a','B4 · Atraxa',["Atraxa, Praetors' Voice",'Sol Ring','Forest'],["Atraxa, Praetors' Voice"],3),
+  mk('b','B5 · Thrasios + Tymna',['Thrasios, Triton Hero','Tymna the Weaver','Mana Crypt'],['Thrasios, Triton Hero','Tymna the Weaver'],2),
+  mk('c','Wilson and friends',['Wilson, Refined Grizzly','Candlekeep Sage','Sol Ring'],['Wilson, Refined Grizzly','Candlekeep Sage'],1),
+  mk('d','Unfinished',['Lightning Bolt'],[],4)]});
+ return h;
+}
+const names=h=>h.api.deckRows().map(r=>r.d.id).join('');
+test('deck search matches deck names and commander names',()=>{
+ const h=filterHarness();assert.equal(names(h),'dabc');
+ h.el('df').value='tymna';assert.equal(names(h),'b');
+ h.el('df').value='atraxa';assert.equal(names(h),'a');
+});
+test('color filter needs every chosen color; exact limits to exactly those colors',()=>{
+ const h=filterHarness();h.api.deckInkSel.add('Green');assert.equal(names(h),'abc');
+ h.api.deckInkSel.add('Blue');assert.equal(names(h),'abc');
+ h.el('dExact').checked=true;assert.equal(names(h),'c');
+});
+test('rules, bracket, contains-card and sort filters',()=>{
+ const h=filterHarness();
+ h.el('dBracket').value='5';assert.equal(names(h),'b');h.el('dBracket').value='all';
+ h.el('dStatus').value='short';assert.equal(names(h),'dabc');
+ h.el('dCard').value='sol ring';assert.equal(names(h),'ac');h.el('dCard').value='';h.el('dStatus').value='all';
+ h.el('dSort').value='name';assert.equal(names(h),'abdc');
+});
+test('deck home shows a match count and a no-match message',()=>{
+ const h=filterHarness();h.api.renderDecks();assert.equal(h.el('dCount').textContent,'4 decks');
+ h.el('df').value='tymna';h.api.renderDecks();assert.equal(h.el('dCount').textContent,'Showing 1 of 4 decks');
+ h.el('df').value='zzz';h.api.renderDecks();assert.match(h.el('deckList').innerHTML,/No decks match/);
 });
