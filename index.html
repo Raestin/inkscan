@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=19">
+<link rel="stylesheet" href="app.css?v=20">
 </head>
 <body>
 <header class="top">
@@ -131,6 +131,7 @@
           <div class="chips" id="deckInks"></div>
           <label class="note"><input type="checkbox" id="dFav"> ♥ Favorites only</label>
           <label class="note"><input type="checkbox" id="dExact"> Exactly these colors</label>
+          <label id="dFormatWrap" hidden>Format <select id="dFormat"><option value="all">All formats</option></select></label>
           <label id="dStatusWrap">Rules <select id="dStatus"><option value="all">All decks</option><option value="pass">Rules pass</option><option value="fix">Fix rules</option><option value="short">Not finished (under size)</option></select></label>
           <label id="dBracketWrap" hidden>Bracket <select id="dBracket"><option value="all">All brackets</option></select></label>
           <label>Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option></select></label>
@@ -154,6 +155,7 @@
         </div>
       </div>
       <input type="text" id="deckName" class="deckname" aria-label="Deck name" maxlength="60">
+      <label class="row note" id="deckFormatWrap" hidden>Format <select id="deckFormatSel" class="slim"></select></label>
       <label class="row note" id="deckBracketWrap" hidden>Bracket <select id="deckBracketSel" class="slim"><option value="">Not set</option><option value="1">1 · Exhibition</option><option value="2">2 · Core</option><option value="3">3 · Upgraded</option><option value="4">4 · Optimized</option><option value="5">5 · cEDH</option></select></label>
       <details class="filterbox" id="deckGuide" hidden><summary>Overview &amp; strategy</summary><div class="stack dguide" id="deckGuideBody"></div></details>
       <div class="deckstats" id="deckStats"></div>
@@ -230,10 +232,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=19"></script>
-<script src="catalog.js?v=19"></script>
-<script src="legality.js?v=19"></script>
-<script src="games.js?v=19"></script>
-<script src="app.js?v=19"></script>
+<script src="safety.js?v=20"></script>
+<script src="catalog.js?v=20"></script>
+<script src="legality.js?v=20"></script>
+<script src="games.js?v=20"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

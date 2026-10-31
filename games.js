@@ -85,6 +85,16 @@
     types: ['Creature','Instant','Sorcery','Artifact','Enchantment','Planeswalker','Land','Battle'],
     legality: false, inkable: false, live: true,
     priceSource: 'TCGplayer market via Scryfall',
+    // Deck formats. Legality for each comes from Scryfall's legalities, so ban lists stay current.
+    formats: {
+      commander: {label: 'Commander', size: 100, exact: true, maxCopies: 1, commander: true},
+      pauper: {label: 'Pauper', size: 60, maxCopies: 4},
+      standard: {label: 'Standard', size: 60, maxCopies: 4},
+      pioneer: {label: 'Pioneer', size: 60, maxCopies: 4},
+      modern: {label: 'Modern', size: 60, maxCopies: 4},
+      legacy: {label: 'Legacy', size: 60, maxCopies: 4},
+      vintage: {label: 'Vintage', size: 60, maxCopies: 4}
+    },
     deck: {size: 100, maxCopies: 1, maxColors: 0, handSize: 7, commander: true, singletonExempt: c => /\bBasic\b/.test(c.ty) || /A deck can have any number of cards named/i.test(c.tx || '')},
     // Commander rules (CR 903). Front face decides; Scryfall keeps the full color identity in c.i.
     canCommand(c){
@@ -158,7 +168,8 @@
         tx: card.oracle_text ?? (card.card_faces || []).map(x => x.oracle_text || '').join('\n//\n'),
         p: f(pr.usd), pf: f(pr.usd_foil), pe: f(pr.usd_etched), t: card.tcgplayer_id || null,
         img: img.small || '', imgN: img.normal || '', fn: card.finishes || [], rel: card.released_at || '', oid: card.oracle_id || '',
-        lg: card.legalities?.commander || '', gc: !!card.game_changer, dg: !!card.digital
+        lg: card.legalities?.commander || '', gc: !!card.game_changer, dg: !!card.digital,
+        lgs: Object.fromEntries(['commander','pauper','standard','pioneer','modern','legacy','vintage'].map(f => [f, card.legalities?.[f] || 'not_legal']))
       };
     }
   };

@@ -91,7 +91,7 @@ function currentLegalityIndex(){
   return legalityIndex;
 }
 function legalityOf(card){return LORCANA?currentLegalityIndex().status(card):{status:'unknown',reason:'rules-missing',anchor:null};}
-function legalityMatches(card,filter){return !filter||filter==='all'||legalityOf(card).status===filter;}
+function legalityMatches(card,filter){if(!filter||filter==='all')return true;if(G.formats)return ['legal','restricted'].includes(legalIn(card,filter));return legalityOf(card).status===filter;}
 const legalityLabel=status=>({legal:'Standard legal',not_legal:'Not legal for Standard',unknown:'Eligibility unknown'})[status]||'Eligibility unknown';
 function legalityReason(reason){return ({
   'current-set-identity':'This full card name and version is in a verified eligible set.',
@@ -1023,6 +1023,12 @@ function refreshBrowseBadges(){
    ========================================================= */
 let curDeck = null, dsub = 'list', handIds = null;
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+/* Per-deck rules: the deck's format for MTG, otherwise the game's single deck rule set. */
+const FORMATS=G.formats||null;
+function deckFormat(d){ return FORMATS ? (FORMATS[d?.format]?d.format:'commander') : null; }
+function deckRules(d){ if(!FORMATS) return {...G.deck,key:null}; const f=FORMATS[deckFormat(d)]; return {...G.deck,...f,commander:!!f.commander,exact:!!f.exact,key:deckFormat(d)}; }
+// A card's status in a format: 'legal' | 'restricted' | 'banned' | 'not_legal' | undefined (not looked up yet).
+function legalIn(c,fmt){ return c?.lgs?.[fmt] ?? (fmt==='commander'&&c?.lg ? c.lg : undefined); }
 function deckCount(d){ return Object.values(d.cards).reduce((a,b)=>a+b,0); }
 function deckInks(d){ const s=new Set(); for (const nv of Object.keys(d.cards)) for (const i of (repOf(nv)?.inks||[])) s.add(i); return [...s].sort((a,b)=>INKS.indexOf(a)-INKS.indexOf(b)); }
 /* MTG Commander: who leads the deck, its color identity, and what breaks the rules. */
@@ -1042,7 +1048,7 @@ function commanderCheck(d){
 const offIdentity=(c,identity)=>c.inks.some(i=>i!=='Colorless' && !identity.includes(i));
 function deckStats(d){
   let leaders=0, offColor=0, overCopies=0, banned=0, notLegal=0, unchecked=0, gameChangers=0, gcUnknown=0; const gcNames=[];
-  const cmd = G.deck?.commander ? commanderCheck(d) : null;
+  const R = deckRules(d), cmd = R.commander ? commanderCheck(d) : null;
   let total=0, inkable=0, missing=0, missCost=0, missingUnpriced=0, value=0; const curve=Array(8).fill(0); const types={};
   for (const [nv,q] of Object.entries(d.cards)){
     const c = repOf(nv); if(!c) continue;
@@ -1050,21 +1056,24 @@ function deckStats(d){
     curve[Math.min(7, Math.max(0,c.co||0))]+=q;
     const t = c.ty.split('/')[0]; types[t]=(types[t]||0)+q;
     const m=Math.max(0,q-ownedNV(nv)),price=cheapest(nv);missing+=m;if(price===null)missingUnpriced+=m;else missCost+=m*price;
-    if (!LORCANA && G.deck.leaderType && c.ty===G.deck.leaderType) leaders+=q;
-    if (!LORCANA && q>G.deck.maxCopies && !(G.deck.singletonExempt&&G.deck.singletonExempt(c))) overCopies++;
+    if (!LORCANA && R.leaderType && c.ty===R.leaderType) leaders+=q;
+    if (!LORCANA && q>(R.key&&legalIn(c,R.key)==='restricted'?1:R.maxCopies) && !(R.singletonExempt&&R.singletonExempt(c))) overCopies++;
+    if (R.key){
+      if (cmd && cmd.cmds.length && !cmd.nvs.includes(nv) && offIdentity(c,cmd.identity)) offColor+=q;
+      const L=legalIn(c,R.key);
+      if (L==='banned') banned+=q; else if (L==='not_legal') notLegal+=q; else if (L!=='legal'&&L!=='restricted') unchecked+=q;
+    }
     if (cmd){
-      if (cmd.cmds.length && !cmd.nvs.includes(nv) && offIdentity(c,cmd.identity)) offColor+=q;
-      if (c.lg==='banned') banned+=q; else if (c.lg==='not_legal') notLegal+=q; else if (c.lg!=='legal') unchecked+=q;
       if (c.gc===true){ gameChangers++; gcNames.push(c.n); } else if (c.gc===undefined) gcUnknown++;
     }
   }
-  if (!LORCANA && G.deck.leaderType){
-    const leader=Object.keys(d.cards).map(repOf).find(c=>c&&c.ty===G.deck.leaderType);
+  if (!LORCANA && R.leaderType){
+    const leader=Object.keys(d.cards).map(repOf).find(c=>c&&c.ty===R.leaderType);
     if (leader) for (const [nv,q] of Object.entries(d.cards)){ const c=repOf(nv); if(c&&c!==leader&&!c.inks.some(i=>leader.inks.includes(i))) offColor+=q; }
   }
   const main = total - leaders;
   const bracket = cmd ? deckBracket(d) : null, gcOver = bracket && gameChangers>GC_LIMIT[bracket] ? true : false;
-  return {total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, gameChangers, gcNames, gcUnknown, bracket, gcOver, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : deckInks(d)};
+  return {format:R.key, formatLabel:R.label, size:R.size, exact:!!R.exact, total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, gameChangers, gcNames, gcUnknown, bracket, gcOver, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : (()=>{ const x=deckInks(d); return x.length>1 ? x.filter(i=>i!=='Colorless') : x; })()};
 }
 /* returns true or a message explaining why it couldn't add */
 function deckAdd(d, nv, n){
@@ -1075,10 +1084,11 @@ function deckAdd(d, nv, n){
     if (!d.cards[nv] && inks.size>2) return 'A deck can only use 2 inks';
   }
   if (n>0 && !LORCANA){
-    const c = repOf(nv);
-    if (G.deck.leaderType && c?.ty===G.deck.leaderType && next>1) return 'A deck has exactly one Leader';
-    if (G.deck.leaderType && c?.ty===G.deck.leaderType && !d.cards[nv] && Object.keys(d.cards).some(k=>repOf(k)?.ty===G.deck.leaderType)) return 'This deck already has a Leader. Remove it first.';
-    if (next>G.deck.maxCopies && !(G.deck.singletonExempt&&G.deck.singletonExempt(c))) return G.deck.maxCopies===1?'Commander decks are singleton: one copy of each card except basic lands':`A deck can have at most ${G.deck.maxCopies} copies of a card`;
+    const c = repOf(nv), R = deckRules(d), maxQ = R.key&&legalIn(c,R.key)==='restricted' ? 1 : R.maxCopies;
+    if (R.leaderType && c?.ty===R.leaderType && next>1) return 'A deck has exactly one Leader';
+    if (R.leaderType && c?.ty===R.leaderType && !d.cards[nv] && Object.keys(d.cards).some(k=>repOf(k)?.ty===R.leaderType)) return 'This deck already has a Leader. Remove it first.';
+    if (R.key && n>0 && !d.cards[nv] && ['banned','not_legal'].includes(legalIn(c,R.key))) return `${c.n} is ${legalIn(c,R.key)==='banned'?'banned':'not legal'} in ${R.label}`;
+    if (next>maxQ && !(R.singletonExempt&&R.singletonExempt(c))) return R.maxCopies===1?'Commander decks are singleton: one copy of each card except basic lands':maxQ===1?`${c.n} is restricted in ${R.label}: one copy only`:`A deck can have at most ${maxQ} copies of a card`;
   }
   if (next<=0){ delete d.cards[nv]; if (d.commanders?.includes(nv)) d.commanders=d.commanders.filter(k=>k!==nv); } else d.cards[nv]=next;
   d.updated = Date.now(); saveDecks(); return true;
@@ -1101,10 +1111,10 @@ const deckBracket=d=>d.bracket?String(d.bracket):(/^B([1-5])\s*[·.\-:]/.exec(d.
 // Commander Brackets (beta, Feb 2026): Game Changers none in 1-2, up to 3 in 3, any in 4-5.
 const GC_LIMIT={1:0,2:0,3:3,4:Infinity,5:Infinity};
 function deckRulesState(st){
-  if(!st.cmd) return null;
-  const size=G.deck.size;
+  if(!st.format) return null;
+  const size=st.size, sizeBad=st.exact?st.main!==size:st.main<size, cp=st.cmd?.problem;
   if(st.main<size) return 'short';
-  return !st.cmd.problem&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.gcOver&&!st.unchecked&&st.main===size?'pass':(st.cmd.problem||st.offColor||st.overCopies||st.banned||st.notLegal||st.gcOver||st.main!==size)?'fix':'unchecked';
+  return !cp&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.gcOver&&!st.unchecked&&!sizeBad?'pass':(cp||st.offColor||st.overCopies||st.banned||st.notLegal||st.gcOver||sizeBad)?'fix':'unchecked';
 }
 function deckLead(d,st){
   const cmd=st.cmd?.cmds?.[0]; if(cmd) return cmd;
@@ -1112,7 +1122,7 @@ function deckLead(d,st){
   return lead&&repOf(lead[0]);
 }
 function deckFilterCount(){
-  const n=($('dFav').checked?1:0)+deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
+  const n=(FORMATS&&$('dFormat').value!=='all'?1:0)+($('dFav').checked?1:0)+deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
   $('dFilterCount').textContent=n?`(${n} on)`:'';
 }
 function deckRows(){
@@ -1120,6 +1130,7 @@ function deckRows(){
   const rows=[];
   for(const d of decks){
     if(favOnly && !d.favorite) continue;
+    if(FORMATS && $('dFormat').value!=='all' && deckFormat(d)!==$('dFormat').value) continue;
     const st=deckStats(d);
     if(q && !norm(d.name+' '+(st.cmd?.cmds||[]).map(c=>c.n).join(' ')).includes(q)) continue;
     if(deckInkSel.size){
@@ -1145,7 +1156,7 @@ function deckRows(){
 }
 function deckItemHTML({d,st}){
   const c=deckLead(d,st), rules=deckRulesState(st), cmdNames=(st.cmd?.cmds||[]).map(x=>x.n).join(' + ');
-  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}">${d.favorite?'♥':'♡'}</button></div>`;
+  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.format&&st.format!=='commander'?`${esc(st.formatLabel)} · `:''}${LORCANA?st.total:st.main}/${LORCANA?60:st.size||G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}">${d.favorite?'♥':'♡'}</button></div>`;
 }
 function renderDecks(keepScroll){
   if (curDeck){ renderDeckEdit(keepScroll); return; }
@@ -1153,6 +1164,7 @@ function renderDecks(keepScroll){
   const hasDecks=decks.length>0;
   for(const id of ['df','dFilters','dCount']) $(id).hidden=!hasDecks;
   $('dStatusWrap').hidden=!G.deck?.commander;
+  $('dFormatWrap').hidden=!FORMATS;
   const brackets=[...new Set(decks.map(deckBracket).filter(Boolean))].sort();
   $('dBracketWrap').hidden=!brackets.length;
   const cur=$('dBracket').value||'all';
@@ -1165,10 +1177,11 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML=rows.length?rows.map(deckItemHTML).join(''):`<div class="empty"><strong>No decks match</strong>Change the search or tap Reset deck filters.</div>`;
 }
 let dfT; for(const id of ['df','dCard']) $(id).addEventListener('input',()=>{ clearTimeout(dfT); dfT=setTimeout(()=>renderDecks(),150); });
-for(const id of ['dStatus','dBracket','dOwn','dSort','dExact','dFav']) $(id).onchange=()=>renderDecks();
+for(const id of ['dStatus','dBracket','dOwn','dSort','dExact','dFav','dFormat']) $(id).onchange=()=>renderDecks();
+if(FORMATS){ $('dFormat').innerHTML='<option value="all">All formats</option>'+Object.entries(FORMATS).map(([k,f])=>`<option value="${k}">${f.label}</option>`).join(''); $('deckFormatSel').innerHTML=Object.entries(FORMATS).map(([k,f])=>`<option value="${k}">${f.label}</option>`).join(''); }
 $('dFavFirst').checked=lsGet('inkscan.favFirst',true)!==false;
 $('dFavFirst').onchange=()=>{ lsSet('inkscan.favFirst',$('dFavFirst').checked); renderDecks(); };
-$('dReset').onclick=()=>{ $('dFav').checked=false;$('dFavFirst').checked=true;lsSet('inkscan.favFirst',true);$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
+$('dReset').onclick=()=>{ if(FORMATS) $('dFormat').value='all'; $('dFav').checked=false;$('dFavFirst').checked=true;lsSet('inkscan.favFirst',true);$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
 inkChips($('deckInks'),deckInkSel,()=>renderDecks());
 function toggleFavorite(d){ if(!d) return; if(d.favorite) delete d.favorite; else d.favorite=true; saveDecks(); /* not an edit: keeps its place in Recently edited */ toast(d.favorite?`Added ${d.name} to favorites`:`Removed ${d.name} from favorites`); }
 $('deckList').addEventListener('click', e=>{ const f=e.target.closest('[data-fav]'); if(f){ const y=window.scrollY; toggleFavorite(decks.find(x=>x.id===f.dataset.fav)); renderDecks(); window.scrollTo(0,y); return; } const b=e.target.closest('[data-deck]'); if(b){ deckHomeScroll=window.scrollY; curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
@@ -1180,14 +1193,15 @@ $('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,dec
 $('deckName').addEventListener('change', ()=>{ const d=getDeck(); if(!d) return; d.name=$('deckName').value.trim()||'Untitled deck'; d.updated=Date.now(); saveDecks(); });
 document.querySelectorAll('[data-dsub]').forEach(b=>b.onclick=()=>{ dsub=b.dataset.dsub; renderDeckEdit(); });
 $('deckFavBtn').onclick=()=>{ toggleFavorite(getDeck()); renderDeckEdit(true); };
+$('deckFormatSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=$('deckFormatSel').value; if(v==='commander') delete d.format; else d.format=v; d.updated=Date.now(); saveDecks(); legalityFilled.delete(d.id); renderDeckEdit(true); toast(`Format set to ${FORMATS[deckFormat(d)].label}`); };
 $('deckBracketSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=+$('deckBracketSel').value; if(v>=1&&v<=5) d.bracket=v; else delete d.bracket; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); };
 function getDeck(){ return decks.find(d=>d.id===curDeck); }
 
 /* Cards cached before the ban check existed carry no Commander legality. Fetch just those, once per deck per visit. */
 const legalityFilled=new Set();
 async function fillDeckLegality(d){
-  if(!G.deck?.commander||!G.live||!navigator.onLine||legalityFilled.has(d.id)) return;
-  const ids=[...new Set(Object.keys(d.cards).map(repOf).filter(c=>c&&(!c.lg||c.gc===undefined)&&c.id.startsWith('sf_')).map(c=>c.id.slice(3)))];
+  if(!FORMATS||!G.live||!navigator.onLine||legalityFilled.has(d.id)) return;
+  const ids=[...new Set(Object.keys(d.cards).map(repOf).filter(c=>c&&(!c.lgs||c.gc===undefined)&&c.id.startsWith('sf_')).map(c=>c.id.slice(3)))];
   legalityFilled.add(d.id);
   try{
     for(let i=0;i<ids.length;i+=75){ const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:ids.slice(i,i+75).map(id=>({id}))})}); addLiveCards((j?.data||[]).map(G.fromScryfall)); }
@@ -1218,7 +1232,9 @@ function renderDeckEdit(keepScroll){
   fillDeckLegality(d);
   $('deckHome').hidden=true; $('deckEdit').hidden=false;
   if (document.activeElement!==$('deckName')) $('deckName').value = d.name;
-  $('deckBracketWrap').hidden=!G.deck?.commander; if(G.deck?.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
+  const R=deckRules(d);
+  $('deckFormatWrap').hidden=!FORMATS; if(FORMATS) $('deckFormatSel').value=deckFormat(d);
+  $('deckBracketWrap').hidden=!R.commander; if(R.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
   renderDeckGuide(d);
   $('deckFavBtn').setAttribute('aria-pressed',!!d.favorite); $('deckFavBtn').textContent=d.favorite?'♥':'♡'; $('deckFavBtn').setAttribute('aria-label',d.favorite?'Remove from favorites':'Add to favorites');
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
@@ -1229,23 +1245,27 @@ function renderDeckEdit(keepScroll){
   if (st.inks.length>2) warns.push(`<span class="chip warn">More than 2 inks</span>`);
   if (st.total>=60 && st.inks.length<=2) warns.push(`<span class="chip">Size / ink check only</span>`);
   } else {
-    const size=G.deck.size;
+    const size=st.size||G.deck.size;
     if (st.main<size) warns.push(`<span class="chip warn">${size-st.main} more cards needed</span>`);
-    if (st.main>size) warns.push(`<span class="chip warn">${st.main-size} cards over ${size}</span>`);
+    if (st.main>size && (st.exact||!st.format)) warns.push(`<span class="chip warn">${st.main-size} cards over ${size}</span>`);
     if (G.deck.leaderType && st.leaders!==1) warns.push(`<span class="chip warn">${st.leaders?'More than one Leader':'No Leader yet'}</span>`);
     if (st.overCopies) warns.push(`<span class="chip warn">${st.overCopies} cards over the copy limit</span>`);
+    if (st.format){
+      if (st.banned) warns.push(`<span class="chip warn">${st.banned} banned in ${esc(st.formatLabel)}</span>`);
+      if (st.notLegal) warns.push(`<span class="chip warn">${st.notLegal} not legal in ${esc(st.formatLabel)}</span>`);
+      if (st.unchecked) warns.push(`<span class="chip">${st.unchecked} not checked for ${esc(st.formatLabel)} yet${navigator.onLine?'':' (offline)'}</span>`);
+      if (!st.cmd && deckRulesState(st)==='pass') warns.push(`<span class="chip">${esc(st.formatLabel)} rules pass</span>`);
+    }
     if (st.cmd){
       if (st.cmd.problem) warns.push(`<span class="chip warn">${esc(st.cmd.problem)}</span>`);
       if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards outside ${esc(st.cmd.identity.join(' / ')||'colorless')} identity</span>`);
-      if (st.banned) warns.push(`<span class="chip warn">${st.banned} banned in Commander</span>`);
-      if (st.notLegal) warns.push(`<span class="chip warn">${st.notLegal} not legal in Commander</span>`);
-      if (st.unchecked) warns.push(`<span class="chip">${st.unchecked} not checked for bans yet${navigator.onLine?'':' (offline)'}</span>`);
+
       if (st.gcOver) warns.push(`<span class="chip warn" title="${esc(st.gcNames.join(', '))}">${st.gameChangers} Game Changer${st.gameChangers===1?'':'s'}: Bracket ${st.bracket} allows ${GC_LIMIT[st.bracket]||'none'}</span>`);
       else if (st.gameChangers) warns.push(`<span class="chip" title="${esc(st.gcNames.join(', '))}">${st.gameChangers} Game Changer${st.gameChangers===1?'':'s'}</span>`);
       if (st.main===size && !st.cmd.problem && !st.offColor && !st.overCopies && !st.banned && !st.notLegal && !st.gcOver && !st.unchecked) warns.push(`<span class="chip">Commander rules pass</span>`);
     }
     else if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
-    if (!st.cmd && st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
+    if (!st.format && st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
   }
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
@@ -1257,12 +1277,12 @@ function renderDeckEdit(keepScroll){
 function deckRowHTML(nv, q, d){
   const c = repOf(nv); const own = ownedNV(nv); const short = Math.max(0,q-own);
   return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:esc(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">own ${own} of ${q}</span>`:`own ${own}`}</div></div>
-    <div class="acts">${G.deck?.commander&&G.canCommand(c)?(()=>{const on=deckCommanders(d).includes(nv);return `<button data-act="cmd" data-nv="${esc(nv)}" aria-pressed="${on}" aria-label="${on?'Remove as commander':'Make commander'}" title="${on?'Remove as commander':'Make commander'}">★</button>`;})():''}<button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:G.deck.maxCopies))?'disabled':''}>+</button></div></div></div>`;
+    <div class="acts">${deckRules(d).commander&&G.canCommand(c)?(()=>{const on=deckCommanders(d).includes(nv);return `<button data-act="cmd" data-nv="${esc(nv)}" aria-pressed="${on}" aria-label="${on?'Remove as commander':'Make commander'}" title="${on?'Remove as commander':'Make commander'}">★</button>`;})():''}<button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:(deckRules(d).key&&legalIn(c,deckRules(d).key)==='restricted'?1:deckRules(d).maxCopies)))?'disabled':''}>+</button></div></div></div>`;
 }
 function renderDeckList(d){
   const entries = Object.entries(d.cards).map(([nv,q])=>({nv,q,c:repOf(nv)})).filter(x=>x.c);
   if (!entries.length){ $('deckListPane').innerHTML = `<div class="list"><div class="empty"><strong>Empty deck</strong>Switch to Add cards to start building.</div></div>`; return; }
-  const cmdNVs = G.deck?.commander ? deckCommanders(d) : [];
+  const cmdNVs = deckRules(d).commander ? deckCommanders(d) : [];
   const groups = LORCANA ? [['Characters',x=>isType(x.c,'Character')],['Actions & songs',x=>isType(x.c,'Action')],['Items',x=>isType(x.c,'Item')],['Locations',x=>isType(x.c,'Location')]] : [...(cmdNVs.length?[[cmdNVs.length>1?'Commanders':'Commander',x=>cmdNVs.includes(x.nv)]]:[]),...G.deckGroups.map(([label,fn])=>[label,x=>fn(x.c)])];
   let html=''; const placed=new Set();
   for (const [label,fn] of groups){
@@ -1287,11 +1307,14 @@ function renderDeckAdd(d, keepScroll){
   const inks = deckInks(d); const q = norm($('dq').value); const ownedOnly = $('dOwned').checked;
   if (LORCANA) $('dInkNote').textContent = inks.length>=2 ? `Showing ${inks.join(' and ')} cards` : inks.length===1 ? `${inks[0]} plus any second ink` : 'Any ink';
   else $('dInkNote').textContent = G.live && !ownedOnly ? 'Searching Scryfall as you type' : '';
-  if (G.live && !ownedOnly) liveSearch($('dq').value).then(added=>{ if(added&&getDeck()===d) renderDeckAdd(d,true); });
+  const fmt=deckRules(d).key;
+  if (FORMATS) $('dInkNote').textContent = `${G.live && !ownedOnly ? 'Searching Scryfall as you type. ' : ''}Showing cards legal in ${FORMATS[fmt].label}`;
+  if (G.live && !ownedOnly) liveSearch($('dq').value+(fmt&&fmt!=='commander'&&$('dq').value.trim().length>=3?` legal:${fmt}`:'')).then(added=>{ if(added&&getDeck()===d) renderDeckAdd(d,true); });
   let list = nvReps.map(ps=>ps.find(c=>!isSpecialCard(c))||ps[0]).filter(c=>{
     if (LORCANA && inks.length>=2 && !c.inks.every(i=>inks.includes(i))) return false;
     if (LORCANA && inks.length===1){ const s=new Set([...inks,...c.inks]); if (s.size>2) return false; }
     if (ownedOnly && !ownedNV(c.nv) && !d.cards[c.nv]) return false;
+    if (fmt && !d.cards[c.nv] && ['banned','not_legal'].includes(legalIn(c,fmt))) return false;
     if (q && !norm(c.n+c.v+c.cl+c.tx).includes(q)) return false;
     return true;
   }).map(c=>repOf(c.nv));
@@ -1427,11 +1450,12 @@ function parseDeckFile(text){
     // owned: these are physical cards in hand, at these exact printings and finishes.
     const bracket=Number.isInteger(d.bracket)&&d.bracket>=1&&d.bracket<=5?d.bracket:null;
     const guide=d.guide&&typeof d.guide==='object'&&!Array.isArray(d.guide)&&JSON.stringify(d.guide).length<=6000?JSON.parse(JSON.stringify(d.guide)):null;
-    return {name:d.name.trim(),cards,commanders,owned:d.owned===true,bracket,guide};
+    const format=typeof d.format==='string'&&G.formats?.[d.format]&&d.format!=='commander'?d.format:null;
+    return {name:d.name.trim(),cards,commanders,owned:d.owned===true,bracket,guide,format};
   });
 }
 const ownedReceipt=d=>'deckfile-owned:'+d.name;
-const needsCard=id=>{ const c=byId.get('sf_'+id); return !c||!c.lg||c.gc===undefined; };
+const needsCard=id=>{ const c=byId.get('sf_'+id); return !c||!c.lgs||c.gc===undefined; };
 function previewDeckFile(list){
   const byName=new Map(decks.map(d=>[d.name,d])), fresh=list.filter(d=>!byName.has(d.name)), same=list.filter(d=>byName.has(d.name));
   const owned=list.filter(d=>d.owned && !Object.hasOwn(savedState?.imports||{},ownedReceipt(d))), addCopies=owned.reduce((n,d)=>n+d.cards.reduce((m,c)=>m+c.qty,0),0);
@@ -1472,9 +1496,9 @@ async function importDeckFile(list, need, owned=[]){
     for(const c of d.cards){ const card=byId.get('sf_'+c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
     unresolved+=miss.length;
     const commanders=d.commanders.map(id=>byId.get('sf_'+id)?.nv).filter(nv=>nv&&cards[nv]);
-    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(d.guide?{guide:d.guide}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
+    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(d.guide?{guide:d.guide}:{}),...(d.format?{format:d.format}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
     const existing=decks.find(x=>x.name===d.name&&!x.deleted);
-    if(existing){ for(const k of ['commanders','bracket','guide','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
+    if(existing){ for(const k of ['commanders','bracket','guide','format','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
     else decks.push({id:uid(),...fields});
   });
   let added=0;
@@ -1601,7 +1625,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1620,7 +1644,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.format)o.format=d.format;else delete o.format;return o;});
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
@@ -1629,6 +1653,7 @@ function deckMeta(value,previous){
   if(value?.bracket) meta.bracket=value.bracket; else delete meta.bracket;
   if(value?.guide) meta.guide=value.guide; else delete meta.guide;
   if(value?.favorite) meta.fav=true; else delete meta.fav;
+  if(value?.format) meta.format=value.format; else delete meta.format;
   return meta;
 }
 async function guardedWrite(operation,previous){
@@ -1875,10 +1900,12 @@ function applyGameLabels(){
   if(G.guide==='bottom-right') $('guide')?.firstElementChild?.classList?.add('right');
   for(const id of ['cFinish','bFinish','scanFinish']){ const el=$(id); if(!el?.options) continue;
     for(const o of [...el.options]){ const k=o.value; if(!['normal','foil','rainbow'].includes(k)) continue; if(!G.finishes[k]) o.remove(); else o.textContent=id==='scanFinish'?G.finishes[k]:`${G.finishes[k]} only`; } }
-  for(const id of ['cLegality','bLegality','scanPrintingScope']){ const el=$(id); const label=el?.closest?.('label'); if(label) label.hidden=true; }
+  for(const id of ['cLegality','bLegality','scanPrintingScope']){ const el=$(id); const label=el?.closest?.('label'); if(!label) continue;
+    if(G.formats && id!=='scanPrintingScope'){ el.innerHTML='<option value="all">Any format</option>'+Object.entries(G.formats).map(([k,f])=>`<option value="${k}">Legal in ${f.label}</option>`).join(''); label.firstChild.textContent='Format '; }
+    else label.hidden=true; }
   const fill=(id,first,values,label)=>{ const el=$(id); if(el) el.innerHTML=`<option value="">${first}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(label?label(v):v)}</option>`).join(''); };
   fill('bType','All types',G.types); fill('bRar','Any rarity',G.rarities,G.rarityLabel);
-  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Checks size, singleton, the commander, color identity and the Commander ban list (from Scryfall). Tap ★ on a legendary creature to make it the commander. Game Changers and bracket rules are not checked.';
+  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Each deck is checked against its format (pick it under the deck name): size, copy limits and the format ban list from Scryfall. Commander decks also check the commander, color identity and Game Changers for the bracket. Sideboards are not tracked yet.';
   const promoNotes=document.querySelectorAll('#vScan > p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
 }
 async function boot(){

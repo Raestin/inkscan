@@ -32,12 +32,12 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={toggleFavorite,deckItemHTML,renderDeckGuide,remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+ source=source.replace('window.__inkscan =',`window.testAPI={legalityMatches,legalIn,deckRules,toggleFavorite,deckItemHTML,renderDeckGuide,remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;savedState=savedState||InkSafety.load(localStorage);session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
  context.testAPI.setCatalog({asof:'2026-10-30',sets:[{code:'tst',name:'Synthetic set'}],cards:JSON.parse(JSON.stringify(CARDS))});
- el('dFav').checked=false; el('dFavFirst').checked=false; for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
+ el('dFav').checked=false; el('dFavFirst').checked=false; for(const [id,v] of Object.entries({dFormat:'all',dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
  return {api:context.testAPI,network,el,storage:localStorage};
 }
 const deck=(names,commanders=[])=>({id:'d1',name:'Synthetic',cards:Object.fromEntries(names.map(n=>[NV(n),1])),commanders:commanders.map(NV),updated:1});
@@ -330,4 +330,52 @@ test('Favorites first pins hearted decks to the top and keeps the chosen order i
  assert.equal(names(h),'dabc');
  h.el('dFavFirst').checked=true;assert.equal(names(h),'acdb');
  h.el('dSort').value='name';assert.equal(names(h),'acbd');
+});
+
+function pauperHarness(){
+ const h=harness();
+ const L=(o)=>({commander:'legal',pauper:'legal',standard:'not_legal',pioneer:'not_legal',modern:'legal',legacy:'legal',vintage:'legal',...o});
+ const cards=[card('20','Lightning Bolt','Instant','3 damage','Red'),card('21','Mountain','Basic Land — Mountain','','Colorless'),card('22','Sol Ring','Artifact','','Colorless'),card('23','Brainstorm','Instant','','Blue'),card('24','Grapeshot','Sorcery','','Red')];
+ cards[0].lgs=L({});cards[1].lgs=L({});cards[2].lgs=L({pauper:'not_legal',modern:'not_legal',legacy:'banned',vintage:'restricted'});cards[3].lgs=L({vintage:'restricted'});cards[4].lgs=L({pauper:'banned'});
+ h.api.setCatalog({asof:'2026-10-31',sets:[{code:'tst',name:'S'}],cards});
+ return h;
+}
+test('Pauper deck: 60-card minimum, 4 copies, basics unlimited, Pauper legality from Scryfall',()=>{
+ const h=pauperHarness();
+ const d={id:'p',name:'Burn',format:'pauper',cards:{[NV('Lightning Bolt')]:4,[NV('Mountain')]:56},updated:1};
+ let st=h.api.deckStats(d);assert.equal(st.format,'pauper');assert.equal(st.size,60);assert.equal(st.cmd,null);assert.equal(st.overCopies,0);assert.equal(st.banned+st.notLegal,0);
+ d.cards[NV('Mountain')]=60;st=h.api.deckStats(d);assert.equal(st.main,64);
+ d.cards[NV('Lightning Bolt')]=5;assert.equal(h.api.deckStats(d).overCopies,1);d.cards[NV('Lightning Bolt')]=4;
+ d.cards[NV('Sol Ring')]=1;d.cards[NV('Grapeshot')]=1;st=h.api.deckStats(d);assert.equal(st.notLegal,1);assert.equal(st.banned,1);
+ delete d.cards[NV('Sol Ring')];delete d.cards[NV('Grapeshot')];d.cards[NV('Mountain')]=50;assert.equal(h.api.deckStats(d).main,54);
+});
+test('adding cards respects the deck format: illegal cards refused, Vintage restricted cards one copy',()=>{
+ const h=pauperHarness();h.api.setState({decks:[{id:'p',name:'P',format:'pauper',cards:{},updated:1},{id:'v',name:'V',format:'vintage',cards:{},updated:1}]});
+ const [p,v]=h.api.getDecks();
+ assert.match(h.api.deckAdd(p,NV('Sol Ring'),1),/not legal in Pauper/);assert.match(h.api.deckAdd(p,NV('Grapeshot'),1),/banned in Pauper/);
+ assert.equal(h.api.deckAdd(p,NV('Lightning Bolt'),4),true);assert.match(h.api.deckAdd(p,NV('Lightning Bolt'),1),/at most 4/);
+ assert.equal(h.api.deckAdd(v,NV('Brainstorm'),1),true);assert.match(h.api.deckAdd(v,NV('Brainstorm'),1),/restricted in Vintage/);
+ assert.equal(h.api.deckRules({}).key,'commander');assert.equal(h.api.deckRules({format:'bogus'}).key,'commander');
+});
+test('format filters: decks by format, and Collection/Browse "Legal in" uses Scryfall legality',()=>{
+ const h=filterHarness();h.api.getDecks().find(d=>d.id==='d').format='pauper';
+ h.el('dFormat').value='pauper';assert.equal(names(h),'d');h.el('dFormat').value='commander';assert.equal(names(h),'abc');
+ const hp=pauperHarness();
+ assert.equal(hp.api.legalityMatches({lgs:{pauper:'legal'}},'pauper'),true);assert.equal(hp.api.legalityMatches({lgs:{pauper:'not_legal'}},'pauper'),false);
+ assert.equal(hp.api.legalityMatches({lgs:{vintage:'restricted'}},'vintage'),true);assert.equal(hp.api.legalityMatches({},'pauper'),false);
+ assert.equal(hp.api.legalityMatches({},'all'),true);
+});
+test('deck format syncs through meta, travels in deck files, and Commander is the default',async()=>{
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},format:'pauper'}]}).decks.a,{name:'A',cards:{},format:'pauper'});
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},format:'commander'}]}).decks.a,{name:'A',cards:{}});
+ assert.throws(()=>S.validate({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},format:'Pauper!'}]}),/invalid format/);
+ const h=harness();h.api.setState({});let call;h.api.setRest(async(...args)=>{call=args;return [{id:'d1'}];});
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{},format:'pauper'}},null);assert.equal(call[2].meta.format,'pauper');
+ assert.equal(h.api.remoteMaps({inv:[],wish:[],decks:[{id:'d1',name:'A',cards:{},deleted:false,commanders:[],meta:{format:'pauper'}}]}).decks.d1.format,'pauper');
+ const f=JSON.parse(DECKFILE());f.decks[0].format='pauper';f.decks[1].format='nonsense';
+ const list=h.api.parseDeckFile(JSON.stringify(f));assert.equal(list[0].format,'pauper');assert.equal(list[1].format,null);
+});
+test('Scryfall conversion keeps every supported format legality',()=>{
+ const c=MTG.fromScryfall({id:'z',name:'Snap',set:'x',collector_number:'1',type_line:'Instant',legalities:{commander:'legal',pauper:'legal',vintage:'restricted'}});
+ assert.equal(c.lgs.pauper,'legal');assert.equal(c.lgs.vintage,'restricted');assert.equal(c.lgs.standard,'not_legal');
 });
