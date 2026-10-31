@@ -85,12 +85,36 @@
     types: ['Creature','Instant','Sorcery','Artifact','Enchantment','Planeswalker','Land','Battle'],
     legality: false, inkable: false, live: true,
     priceSource: 'TCGplayer market via Scryfall',
-    deck: {size: 100, maxCopies: 1, maxColors: 0, handSize: 7, singletonExempt: c => /\bBasic\b/.test(c.ty) || /A deck can have any number of cards named/i.test(c.tx || '')},
+    deck: {size: 100, maxCopies: 1, maxColors: 0, handSize: 7, commander: true, singletonExempt: c => /\bBasic\b/.test(c.ty) || /A deck can have any number of cards named/i.test(c.tx || '')},
+    // Commander rules (CR 903). Front face decides; Scryfall keeps the full color identity in c.i.
+    canCommand(c){
+      const front = String(c?.ty || '').split('//')[0];
+      if (/\bLegendary\b/.test(front) && /\bCreature\b/.test(front)) return true;
+      if (/can be your commander/i.test(c?.tx || '')) return true;
+      return /\bBackground\b/.test(front) && /\bLegendary\b/.test(front);
+    },
+    // Why a pair of commanders is not allowed, or '' when it is.
+    pairProblem(a, b){
+      const tx = c => String(c?.tx || ''), bg = c => /\bBackground\b/.test(String(c?.ty || '').split('//')[0]);
+      const partnerWith = c => (/^Partner with ([^(\n]+?)\s*(?:\(|$)/m.exec(tx(c)) || [])[1] || null;
+      const partnerKind = c => { const m = /^Partner(?:\s*[\u2014-]\s*([^(\n]+?))?\s*(?:\(|$)/m.exec(tx(c)); return m && !/^Partner with /m.test(tx(c)) ? (m[1] || '').trim().toLowerCase() || 'any' : null; };
+      const has = (c, re) => re.test(tx(c));
+      if (norm(a?.n) === norm(b?.n)) return 'A deck can only have one copy of each commander';
+      const wa = partnerWith(a), wb = partnerWith(b);
+      if (wa || wb) return wa && wb && norm(wa) === norm(b.n) && norm(wb) === norm(a.n) ? '' : `${a.n} and ${b.n} are not each other's named partner`;
+      const ka = partnerKind(a), kb = partnerKind(b);
+      if (ka && kb && ka === kb) return '';
+      if (has(a, /^Friends forever/m) && has(b, /^Friends forever/m)) return '';
+      if ((has(a, /^Choose a Background/m) && bg(b)) || (has(b, /^Choose a Background/m) && bg(a))) return '';
+      const doctor = c => /\bTime Lord Doctor\b/.test(c?.ty || '');
+      if ((has(a, /^Doctor's companion/m) && doctor(b)) || (has(b, /^Doctor's companion/m) && doctor(a))) return '';
+      return `${a.n} and ${b.n} can't be commanders together`;
+    },
     searchPlaceholder: 'Search Scryfall (needs signal)',
     scanPlaceholder: 'Card name, or set and number like MH3 123',
     scanHint: 'Line the card up in the frame. The set code and number at the bottom left go in the gold box.',
     guide: 'bottom-left',
-    deckFormatNote: 'Decklists use one card per line, like "1 Sol Ring". Set and number in parentheses are ignored when importing.',
+    deckFormatNote: 'Decklists use one card per line, like "1 Sol Ring". Set and number in parentheses are ignored when importing. Cards under a "Commander" heading become the commander.',
     nvKey: c => norm(c.n) + '|',
     setLabel: c => String(c.s || '').toUpperCase(),
     imgUrl: (c, size) => size === 'normal' ? (c.imgN || c.img || '') : (c.img || ''),
@@ -133,7 +157,8 @@
         mc: card.mana_cost ?? face.mana_cost ?? '',
         tx: card.oracle_text ?? (card.card_faces || []).map(x => x.oracle_text || '').join('\n//\n'),
         p: f(pr.usd), pf: f(pr.usd_foil), pe: f(pr.usd_etched), t: card.tcgplayer_id || null,
-        img: img.small || '', imgN: img.normal || '', fn: card.finishes || [], rel: card.released_at || '', oid: card.oracle_id || ''
+        img: img.small || '', imgN: img.normal || '', fn: card.finishes || [], rel: card.released_at || '', oid: card.oracle_id || '',
+        lg: card.legalities?.commander || ''
       };
     }
   };

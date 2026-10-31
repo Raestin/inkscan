@@ -13,7 +13,9 @@
     if(!(v.q||v.f||v.rf)) return null;
     return {q:v.q||0,f:v.f||0,...(v.rf?{rf:v.rf}:{})};
   }
-  const deckValue = d => d && !d.deleted ? {name:d.name,cards:sorted(d.cards)} : null;
+  // Commanders travel with the deck only when set, so decks without one keep their exact earlier shape.
+  const commandersOf = d => Array.isArray(d?.commanders) ? d.commanders.filter(k=>typeof k==='string'&&k) : [];
+  const deckValue = d => { if(!d || d.deleted) return null; const cmd=commandersOf(d); return {name:d.name,cards:sorted(d.cards),...(cmd.length?{commanders:cmd}:{})}; };
   function maps(state){
     return {
       inv:Object.fromEntries(Object.entries(state.inv||{}).map(([id,v])=>[id,invValue(v)]).filter(([,v])=>v)),
@@ -64,7 +66,7 @@
     for(const v of Object.values(state.inv)) if(!record(v) || !validInvQuantities(v)) throw Error('Saved collection has an invalid quantity.');
     for(const v of Object.values(state.wish)) if(!qty(v)) throw Error('Saved wishlist has an invalid quantity.');
     const ids=new Set();
-    for(const d of state.decks){if(!d || typeof d.id!=='string' || ids.has(d.id) || typeof d.name!=='string' || !record(d.cards)) throw Error('Saved deck is invalid or duplicated.');ids.add(d.id);for(const v of Object.values(d.cards)) if(!qty(v)) throw Error('Saved deck has an invalid quantity.');}
+    for(const d of state.decks){if(!d || typeof d.id!=='string' || ids.has(d.id) || typeof d.name!=='string' || !record(d.cards)) throw Error('Saved deck is invalid or duplicated.');ids.add(d.id);for(const v of Object.values(d.cards)) if(!qty(v)) throw Error('Saved deck has an invalid quantity.');if(d.commanders!=null && (!Array.isArray(d.commanders) || d.commanders.length>2 || d.commanders.some(k=>typeof k!=='string'||!k||k.length>500))) throw Error('Saved deck has an invalid commander.');}
     return state;
   }
   const KEY='inkscan.state.v6';

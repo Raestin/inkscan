@@ -302,7 +302,8 @@ async function liveNames(names){
   return added;
 }
 async function refreshLivePrices(btn){
-  const ids=[...new Set([...Object.keys(inv),...Object.keys(wish)])].filter(id=>id.startsWith('sf_')).map(id=>id.slice(3));
+  const deckIds=decks.flatMap(d=>Object.keys(d.cards).map(nv=>repOf(nv)?.id)).filter(Boolean);
+  const ids=[...new Set([...Object.keys(inv),...Object.keys(wish),...deckIds])].filter(id=>id.startsWith('sf_')).map(id=>id.slice(3));
   if(btn) btn.disabled=true; let n=0;
   try{
     for(let i=0;i<ids.length;i+=75){
@@ -1013,8 +1014,24 @@ let curDeck = null, dsub = 'list', handIds = null;
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 function deckCount(d){ return Object.values(d.cards).reduce((a,b)=>a+b,0); }
 function deckInks(d){ const s=new Set(); for (const nv of Object.keys(d.cards)) for (const i of (repOf(nv)?.inks||[])) s.add(i); return [...s].sort((a,b)=>INKS.indexOf(a)-INKS.indexOf(b)); }
+/* MTG Commander: who leads the deck, its color identity, and what breaks the rules. */
+function deckCommanders(d){ return (d.commanders||[]).filter(nv=>d.cards[nv]>0 && repOf(nv)); }
+function commanderCheck(d){
+  const nvs=deckCommanders(d), cmds=nvs.map(repOf), out={nvs, cmds, identity:[], problem:''};
+  for (const c of cmds) for (const i of c.inks) if (i!=='Colorless' && !out.identity.includes(i)) out.identity.push(i);
+  out.identity.sort((a,b)=>INKS.indexOf(a)-INKS.indexOf(b));
+  const bad=cmds.find(c=>!G.canCommand(c));
+  if (!cmds.length) out.problem='No commander yet';
+  else if (bad) out.problem=`${bad.n} can't be a commander`;
+  else if (cmds.length>2) out.problem='A deck can have at most two commanders';
+  else if (cmds.length===2) out.problem=G.pairProblem(cmds[0],cmds[1]);
+  else if (/\bBackground\b/.test(cmds[0].ty.split('//')[0])) out.problem='A Background needs a commander with Choose a Background';
+  return out;
+}
+const offIdentity=(c,identity)=>c.inks.some(i=>i!=='Colorless' && !identity.includes(i));
 function deckStats(d){
-  let leaders=0, offColor=0, overCopies=0;
+  let leaders=0, offColor=0, overCopies=0, banned=0, notLegal=0, unchecked=0;
+  const cmd = G.deck?.commander ? commanderCheck(d) : null;
   let total=0, inkable=0, missing=0, missCost=0, missingUnpriced=0, value=0; const curve=Array(8).fill(0); const types={};
   for (const [nv,q] of Object.entries(d.cards)){
     const c = repOf(nv); if(!c) continue;
@@ -1024,13 +1041,17 @@ function deckStats(d){
     const m=Math.max(0,q-ownedNV(nv)),price=cheapest(nv);missing+=m;if(price===null)missingUnpriced+=m;else missCost+=m*price;
     if (!LORCANA && G.deck.leaderType && c.ty===G.deck.leaderType) leaders+=q;
     if (!LORCANA && q>G.deck.maxCopies && !(G.deck.singletonExempt&&G.deck.singletonExempt(c))) overCopies++;
+    if (cmd){
+      if (cmd.cmds.length && !cmd.nvs.includes(nv) && offIdentity(c,cmd.identity)) offColor+=q;
+      if (c.lg==='banned') banned+=q; else if (c.lg==='not_legal') notLegal+=q; else if (c.lg!=='legal') unchecked+=q;
+    }
   }
   if (!LORCANA && G.deck.leaderType){
     const leader=Object.keys(d.cards).map(repOf).find(c=>c&&c.ty===G.deck.leaderType);
     if (leader) for (const [nv,q] of Object.entries(d.cards)){ const c=repOf(nv); if(c&&c!==leader&&!c.inks.some(i=>leader.inks.includes(i))) offColor+=q; }
   }
   const main = total - leaders;
-  return {total, main, leaders, offColor, overCopies, inkable, missing, missCost, missingUnpriced, curve, types, inks: deckInks(d)};
+  return {total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : deckInks(d)};
 }
 /* returns true or a message explaining why it couldn't add */
 function deckAdd(d, nv, n){
@@ -1046,8 +1067,18 @@ function deckAdd(d, nv, n){
     if (G.deck.leaderType && c?.ty===G.deck.leaderType && !d.cards[nv] && Object.keys(d.cards).some(k=>repOf(k)?.ty===G.deck.leaderType)) return 'This deck already has a Leader. Remove it first.';
     if (next>G.deck.maxCopies && !(G.deck.singletonExempt&&G.deck.singletonExempt(c))) return G.deck.maxCopies===1?'Commander decks are singleton: one copy of each card except basic lands':`A deck can have at most ${G.deck.maxCopies} copies of a card`;
   }
-  if (next<=0) delete d.cards[nv]; else d.cards[nv]=next;
+  if (next<=0){ delete d.cards[nv]; if (d.commanders?.includes(nv)) d.commanders=d.commanders.filter(k=>k!==nv); } else d.cards[nv]=next;
   d.updated = Date.now(); saveDecks(); return true;
+}
+/* Tapping the star makes a card the commander, adds a valid partner, or swaps the commander out. */
+function toggleCommander(d, nv){
+  const c=repOf(nv); if(!c || !d.cards[nv]) return 'Add the card to the deck first';
+  const cur=deckCommanders(d);
+  if (cur.includes(nv)){ d.commanders=cur.filter(k=>k!==nv); d.updated=Date.now(); saveDecks(); return `${c.n} is no longer a commander`; }
+  if (!G.canCommand(c)) return `${c.n} can't be a commander`;
+  if (cur.length===1 && !G.pairProblem(repOf(cur[0]),c)){ d.commanders=[cur[0],nv]; d.updated=Date.now(); saveDecks(); return `${c.n} added as a second commander`; }
+  d.commanders=[nv]; d.updated=Date.now(); saveDecks();
+  return cur.length ? `Commander changed to ${c.n}` : `${c.n} is the commander`;
 }
 function inkSetHTML(inks){ return `<span class="inkset">${inks.map(i=>`<span class="ink ${i}" title="${i}"></span>`).join('')}</span>`; }
 function renderDecks(keepScroll){
@@ -1070,8 +1101,20 @@ $('deckName').addEventListener('change', ()=>{ const d=getDeck(); if(!d) return;
 document.querySelectorAll('[data-dsub]').forEach(b=>b.onclick=()=>{ dsub=b.dataset.dsub; renderDeckEdit(); });
 function getDeck(){ return decks.find(d=>d.id===curDeck); }
 
+/* Cards cached before the ban check existed carry no Commander legality. Fetch just those, once per deck per visit. */
+const legalityFilled=new Set();
+async function fillDeckLegality(d){
+  if(!G.deck?.commander||!G.live||!navigator.onLine||legalityFilled.has(d.id)) return;
+  const ids=[...new Set(Object.keys(d.cards).map(repOf).filter(c=>c&&!c.lg&&c.id.startsWith('sf_')).map(c=>c.id.slice(3)))];
+  legalityFilled.add(d.id); if(!ids.length) return;
+  try{
+    for(let i=0;i<ids.length;i+=75){ const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:ids.slice(i,i+75).map(id=>({id}))})}); addLiveCards((j?.data||[]).map(G.fromScryfall)); }
+    if(getDeck()===d && tab==='decks') renderDeckEdit(true);
+  }catch(e){ legalityFilled.delete(d.id); }
+}
 function renderDeckEdit(keepScroll){
   const d = getDeck(); if(!d){ curDeck=null; renderDecks(); return; }
+  fillDeckLegality(d);
   $('deckHome').hidden=true; $('deckEdit').hidden=false;
   if (document.activeElement!==$('deckName')) $('deckName').value = d.name;
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
@@ -1086,9 +1129,17 @@ function renderDeckEdit(keepScroll){
     if (st.main<size) warns.push(`<span class="chip warn">${size-st.main} more cards needed</span>`);
     if (st.main>size) warns.push(`<span class="chip warn">${st.main-size} cards over ${size}</span>`);
     if (G.deck.leaderType && st.leaders!==1) warns.push(`<span class="chip warn">${st.leaders?'More than one Leader':'No Leader yet'}</span>`);
-    if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
     if (st.overCopies) warns.push(`<span class="chip warn">${st.overCopies} cards over the copy limit</span>`);
-    if (st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
+    if (st.cmd){
+      if (st.cmd.problem) warns.push(`<span class="chip warn">${esc(st.cmd.problem)}</span>`);
+      if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards outside ${esc(st.cmd.identity.join(' / ')||'colorless')} identity</span>`);
+      if (st.banned) warns.push(`<span class="chip warn">${st.banned} banned in Commander</span>`);
+      if (st.notLegal) warns.push(`<span class="chip warn">${st.notLegal} not legal in Commander</span>`);
+      if (st.unchecked) warns.push(`<span class="chip">${st.unchecked} not checked for bans yet${navigator.onLine?'':' (offline)'}</span>`);
+      if (st.main===size && !st.cmd.problem && !st.offColor && !st.overCopies && !st.banned && !st.notLegal && !st.unchecked) warns.push(`<span class="chip">Commander rules pass</span>`);
+    }
+    else if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
+    if (!st.cmd && st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
   }
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
@@ -1100,12 +1151,13 @@ function renderDeckEdit(keepScroll){
 function deckRowHTML(nv, q, d){
   const c = repOf(nv); const own = ownedNV(nv); const short = Math.max(0,q-own);
   return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:esc(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">own ${own} of ${q}</span>`:`own ${own}`}</div></div>
-    <div class="acts"><button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:G.deck.maxCopies))?'disabled':''}>+</button></div></div></div>`;
+    <div class="acts">${G.deck?.commander&&G.canCommand(c)?(()=>{const on=deckCommanders(d).includes(nv);return `<button data-act="cmd" data-nv="${esc(nv)}" aria-pressed="${on}" aria-label="${on?'Remove as commander':'Make commander'}" title="${on?'Remove as commander':'Make commander'}">★</button>`;})():''}<button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:G.deck.maxCopies))?'disabled':''}>+</button></div></div></div>`;
 }
 function renderDeckList(d){
   const entries = Object.entries(d.cards).map(([nv,q])=>({nv,q,c:repOf(nv)})).filter(x=>x.c);
   if (!entries.length){ $('deckListPane').innerHTML = `<div class="list"><div class="empty"><strong>Empty deck</strong>Switch to Add cards to start building.</div></div>`; return; }
-  const groups = LORCANA ? [['Characters',x=>isType(x.c,'Character')],['Actions & songs',x=>isType(x.c,'Action')],['Items',x=>isType(x.c,'Item')],['Locations',x=>isType(x.c,'Location')]] : G.deckGroups.map(([label,fn])=>[label,x=>fn(x.c)]);
+  const cmdNVs = G.deck?.commander ? deckCommanders(d) : [];
+  const groups = LORCANA ? [['Characters',x=>isType(x.c,'Character')],['Actions & songs',x=>isType(x.c,'Action')],['Items',x=>isType(x.c,'Item')],['Locations',x=>isType(x.c,'Location')]] : [...(cmdNVs.length?[[cmdNVs.length>1?'Commanders':'Commander',x=>cmdNVs.includes(x.nv)]]:[]),...G.deckGroups.map(([label,fn])=>[label,x=>fn(x.c)])];
   let html=''; const placed=new Set();
   for (const [label,fn] of groups){
     const g = entries.filter(x=>!placed.has(x.nv)&&fn(x)).sort((a,b)=>(a.c.co-b.c.co)||a.c.n.localeCompare(b.c.n)); g.forEach(x=>placed.add(x.nv)); if(!g.length) continue;
@@ -1114,6 +1166,8 @@ function renderDeckList(d){
   $('deckListPane').innerHTML = `<div class="list">${html}</div>`;
 }
 function onDeckQty(e){
+  const star=e.target.closest('button[data-act="cmd"]');
+  if(star){ const d=getDeck(); if(d){ toast(toggleCommander(d, star.dataset.nv)); renderDeckEdit(true); } return; }
   const b=e.target.closest('button[data-act="dq"]'); if(!b) return;
   const d=getDeck(); const r = deckAdd(d, b.dataset.nv, +b.dataset.d);
   if (r!==true) toast(r);
@@ -1175,7 +1229,7 @@ $('sheetBody').addEventListener('click', async e=>{
     let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-ownedNV(nv)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
     saveWish(); toast(n?`Added ${n} cards to your wishlist`:'You already own or want every card in this deck');
   }
-  else if (a==='dup'){ const c={id:uid(), name:d.name+' (copy)', cards:{...d.cards}, updated:Date.now()}; decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
+  else if (a==='dup'){ const c={id:uid(), name:d.name+' (copy)', cards:{...d.cards}, ...(d.commanders?.length?{commanders:[...d.commanders]}:{}), updated:Date.now()}; decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
   else if (a==='del'){ $('delRow').innerHTML = `<span>Delete "${esc(d.name)}"? This can’t be undone.</span><button class="btn danger" data-dm="delyes">Delete</button><button class="btn ghost" data-dm="delno">Keep</button>`; }
   else if (a==='delyes'){ decks = decks.filter(x=>x!==d); saveDecks(); curDeck=null; closeSheet(); renderDecks(); toast('Deck deleted'); }
   else if (a==='delno'){ $('delRow').innerHTML = `<button class="btn danger" data-dm="del">Delete deck</button>`; }
@@ -1199,10 +1253,13 @@ $('deckHandBtn').onclick = ()=>{
 
 /* Deck import does not change ownership. Source lines survive unresolved matches. */
 function parseDeckImport(text){
-  const cards={}, lines=[], unresolved=[];
+  const cards={}, lines=[], unresolved=[], commanders=[];
   if(!LORCANA){
+    let inCommander=false;
     for(const raw of text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
-      if(/^(\/\/|#|deck\b|sideboard\b|commander\b|main\b|leader\b)/i.test(raw)) continue;
+      // Headings such as "Commander", "### Commander (1)" or "// Commander" open a section; any other heading closes it.
+      const heading=raw.replace(/^(?:\/\/|#+)\s*/,'').replace(/\s*\(\d+\)\s*$/,'');
+      if(/^(\/\/|#|deck\b|sideboard\b|commanders?\b|main\b|leader\b)/i.test(raw)){ inCommander=/^commanders?$/i.test(heading); continue; }
       const parsed=G.deckLine(raw);
       if(!parsed){unresolved.push(raw);continue;}
       let nv=null;
@@ -1210,8 +1267,9 @@ function parseDeckImport(text){
       else if(parsed.name&&byNV.has(norm(parsed.name)+'|')) nv=norm(parsed.name)+'|';
       const line={raw,qty:parsed.qty,nv};lines.push(line);
       if(nv) cards[nv]=(cards[nv]||0)+line.qty; else unresolved.push(raw);
+      if(nv && inCommander && G.deck?.commander && !commanders.includes(nv)) commanders.push(nv);
     }
-    return {cards,lines,unresolved};
+    return {cards,lines,unresolved,commanders};
   }
   for(const raw of text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
     if(/^(\/\/|#|deck\b|sideboard\b)/i.test(raw)) continue;
@@ -1240,7 +1298,7 @@ $('importDeckBtn').onclick=()=>{
     }
     const parsed=parseDeckImport($('impText').value);
     if(!parsed.lines.length&&!parsed.unresolved.length){$('impMsg').textContent='Paste a decklist first.';return;}
-    const d={id:uid(),name:$('impName').value.trim()||`Imported deck ${decks.length+1}`,cards:parsed.cards,importLines:parsed.lines,unresolved:parsed.unresolved,updated:Date.now()};
+    const d={id:uid(),name:$('impName').value.trim()||`Imported deck ${decks.length+1}`,cards:parsed.cards,...(parsed.commanders?.length?{commanders:parsed.commanders.slice(0,2)}:{}),importLines:parsed.lines,unresolved:parsed.unresolved,updated:Date.now()};
     imported=true; decks.push(d);saveDecks();curDeck=d.id;dsub='list';showTab('decks');
     openSheet('Deck imported',`<p>Deck saved. Your collection quantities have not changed.</p><p>${parsed.unresolved.length} unresolved line(s) retained locally for review.</p><button class="btn primary" id="importToCollection">Add these as new cards to collection</button><button class="btn" id="importDone">Done</button>`);
     $('importToCollection').onclick=()=>previewCollectionImport(d);
@@ -1372,18 +1430,18 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>({...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,updated:Date.now()}));
+  decks=Object.entries(values.decks).map(([id,d])=>({...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()}));
 }
 async function guardedWrite(operation,previous){
   const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
   if(section==='inv' && !cloudRainbow && (value?.rf||previous?.rainbow_foil))throw Error('Cloud rainbow support is unavailable. Nothing was downgraded to generic foil.');
   const row=section==='inv'?{user_id:session.uid,game:GAME,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
     :section==='wish'?{user_id:session.uid,game:GAME,card_id:id,qty:value||0}
-    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value};
+    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[]}:{})};
   let path=table, method='POST';
   if(previous){
     method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
-    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted'];
+    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted',...(G.deck?.commander?['commanders']:[])];
     path+=`?${eq('user_id',session.uid)}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>eq(k,previous[k])).join('&');
   }
   const result=await rest(method,path,row,{Prefer:'return=representation'});
@@ -1621,7 +1679,7 @@ function applyGameLabels(){
   for(const id of ['cLegality','bLegality','scanPrintingScope']){ const el=$(id); const label=el?.closest?.('label'); if(label) label.hidden=true; }
   const fill=(id,first,values,label)=>{ const el=$(id); if(el) el.innerHTML=`<option value="">${first}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(label?label(v):v)}</option>`).join(''); };
   fill('bType','All types',G.types); fill('bRar','Any rarity',G.rarities,G.rarityLabel);
-  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Size and singleton badges are structural checks only. Color identity, the commander and the ban list are not checked yet.';
+  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Checks size, singleton, the commander, color identity and the Commander ban list (from Scryfall). Tap ★ on a legendary creature to make it the commander. Game Changers and bracket rules are not checked.';
   const promoNotes=document.querySelectorAll('#vScan > p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
 }
 async function boot(){
