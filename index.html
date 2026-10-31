@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=17">
+<link rel="stylesheet" href="app.css?v=18">
 </head>
 <body>
 <header class="top">
@@ -129,6 +129,7 @@
         <summary>Filters <span class="note" id="dFilterCount"></span></summary>
         <div class="stack">
           <div class="chips" id="deckInks"></div>
+          <label class="note"><input type="checkbox" id="dFav"> ♥ Favorites only</label>
           <label class="note"><input type="checkbox" id="dExact"> Exactly these colors</label>
           <label id="dStatusWrap">Rules <select id="dStatus"><option value="all">All decks</option><option value="pass">Rules pass</option><option value="fix">Fix rules</option><option value="short">Not finished (under size)</option></select></label>
           <label id="dBracketWrap" hidden>Bracket <select id="dBracket"><option value="all">All brackets</option></select></label>
@@ -146,6 +147,7 @@
       <div class="row between">
         <button class="btn ghost" id="deckBack">‹ Decks</button>
         <div class="row">
+          <button class="btn favbtn" id="deckFavBtn" aria-pressed="false" aria-label="Favorite">♡</button>
           <button class="btn" id="deckHandBtn">Sample hand</button>
           <button class="btn" id="deckMoreBtn">More</button>
         </div>
@@ -227,10 +229,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=17"></script>
-<script src="catalog.js?v=17"></script>
-<script src="legality.js?v=17"></script>
-<script src="games.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script src="safety.js?v=18"></script>
+<script src="catalog.js?v=18"></script>
+<script src="legality.js?v=18"></script>
+<script src="games.js?v=18"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

@@ -32,12 +32,12 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={renderDeckGuide,remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+ source=source.replace('window.__inkscan =',`window.testAPI={toggleFavorite,deckItemHTML,renderDeckGuide,remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;savedState=savedState||InkSafety.load(localStorage);session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
  context.testAPI.setCatalog({asof:'2026-10-30',sets:[{code:'tst',name:'Synthetic set'}],cards:JSON.parse(JSON.stringify(CARDS))});
- for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
+ el('dFav').checked=false; for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
  return {api:context.testAPI,network,el,storage:localStorage};
 }
 const deck=(names,commanders=[])=>({id:'d1',name:'Synthetic',cards:Object.fromEntries(names.map(n=>[NV(n),1])),commanders:commanders.map(NV),updated:1});
@@ -298,4 +298,28 @@ test('deck guide syncs through meta, survives deck file import and update, and i
  const list=h.api.parseDeckFile(JSON.stringify(file));
  await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))]);
  assert.equal(h.api.getDecks().find(d=>d.id==='keep').guide.overview,'Counters everywhere.');
+});
+
+test('favorites: heart toggles, Favorites only filter, list shows the heart state',()=>{
+ const h=filterHarness();const ds=h.api.getDecks();
+ h.api.toggleFavorite(ds.find(d=>d.id==='b'));h.api.toggleFavorite(ds.find(d=>d.id==='c'));
+ h.el('dFav').checked=true;assert.equal(names(h),'bc');
+ h.el('df').value='tymna';assert.equal(names(h),'b');h.el('df').value='';
+ h.api.toggleFavorite(ds.find(d=>d.id==='c'));assert.equal(names(h),'b');
+ h.el('dFav').checked=false;assert.equal(names(h),'dabc');
+ assert.match(h.api.deckItemHTML({d:ds.find(d=>d.id==='b'),st:h.api.deckStats(ds.find(d=>d.id==='b'))}),/data-fav="b" aria-pressed="true"[^>]*>♥</);
+ assert.match(h.api.deckItemHTML({d:ds.find(d=>d.id==='a'),st:h.api.deckStats(ds.find(d=>d.id==='a'))}),/data-fav="a" aria-pressed="false"[^>]*>♡</);
+});
+test('favorite syncs through meta and survives a deck-file update',async()=>{
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},favorite:true}]}).decks.a,{name:'A',cards:{},favorite:true});
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{}}]}).decks.a,{name:'A',cards:{}});
+ assert.throws(()=>S.validate({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},favorite:'yes'}]}),/favorite/);
+ const h=harness();h.api.setState({});let call;h.api.setRest(async(...args)=>{call=args;return [{id:'d1'}];});
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{},favorite:true}},null);assert.equal(call[2].meta.fav,true);
+ assert.equal(h.api.remoteMaps({inv:[],wish:[],decks:[{id:'d1',name:'A',cards:{},deleted:false,commanders:[],meta:{fav:true}}]}).decks.d1.favorite,true);
+ h.api.setOnline(true);h.api.setScryfall(async(path,opts)=>({data:JSON.parse(opts.body).identifiers.map(x=>SFCARDS[x.id])}));
+ h.api.setState({decks:[{id:'keep',name:'B4 · Atraxa',cards:{},favorite:true,updated:1}]});
+ const list=h.api.parseDeckFile(DECKFILE());
+ await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))]);
+ assert.equal(h.api.getDecks().find(d=>d.id==='keep').favorite,true);
 });

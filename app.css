@@ -211,6 +211,11 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .filterbox>summary{cursor:pointer;padding:10px 0;font-weight:600;list-style-position:inside}
 .filterbox[open]>summary{border-bottom:1px solid var(--line);margin-bottom:10px}
 .filterbox>.stack{padding-bottom:12px}
+#deckList .item{display:flex;align-items:center}
+#deckList .item-main{flex:1;min-width:0}
+.fav{border:0;background:none;font-size:22px;line-height:1;padding:10px 12px;cursor:pointer;color:var(--muted);min-width:44px;min-height:44px}
+.fav[aria-pressed="true"],.favbtn[aria-pressed="true"]{color:#d9455f}
+.favbtn{font-size:18px;min-width:44px}
 .dguide p{margin:0;line-height:1.45}
 .dguide .phase{display:grid;grid-template-columns:4.5em 1fr;gap:4px 10px;margin:0}
 .dguide .phase dt{font-weight:700;color:var(--muted)}

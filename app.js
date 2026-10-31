@@ -1112,13 +1112,14 @@ function deckLead(d,st){
   return lead&&repOf(lead[0]);
 }
 function deckFilterCount(){
-  const n=deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
+  const n=($('dFav').checked?1:0)+deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
   $('dFilterCount').textContent=n?`(${n} on)`:'';
 }
 function deckRows(){
-  const q=norm($('df').value), cardQ=norm($('dCard').value), status=$('dStatus').value, br=$('dBracket').value, own=$('dOwn').value, exact=$('dExact').checked;
+  const favOnly=$('dFav').checked, q=norm($('df').value), cardQ=norm($('dCard').value), status=$('dStatus').value, br=$('dBracket').value, own=$('dOwn').value, exact=$('dExact').checked;
   const rows=[];
   for(const d of decks){
+    if(favOnly && !d.favorite) continue;
     const st=deckStats(d);
     if(q && !norm(d.name+' '+(st.cmd?.cmds||[]).map(c=>c.n).join(' ')).includes(q)) continue;
     if(deckInkSel.size){
@@ -1142,7 +1143,7 @@ function deckRows(){
 }
 function deckItemHTML({d,st}){
   const c=deckLead(d,st), rules=deckRulesState(st), cmdNames=(st.cmd?.cmds||[]).map(x=>x.n).join(' + ');
-  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
+  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}">${d.favorite?'♥':'♡'}</button></div>`;
 }
 function renderDecks(keepScroll){
   if (curDeck){ renderDeckEdit(keepScroll); return; }
@@ -1162,10 +1163,11 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML=rows.length?rows.map(deckItemHTML).join(''):`<div class="empty"><strong>No decks match</strong>Change the search or tap Reset deck filters.</div>`;
 }
 let dfT; for(const id of ['df','dCard']) $(id).addEventListener('input',()=>{ clearTimeout(dfT); dfT=setTimeout(()=>renderDecks(),150); });
-for(const id of ['dStatus','dBracket','dOwn','dSort','dExact']) $(id).onchange=()=>renderDecks();
-$('dReset').onclick=()=>{ $('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
+for(const id of ['dStatus','dBracket','dOwn','dSort','dExact','dFav']) $(id).onchange=()=>renderDecks();
+$('dReset').onclick=()=>{ $('dFav').checked=false;$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
 inkChips($('deckInks'),deckInkSel,()=>renderDecks());
-$('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ deckHomeScroll=window.scrollY; curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
+function toggleFavorite(d){ if(!d) return; if(d.favorite) delete d.favorite; else d.favorite=true; saveDecks(); /* not an edit: keeps its place in Recently edited */ toast(d.favorite?`Added ${d.name} to favorites`:`Removed ${d.name} from favorites`); }
+$('deckList').addEventListener('click', e=>{ const f=e.target.closest('[data-fav]'); if(f){ const y=window.scrollY; toggleFavorite(decks.find(x=>x.id===f.dataset.fav)); renderDecks(); window.scrollTo(0,y); return; } const b=e.target.closest('[data-deck]'); if(b){ deckHomeScroll=window.scrollY; curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
 $('newDeckBtn').onclick = ()=>{
   const d = {id:uid(), name:`New deck ${decks.length+1}`, cards:{}, updated:Date.now()};
   decks.push(d); saveDecks(); curDeck=d.id; dsub='add'; renderDecks(); $('deckName').select();
@@ -1173,6 +1175,7 @@ $('newDeckBtn').onclick = ()=>{
 $('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,deckHomeScroll); };
 $('deckName').addEventListener('change', ()=>{ const d=getDeck(); if(!d) return; d.name=$('deckName').value.trim()||'Untitled deck'; d.updated=Date.now(); saveDecks(); });
 document.querySelectorAll('[data-dsub]').forEach(b=>b.onclick=()=>{ dsub=b.dataset.dsub; renderDeckEdit(); });
+$('deckFavBtn').onclick=()=>{ toggleFavorite(getDeck()); renderDeckEdit(true); };
 $('deckBracketSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=+$('deckBracketSel').value; if(v>=1&&v<=5) d.bracket=v; else delete d.bracket; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); };
 function getDeck(){ return decks.find(d=>d.id===curDeck); }
 
@@ -1213,6 +1216,7 @@ function renderDeckEdit(keepScroll){
   if (document.activeElement!==$('deckName')) $('deckName').value = d.name;
   $('deckBracketWrap').hidden=!G.deck?.commander; if(G.deck?.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
   renderDeckGuide(d);
+  $('deckFavBtn').setAttribute('aria-pressed',!!d.favorite); $('deckFavBtn').textContent=d.favorite?'♥':'♡'; $('deckFavBtn').setAttribute('aria-label',d.favorite?'Remove from favorites':'Add to favorites');
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
   const st = deckStats(d); const max = Math.max(1,...st.curve);
   const warns = [];
@@ -1593,7 +1597,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1612,7 +1616,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;return o;});
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
@@ -1620,6 +1624,7 @@ function deckMeta(value,previous){
   const meta={...(previous?.meta&&typeof previous.meta==='object'&&!Array.isArray(previous.meta)?previous.meta:{})};
   if(value?.bracket) meta.bracket=value.bracket; else delete meta.bracket;
   if(value?.guide) meta.guide=value.guide; else delete meta.guide;
+  if(value?.favorite) meta.fav=true; else delete meta.fav;
   return meta;
 }
 async function guardedWrite(operation,previous){
