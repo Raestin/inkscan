@@ -32,13 +32,13 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
-  setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
+ source=source.replace('window.__inkscan =',`window.testAPI={saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+  setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;savedState=savedState||InkSafety.load(localStorage);session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
  context.testAPI.setCatalog({asof:'2026-10-30',sets:[{code:'tst',name:'Synthetic set'}],cards:JSON.parse(JSON.stringify(CARDS))});
  for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
- return {api:context.testAPI,network,el};
+ return {api:context.testAPI,network,el,storage:localStorage};
 }
 const deck=(names,commanders=[])=>({id:'d1',name:'Synthetic',cards:Object.fromEntries(names.map(n=>[NV(n),1])),commanders:commanders.map(NV),updated:1});
 
@@ -198,4 +198,71 @@ test('deck home shows a match count and a no-match message',()=>{
  const h=filterHarness();h.api.renderDecks();assert.equal(h.el('dCount').textContent,'4 decks');
  h.el('df').value='tymna';h.api.renderDecks();assert.equal(h.el('dCount').textContent,'Showing 1 of 4 decks');
  h.el('df').value='zzz';h.api.renderDecks();assert.match(h.el('deckList').innerHTML,/No decks match/);
+});
+
+test('owned deck file adds exact printings and finishes once, even when the deck itself already exists',async()=>{
+ const h=harness();h.api.setOnline(true);
+ h.api.setState({decks:[{id:'x',name:'B4 · Atraxa',cards:{},updated:1}]});
+ h.api.setScryfall(async(path,opts)=>({data:JSON.parse(opts.body).identifiers.map(x=>SFCARDS[x.id])}));
+ const file=JSON.parse(DECKFILE());file.decks[0].owned=true;file.decks[0].cards[0][3]='foil';
+ const list=h.api.parseDeckFile(JSON.stringify(file));
+ const owned=list.filter(d=>d.owned);
+ await h.api.importDeckFile([list[1]],[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))],owned);
+ const inv=h.api.getInv();
+ assert.equal(inv['sf_'+ID(101)].f,1);assert.equal(inv['sf_'+ID(103)].q,30);assert.equal(inv['sf_'+ID(102)].q,1);
+ assert.equal(h.api.getDecks().length,2);
+ await assert.doesNotReject(h.api.importDeckFile([],[],owned));
+ assert.equal(h.api.getInv()['sf_'+ID(103)].q,30,'second import must not add the cards again');
+});
+test('deck file rejects an unknown finish',()=>{
+ const h=harness();const file=JSON.parse(DECKFILE());file.decks[0].cards[0][3]='shiny';
+ assert.throws(()=>h.api.parseDeckFile(JSON.stringify(file)),/invalid/);
+});
+
+test('Game Changers count against the deck bracket: none in 1-2, three in 3, any in 4-5',()=>{
+ const h=harness();
+ const gcCards=JSON.parse(JSON.stringify(CARDS)).map(c=>({...c,gc:['Sol Ring','Mana Crypt','Lightning Bolt','Forest'].includes(c.n)}));
+ h.api.setCatalog({asof:'2026-10-31',sets:[{code:'tst',name:'S'}],cards:gcCards});
+ const d=deck(["Atraxa, Praetors' Voice",'Sol Ring','Forest'],["Atraxa, Praetors' Voice"]);
+ assert.equal(h.api.deckStats(d).gameChangers,2);assert.equal(h.api.deckStats(d).bracket,null);assert.equal(h.api.deckStats(d).gcOver,false);
+ d.bracket=2;assert.equal(h.api.deckStats(d).gcOver,true);
+ d.bracket=3;assert.equal(h.api.deckStats(d).gcOver,false);
+ d.cards[NV('Lightning Bolt')]=1;d.cards[NV('Mana Crypt')]=1;assert.equal(h.api.deckStats(d).gameChangers,4);assert.equal(h.api.deckStats(d).gcOver,true);
+ d.bracket=4;assert.equal(h.api.deckStats(d).gcOver,false);
+ delete d.bracket;d.name='B1 · Atraxa';assert.equal(h.api.deckStats(d).bracket,'1');assert.equal(h.api.deckStats(d).gcOver,true);
+});
+test('missing cost never uses a digital-only printing and takes the cheapest paper one',()=>{
+ const h=harness();
+ const c=(id,set,p,dg)=>({id:'sf_'+id,n:'Mind Stone',v:'',s:set,sn:set,c:id,r:'common',pv:'',i:'Colorless',co:2,ik:1,ty:'Artifact',cl:'',tx:'',p,pf:null,pe:null,img:'',imgN:'',fn:[],lg:'legal',gc:false,dg});
+ h.api.setCatalog({asof:'2026-10-31',sets:[{code:'trc',name:'T'},{code:'c21',name:'C'},{code:'wth',name:'W'}],cards:[c('1','trc',0.02,true),c('2','c21',0.25,false),c('3','wth',1.5,false)]});
+ assert.equal(h.api.cheapest(NV('Mind Stone')),0.25);
+});
+test('deck bracket travels with the deck in sync and is validated',()=>{
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{x:1},bracket:3}]}).decks.a,{name:'A',cards:{x:1},bracket:3});
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{x:1},bracket:9}]}).decks.a,{name:'A',cards:{x:1}});
+ assert.throws(()=>S.validate({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},bracket:7}]}),/invalid bracket/);
+});
+test('deck file can update same-name decks in place, keeping the deck id',async()=>{
+ const h=harness();h.api.setOnline(true);
+ h.api.setState({decks:[{id:'keep',name:'B4 · Atraxa',cards:{x:1},bracket:2,updated:1}]});
+ h.api.setScryfall(async(path,opts)=>({data:JSON.parse(opts.body).identifiers.map(x=>SFCARDS[x.id])}));
+ const file=JSON.parse(DECKFILE());file.decks[0].bracket=4;
+ const list=h.api.parseDeckFile(JSON.stringify(file));
+ await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))]);
+ const ds=h.api.getDecks();assert.equal(ds.length,2);
+ const a=ds.find(d=>d.id==='keep');assert.equal(a.bracket,4);assert.equal(a.cards.x,undefined);assert.ok(a.cards[NV('Atraxa, Grand Unifier')]);
+});
+
+test('MTG saves go to the MTG storage slot and never touch the Lorcana save',async()=>{
+ const h=harness();h.api.setOnline(true);
+ const lorcanaKey=S.KEY, mtgKey='inkscan.mtg:'+S.KEY, sentinel='{"lorcana":"untouched"}';
+ h.storage.values.set(lorcanaKey,sentinel);
+ h.api.setState({});h.api.saveDecks();
+ h.api.setScryfall(async(path,opts)=>({data:JSON.parse(opts.body).identifiers.map(x=>SFCARDS[x.id])}));
+ const file=JSON.parse(DECKFILE());file.decks[0].owned=true;
+ const list=h.api.parseDeckFile(JSON.stringify(file));
+ await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))],list.filter(d=>d.owned));
+ assert.equal(h.storage.values.get(lorcanaKey),sentinel);
+ const saved=JSON.parse(h.storage.values.get(mtgKey));assert.equal(saved.inv['sf_'+ID(103)].q,30);assert.equal(saved.decks.length,2);
+ assert.doesNotMatch(fs.readFileSync(path.join(runtime,'app.js'),'utf8'),/InkSafety\.save\(localStorage/);
 });

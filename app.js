@@ -201,10 +201,11 @@ function repOf(nv){
   const list = byNV.get(nv); if(!list) return null;
   let best=null, bestN=0;
   for (const c of list){ const v=inv[c.id]; const n=inventoryCount(v); if(n>bestN){best=c;bestN=n;} }
-  return best || list.find(c=>!isSpecialCard(c)) || list[0];
+  return best || list.find(c=>!c.dg&&!isSpecialCard(c)) || list.find(c=>!c.dg) || list[0];
 }
 function priceOf(c, finish){ const value=valuedCard(c); return InkSafety.price(value[finishKey(finish)==='rainbow'?'prf':finishKey(finish)==='foil'?'pf':'p']); }
-function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=priceOf(c,false) ?? priceOf(c,true); if(p!=null && (m==null||p<m)) m=p; } return m; }
+// Cheapest paper printing we know of. Digital-only printings (MTGO sets) can't be bought, so they never price a deck.
+function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ if(c.dg) continue; const p=priceOf(c,false) ?? priceOf(c,true); if(p!=null && (m==null||p<m)) m=p; } return m; }
 function foilPriceOnly(c){ return c && priceOf(c,false)===null && priceOf(c,true)!==null; }
 function setLabel(c){ return !LORCANA&&G.setLabel ? G.setLabel(c) : /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
 function imgUrl(c, size){ if(!LORCANA) return G.imgUrl(c,size); return c.supplemental || c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
@@ -617,7 +618,7 @@ $('log').addEventListener('change',e=>{
   if(!Number.isSafeInteger((value[after]||0)+1)){toast('Quantity is too large. Nothing was changed.');renderLog();return;}
   value[before]--;value[after]=(value[after]||0)+1;if(!value.rf)delete value.rf;
   const snapshot={...snapshotState(),inv:next,revision:localRevision+1};
-  try{InkSafety.save(localStorage,snapshot,knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}
+  try{InkSafety.save(STORE,snapshot,knownStoredRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY);}
   catch(err){storageError='Finish change could not be confirmed. Keep this tab open and back up before retrying. '+err.message;renderSaveStatus();renderLog();return;}
   inv=next;localRevision=snapshot.revision;storageError=null;x.foil=select.value;renderSaveStatus();renderSyncBox();renderTotals();renderLog();
 });
@@ -1040,7 +1041,7 @@ function commanderCheck(d){
 }
 const offIdentity=(c,identity)=>c.inks.some(i=>i!=='Colorless' && !identity.includes(i));
 function deckStats(d){
-  let leaders=0, offColor=0, overCopies=0, banned=0, notLegal=0, unchecked=0;
+  let leaders=0, offColor=0, overCopies=0, banned=0, notLegal=0, unchecked=0, gameChangers=0, gcUnknown=0; const gcNames=[];
   const cmd = G.deck?.commander ? commanderCheck(d) : null;
   let total=0, inkable=0, missing=0, missCost=0, missingUnpriced=0, value=0; const curve=Array(8).fill(0); const types={};
   for (const [nv,q] of Object.entries(d.cards)){
@@ -1054,6 +1055,7 @@ function deckStats(d){
     if (cmd){
       if (cmd.cmds.length && !cmd.nvs.includes(nv) && offIdentity(c,cmd.identity)) offColor+=q;
       if (c.lg==='banned') banned+=q; else if (c.lg==='not_legal') notLegal+=q; else if (c.lg!=='legal') unchecked+=q;
+      if (c.gc===true){ gameChangers++; gcNames.push(c.n); } else if (c.gc===undefined) gcUnknown++;
     }
   }
   if (!LORCANA && G.deck.leaderType){
@@ -1061,7 +1063,8 @@ function deckStats(d){
     if (leader) for (const [nv,q] of Object.entries(d.cards)){ const c=repOf(nv); if(c&&c!==leader&&!c.inks.some(i=>leader.inks.includes(i))) offColor+=q; }
   }
   const main = total - leaders;
-  return {total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : deckInks(d)};
+  const bracket = cmd ? deckBracket(d) : null, gcOver = bracket && gameChangers>GC_LIMIT[bracket] ? true : false;
+  return {total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, gameChangers, gcNames, gcUnknown, bracket, gcOver, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : deckInks(d)};
 }
 /* returns true or a message explaining why it couldn't add */
 function deckAdd(d, nv, n){
@@ -1094,12 +1097,14 @@ function inkSetHTML(inks){ return `<span class="inkset">${inks.map(i=>`<span cla
 /* Deck home: search plus a collapsible filter box, mirroring Collection. */
 const deckInkSel=new Set();
 let deckHomeScroll=0;
-const deckBracket=d=>(/^B([1-5])\s*[·.\-:]/.exec(d.name)||[])[1]||null;
+const deckBracket=d=>d.bracket?String(d.bracket):(/^B([1-5])\s*[·.\-:]/.exec(d.name)||[])[1]||null;
+// Commander Brackets (beta, Feb 2026): Game Changers none in 1-2, up to 3 in 3, any in 4-5.
+const GC_LIMIT={1:0,2:0,3:3,4:Infinity,5:Infinity};
 function deckRulesState(st){
   if(!st.cmd) return null;
   const size=G.deck.size;
   if(st.main<size) return 'short';
-  return !st.cmd.problem&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.unchecked&&st.main===size?'pass':(st.cmd.problem||st.offColor||st.overCopies||st.banned||st.notLegal||st.main!==size)?'fix':'unchecked';
+  return !st.cmd.problem&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.gcOver&&!st.unchecked&&st.main===size?'pass':(st.cmd.problem||st.offColor||st.overCopies||st.banned||st.notLegal||st.gcOver||st.main!==size)?'fix':'unchecked';
 }
 function deckLead(d,st){
   const cmd=st.cmd?.cmds?.[0]; if(cmd) return cmd;
@@ -1168,16 +1173,20 @@ $('newDeckBtn').onclick = ()=>{
 $('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,deckHomeScroll); };
 $('deckName').addEventListener('change', ()=>{ const d=getDeck(); if(!d) return; d.name=$('deckName').value.trim()||'Untitled deck'; d.updated=Date.now(); saveDecks(); });
 document.querySelectorAll('[data-dsub]').forEach(b=>b.onclick=()=>{ dsub=b.dataset.dsub; renderDeckEdit(); });
+$('deckBracketSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=+$('deckBracketSel').value; if(v>=1&&v<=5) d.bracket=v; else delete d.bracket; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); };
 function getDeck(){ return decks.find(d=>d.id===curDeck); }
 
 /* Cards cached before the ban check existed carry no Commander legality. Fetch just those, once per deck per visit. */
 const legalityFilled=new Set();
 async function fillDeckLegality(d){
   if(!G.deck?.commander||!G.live||!navigator.onLine||legalityFilled.has(d.id)) return;
-  const ids=[...new Set(Object.keys(d.cards).map(repOf).filter(c=>c&&!c.lg&&c.id.startsWith('sf_')).map(c=>c.id.slice(3)))];
-  legalityFilled.add(d.id); if(!ids.length) return;
+  const ids=[...new Set(Object.keys(d.cards).map(repOf).filter(c=>c&&(!c.lg||c.gc===undefined)&&c.id.startsWith('sf_')).map(c=>c.id.slice(3)))];
+  legalityFilled.add(d.id);
   try{
     for(let i=0;i<ids.length;i+=75){ const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:ids.slice(i,i+75).map(id=>({id}))})}); addLiveCards((j?.data||[]).map(G.fromScryfall)); }
+    // Cards with no priced paper printing cached: look up their paper printings (cheapest first), a few per visit.
+    const unpriced=Object.keys(d.cards).filter(nv=>cheapest(nv)===null).map(repOf).filter(c=>c?.oid).slice(0,25);
+    for(const c of unpriced){ try{ const j=await scryfall(`/cards/search?q=${encodeURIComponent('oracleid:'+c.oid+' game:paper')}&unique=prints&order=usd&dir=asc`); addLiveCards((j?.data||[]).slice(0,6).map(G.fromScryfall)); }catch(e){} }
     if(getDeck()===d && tab==='decks') renderDeckEdit(true);
   }catch(e){ legalityFilled.delete(d.id); }
 }
@@ -1186,6 +1195,7 @@ function renderDeckEdit(keepScroll){
   fillDeckLegality(d);
   $('deckHome').hidden=true; $('deckEdit').hidden=false;
   if (document.activeElement!==$('deckName')) $('deckName').value = d.name;
+  $('deckBracketWrap').hidden=!G.deck?.commander; if(G.deck?.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
   const st = deckStats(d); const max = Math.max(1,...st.curve);
   const warns = [];
@@ -1205,7 +1215,9 @@ function renderDeckEdit(keepScroll){
       if (st.banned) warns.push(`<span class="chip warn">${st.banned} banned in Commander</span>`);
       if (st.notLegal) warns.push(`<span class="chip warn">${st.notLegal} not legal in Commander</span>`);
       if (st.unchecked) warns.push(`<span class="chip">${st.unchecked} not checked for bans yet${navigator.onLine?'':' (offline)'}</span>`);
-      if (st.main===size && !st.cmd.problem && !st.offColor && !st.overCopies && !st.banned && !st.notLegal && !st.unchecked) warns.push(`<span class="chip">Commander rules pass</span>`);
+      if (st.gcOver) warns.push(`<span class="chip warn" title="${esc(st.gcNames.join(', '))}">${st.gameChangers} Game Changer${st.gameChangers===1?'':'s'}: Bracket ${st.bracket} allows ${GC_LIMIT[st.bracket]||'none'}</span>`);
+      else if (st.gameChangers) warns.push(`<span class="chip" title="${esc(st.gcNames.join(', '))}">${st.gameChangers} Game Changer${st.gameChangers===1?'':'s'}</span>`);
+      if (st.main===size && !st.cmd.problem && !st.offColor && !st.overCopies && !st.banned && !st.notLegal && !st.gcOver && !st.unchecked) warns.push(`<span class="chip">Commander rules pass</span>`);
     }
     else if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
     if (!st.cmd && st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
@@ -1385,19 +1397,36 @@ function parseDeckFile(text){
   if(j.decks.length>1000) throw Error('A deck file can hold at most 1,000 decks.');
   return j.decks.map((d,i)=>{
     if(!d||typeof d.name!=='string'||!d.name.trim()||d.name.length>200||!Array.isArray(d.cards)||d.cards.length>500) throw Error(`Deck ${i+1} in the file is invalid. Nothing was imported.`);
-    const cards=d.cards.map(c=>{ if(!Array.isArray(c)||!Number.isSafeInteger(c[0])||c[0]<1||c[0]>250||!SF_ID.test(c[1])) throw Error(`A card in "${d.name}" is invalid. Nothing was imported.`); return {qty:c[0],id:c[1],name:typeof c[2]==='string'?c[2].slice(0,200):c[1]}; });
+    const cards=d.cards.map(c=>{ if(!Array.isArray(c)||!Number.isSafeInteger(c[0])||c[0]<1||c[0]>250||!SF_ID.test(c[1])||(c[3]!=null&&!FINISHES.includes(c[3]))) throw Error(`A card in "${d.name}" is invalid. Nothing was imported.`); return {qty:c[0],id:c[1],name:typeof c[2]==='string'?c[2].slice(0,200):c[1],finish:c[3]||'normal'}; });
     const commanders=(Array.isArray(d.commanders)?d.commanders:[]).filter(id=>SF_ID.test(id)).slice(0,2);
-    return {name:d.name.trim(),cards,commanders};
+    // owned: these are physical cards in hand, at these exact printings and finishes.
+    const bracket=Number.isInteger(d.bracket)&&d.bracket>=1&&d.bracket<=5?d.bracket:null;
+    return {name:d.name.trim(),cards,commanders,owned:d.owned===true,bracket};
   });
 }
+const ownedReceipt=d=>'deckfile-owned:'+d.name;
+const needsCard=id=>{ const c=byId.get('sf_'+id); return !c||!c.lg||c.gc===undefined; };
 function previewDeckFile(list){
-  const have=new Set(decks.map(d=>d.name)), fresh=list.filter(d=>!have.has(d.name)), ids=new Set(fresh.flatMap(d=>d.cards.map(c=>c.id)));
-  const need=[...ids].filter(id=>!byId.get('sf_'+id)?.lg);
-  openSheet('Import deck file',`<p><b>${fresh.length} deck(s)</b> to add${list.length>fresh.length?`; ${list.length-fresh.length} skipped because a deck with that name is already here`:''}. ${ids.size.toLocaleString()} different cards.</p><p class="note">${need.length?`${need.length.toLocaleString()} cards will be looked up on Scryfall first (needs signal, about ${Math.ceil(need.length/75)} lookups, roughly ${Math.max(1,Math.ceil(need.length/75*0.8/60))} minute${need.length>5700?'s':''}).`:'Every card is already on this phone.'} Decks only: your collection does not change.</p><button class="btn primary" id="deckFileGo" ${fresh.length?'':'disabled'}>Import ${fresh.length} decks</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
+  const byName=new Map(decks.map(d=>[d.name,d])), fresh=list.filter(d=>!byName.has(d.name)), same=list.filter(d=>byName.has(d.name));
+  const owned=list.filter(d=>d.owned && !Object.hasOwn(savedState?.imports||{},ownedReceipt(d))), addCopies=owned.reduce((n,d)=>n+d.cards.reduce((m,c)=>m+c.qty,0),0);
+  const sheet=()=>{
+    const replace=!!$('deckFileReplace')?.checked, use=replace?list:fresh;
+    const ids=new Set([...use,...owned].flatMap(d=>d.cards.map(c=>c.id))), need=[...ids].filter(needsCard);
+    return {replace,use,need,ids};
+  };
+  const ownedNote=owned.length?`<p><b>Adds ${addCopies} physical cards to your collection</b> from ${owned.map(d=>esc(d.name)).join(', ')}, at their exact printings and finishes. This happens once per deck; importing the same file again does not add them twice.</p>`:'';
+  openSheet('Import deck file',`<p><b>${fresh.length} new deck(s)</b>${same.length?`, ${same.length} already here by name`:''}.</p>${same.length?`<label class="note"><input type="checkbox" id="deckFileReplace"> Update the ${same.length} deck(s) already here with this file's version (keeps each deck, replaces its cards, commander and bracket)</label>`:''}${ownedNote}<p class="note" id="deckFileNeed"></p><button class="btn primary" id="deckFileGo">Import</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
+  const refresh=()=>{ const {replace,use,need,ids}=sheet(), work=use.length+owned.length;
+    $('deckFileNeed').textContent=`${ids.size.toLocaleString()} different cards. ${need.length?`${need.length.toLocaleString()} will be looked up on Scryfall first (needs signal, about ${Math.ceil(need.length/75)} lookups, roughly ${Math.max(1,Math.ceil(need.length/75*0.8/60))} minute${need.length>5700?'s':''}).`:'Every card is already on this phone.'}${owned.length?'':' Decks only: your collection does not change.'}`;
+    const nNew=fresh.length, nUpd=replace?same.length:0;
+    $('deckFileGo').textContent=[nNew?`Add ${nNew} deck${nNew===1?'':'s'}`:'',nUpd?`update ${nUpd}`:'',owned.length?'add cards':''].filter(Boolean).join(', ').replace(/^./,ch=>ch.toUpperCase())||'Nothing to import';
+    $('deckFileGo').disabled=!work; };
+  refresh(); if($('deckFileReplace')) $('deckFileReplace').onchange=refresh;
   $('deckFileCancel').onclick=()=>closeSheet();
-  $('deckFileGo').onclick=()=>importDeckFile(fresh, need);
+  $('deckFileGo').onclick=()=>{ const {replace,need}=sheet(); importDeckFile(replace?list:fresh, need, owned); };
 }
-async function importDeckFile(list, need){
+async function importDeckFile(list, need, owned=[]){
+  owned=owned.filter(d=>!Object.hasOwn(savedState?.imports||{},ownedReceipt(d)));
   const go=$('deckFileGo'), msg=$('deckFileMsg'); go.disabled=true;
   if(need.length){
     if(!navigator.onLine){ msg.textContent='Offline. Connect and try again; nothing was imported.'; go.disabled=false; return; }
@@ -1411,16 +1440,34 @@ async function importDeckFile(list, need){
     }catch(e){ msg.textContent='Couldn’t reach Scryfall. Nothing was imported; try again with a better signal.'; go.disabled=false; return; }
     addLiveCards(got);
   }
-  const now=Date.now(); let unresolved=0;
+  const now=Date.now(); let unresolved=0, updatedDecks=0;
   list.forEach((d,i)=>{
     const cards={}, lines=[], miss=[];
     for(const c of d.cards){ const card=byId.get('sf_'+c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
     unresolved+=miss.length;
     const commanders=d.commanders.map(id=>byId.get('sf_'+id)?.nv).filter(nv=>nv&&cards[nv]);
-    decks.push({id:uid(),name:d.name,cards,...(commanders.length?{commanders}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i});
+    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
+    const existing=decks.find(x=>x.name===d.name&&!x.deleted);
+    if(existing){ for(const k of ['commanders','bracket','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
+    else decks.push({id:uid(),...fields});
   });
-  saveDecks(); persistLiveCards(); curDeck=null; closeSheet(); showTab('decks'); renderDecks();
-  toast(`Imported ${list.length} decks${unresolved?`; ${unresolved} card line(s) could not be matched and were kept for review`:''}`);
+  let added=0;
+  if(owned.length){
+    // Physical cards: exact printing and finish, guarded by a one-time receipt per deck, saved together with the decks.
+    let nextInv=inv, receipts=savedState.imports||{};
+    try{
+      for(const d of owned){
+        const items=d.cards.filter(c=>byId.has('sf_'+c.id)).map(c=>({cardId:'sf_'+c.id,finish:c.finish,qty:c.qty}));
+        if(items.length!==d.cards.length) throw Error(`Some cards in "${d.name}" could not be found on Scryfall. Nothing was added to your collection.`);
+        const r=InkSafety.collectionAddition(nextInv,items,ownedReceipt(d),receipts); nextInv=r.inv; receipts=r.receipts; added+=items.reduce((n,x)=>n+x.qty,0);
+      }
+      const next={...snapshotState(),inv:nextInv,imports:receipts,recovery:recoveryPoints('Before deck-file collection add'),revision:localRevision+1};
+      InkSafety.save(STORE,next,knownStoredRaw); knownStoredRaw=STORE.getItem(InkSafety.KEY);
+      inv=next.inv; savedState.imports=next.imports; savedState.recovery=next.recovery; localRevision=next.revision; storageError=null;
+    }catch(e){ added=0; saveDecks(); $('deckFileMsg').textContent=e.message; persistLiveCards(); renderAll(); return; }
+  } else saveDecks();
+  persistLiveCards(); curDeck=null; closeSheet(); showTab('decks'); renderAll(); renderSaveStatus();
+  toast([list.length-updatedDecks?`Imported ${list.length-updatedDecks} deck${list.length-updatedDecks===1?'':'s'}`:'',updatedDecks?`updated ${updatedDecks}`:'',added?`added ${added} cards to your collection`:'',unresolved?`${unresolved} card line(s) could not be matched and were kept for review`:''].filter(Boolean).join('; '));
 }
 function previewCollectionImport(deck){
   // The purchase list follows the deck as it exists now, not its original import.
@@ -1455,7 +1502,7 @@ function previewCollectionImport(deck){
         if(localRevision!==revision || knownStoredRaw!==expectedRaw){$('purchaseError').textContent='Collection changed during review. Cancel and preview the latest quantities.';return;}
         const checked=InkSafety.collectionAddition(inv,items,receiptId,savedState.imports||{});
         const next={...snapshotState(),inv:checked.inv,imports:checked.receipts,recovery:recoveryPoints('Before confirmed new-card purchase'),revision:localRevision+1};
-        try{InkSafety.save(localStorage,next,knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}catch(e){storageError='Addition could not be confirmed. Keep this tab open and back up before retrying. '+e.message;renderSaveStatus();$('purchaseError').textContent=storageError;return;}
+        try{InkSafety.save(STORE,next,knownStoredRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY);}catch(e){storageError='Addition could not be confirmed. Keep this tab open and back up before retrying. '+e.message;renderSaveStatus();$('purchaseError').textContent=storageError;return;}
         applied=true;inv=next.inv;savedState.imports=next.imports;savedState.recovery=next.recovery;localRevision=next.revision;storageError=null;renderAll();renderSaveStatus();closeSheet();toast('New cards saved on this device. Tap Update to send them to the cloud.');
       };
     }catch(e){$('purchaseError').textContent=e.message;}
@@ -1547,19 +1594,19 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>({...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()}));
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;return o;});
 }
 async function guardedWrite(operation,previous){
   const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
   if(section==='inv' && !cloudRainbow && (value?.rf||previous?.rainbow_foil))throw Error('Cloud rainbow support is unavailable. Nothing was downgraded to generic foil.');
   const row=section==='inv'?{user_id:session.uid,game:GAME,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
     :section==='wish'?{user_id:session.uid,game:GAME,card_id:id,qty:value||0}
-    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[]}:{})};
+    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[],bracket:value?.bracket||null}:{})};
   let path=table, method='POST';
   if(previous){
     method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
-    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted',...(G.deck?.commander?['commanders']:[])];
-    path+=`?${eq('user_id',session.uid)}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>eq(k,previous[k])).join('&');
+    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted',...(G.deck?.commander?['commanders','bracket']:[])];
+    path+=`?${eq('user_id',session.uid)}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>previous[k]===null||previous[k]===undefined?`${k}=is.null`:eq(k,previous[k])).join('&');
   }
   const result=await rest(method,path,row,{Prefer:'return=representation'});
   if(!Array.isArray(result)||result.length!==1) throw Error('A cloud item changed during this update. Stopped without overwriting that item. Review and retry.');
@@ -1655,7 +1702,7 @@ $('sheetBody').addEventListener('click', async e=>{
 $('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${syncBoxHTML()}</div>`); };
 function backupPayload(){
   const keys=[InkSafety.KEY,...InkSafety.LEGACY_KEYS];
-  const raw=()=>Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]));
+  const raw=()=>Object.fromEntries(keys.map(k=>[k,STORE.getItem(k)]));
   return savedState?{app:InkSafety.BACKUP_APP,game:GAME_ID,...snapshotState(),saved:new Date().toISOString(),...(storageError?{recoveryRaw:raw()}: {})}:{app:'inkscan-raw-recovery',raw:raw()};
 }
 function downloadBackup(){
@@ -1729,7 +1776,7 @@ function previewRestore(restored, label){
     if(localRevision!==revision || knownStoredRaw!==expectedRaw){$('restoreError').textContent='Device data changed during review. Cancel and choose the file again to review the latest state.';return;}
     const {restoreKind,preservedRainbowCopies,...payload}=InkSafety.clone(restored);
     const next={...snapshotState(),...payload,recovery:recoveryPoints('Before confirmed device restore'),revision:localRevision+1};
-    try{InkSafety.save(localStorage,next,expectedRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY);}
+    try{InkSafety.save(STORE,next,expectedRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY);}
     catch(e){storageError='Restore could not be confirmed. Keep this tab open and back up before retrying. '+e.message;renderSaveStatus();$('restoreError').textContent=storageError;return;}
     applied=true;inv=next.inv;decks=next.decks;wish=next.wish;savedState.imports=next.imports;savedState.recovery=next.recovery;localRevision=next.revision;storageError=null;curDeck=null;log=[];
     closeSheet();renderAll();renderSaveStatus();toast(`Restored ${copies} cards and ${decks.length} decks on this device. Cloud unchanged.`);

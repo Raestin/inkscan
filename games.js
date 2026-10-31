@@ -158,7 +158,7 @@
         tx: card.oracle_text ?? (card.card_faces || []).map(x => x.oracle_text || '').join('\n//\n'),
         p: f(pr.usd), pf: f(pr.usd_foil), pe: f(pr.usd_etched), t: card.tcgplayer_id || null,
         img: img.small || '', imgN: img.normal || '', fn: card.finishes || [], rel: card.released_at || '', oid: card.oracle_id || '',
-        lg: card.legalities?.commander || ''
+        lg: card.legalities?.commander || '', gc: !!card.game_changer, dg: !!card.digital
       };
     }
   };

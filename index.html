@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=15">
+<link rel="stylesheet" href="app.css?v=16">
 </head>
 <body>
 <header class="top">
@@ -151,6 +151,7 @@
         </div>
       </div>
       <input type="text" id="deckName" class="deckname" aria-label="Deck name" maxlength="60">
+      <label class="row note" id="deckBracketWrap" hidden>Bracket <select id="deckBracketSel" class="slim"><option value="">Not set</option><option value="1">1 · Exhibition</option><option value="2">2 · Core</option><option value="3">3 · Upgraded</option><option value="4">4 · Optimized</option><option value="5">5 · cEDH</option></select></label>
       <div class="deckstats" id="deckStats"></div>
       <div class="seg" role="group" aria-label="Deck view">
         <button data-dsub="list" aria-pressed="true">Deck</button>
@@ -225,10 +226,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=15"></script>
-<script src="catalog.js?v=15"></script>
-<script src="legality.js?v=15"></script>
-<script src="games.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="safety.js?v=16"></script>
+<script src="catalog.js?v=16"></script>
+<script src="legality.js?v=16"></script>
+<script src="games.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
