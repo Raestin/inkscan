@@ -60,7 +60,8 @@
     deckGroups: [['Leader', c => c.ty === 'Leader'], ['Characters', c => c.ty === 'Character'], ['Events', c => c.ty === 'Event'], ['Stages', c => c.ty === 'Stage']],
     // "OP01-016", "ST10-005", "EB01-012", "PRB01-001", "P-001"
     parseCode(text){
-      const refs = []; const source = String(text || '').toUpperCase().replace(/[|!]/g, 'I').replace(/[–—]/g, '-');
+      const refs = []; const source = String(text || '').toUpperCase().replace(/[|!]/g, 'I').replace(/[–—]/g, '-')
+        .replace(/\b0P(?=\s?\d)/g, 'OP').replace(/\b5T(?=\s?\d)/g, 'ST').replace(/\bE8(?=\s?\d)/g, 'EB');
       for (const m of source.matchAll(/\b(OP|ST|EB|PRB|P)\s?(\d{0,2})\s?-\s?(\d{3})\b/g)){
         const set = m[1] === 'P' && !m[2] ? 'P' : m[1] + m[2].padStart(2, '0');
         refs.push({set, collector: m[3]});
@@ -105,7 +106,7 @@
       const t = String(text || '').toUpperCase().replace(/[•·]/g, ' ');
       const refs = [];
       const set = /\b([A-Z0-9]{3,5})\s*(?:EN|☆|\*)\b/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
-      const num = /\b0*(\d{1,4}[A-Z★]?)\s*(?:\/\s*\d{1,4})?\s+[CURMSLTP]\b/.exec(t) || /\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/.exec(t);
+      const num = /\b0*(\d{1,4}[A-Z★]?)\s*(?:\/\s*\d{1,4})?\s+[CURMSLTP]\b/.exec(t) || /\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/.exec(t) || /\b[CURMSLTP]\s+0*(\d{1,4}[A-Z★]?)\b/.exec(t);
       if (set && num && /[A-Z]/.test(set[1])) refs.push({set: set[1], collector: num[1]});
       return refs;
     },

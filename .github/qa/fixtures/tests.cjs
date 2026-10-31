@@ -200,10 +200,10 @@ test('the registry defaults to Lorcana and ignores unknown game ids',()=>{const 
 test('Lorcana keeps its original storage key; other games save under their own prefix',()=>{
  const lor=harness();lor.api.setState({inv:{card0:{q:1,f:0}}});assert.ok(lor.api.persistState());assert.ok(lor.storage.values.has(S.KEY));assert.ok(![...lor.storage.values.keys()].some(k=>k.startsWith('inkscan.onepiece:')));
  const op=opHarness();op.api.setState({inv:{'OP01-016':{q:2,f:0}}});assert.ok(op.api.persistState());assert.ok(op.storage.values.has('inkscan.onepiece:'+S.KEY));assert.ok(!op.storage.values.has(S.KEY));});
-test('One Piece card codes resolve exact printings and parallels stay ambiguous',()=>{const op=opHarness();
+test('One Piece card codes land on the regular printing and still list parallels',()=>{const op=opHarness();
  assert.equal(op.api.searchPrintings('OP01-016').card.id,'OP01-016');
  assert.equal(op.api.searchPrintings('op01 - 016').status,'exact');
- assert.equal(op.api.searchPrintings('OP01-001').status,'ambiguous');
+ const zoro=op.api.searchPrintings('OP01-001');assert.equal(zoro.status,'exact');assert.equal(zoro.card.id,'OP01-001');assert.equal(zoro.candidates.length,2);
  assert.equal(op.api.searchPrintings('OP09-999').status,'missing');});
 test('One Piece deck rules: one Leader, four copies, and off-color cards flagged',()=>{const op=opHarness();const d={id:'d',name:'Zoro',cards:{},updated:0};op.api.setState({decks:[d]});
  const deck=op.api.getState().decks[0];

@@ -1,0 +1,37 @@
+name: Refresh One Piece cards and prices
+
+# Rebuilds onepiece-cards.json from optcgapi.com once a week and commits it
+# only when something changed. GitHub Pages then serves the new prices.
+
+on:
+  schedule:
+    - cron: '41 9 * * 1'   # Mondays, 09:41 UTC (about 4 AM Central)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: onepiece-catalog
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Build the catalog
+        run: node tools/build-onepiece.cjs
+      - name: Commit if it changed
+        run: |
+          if git diff --quiet -- onepiece-cards.json; then echo "No changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add onepiece-cards.json
+          git commit -m "Refresh One Piece cards and prices"
+          git push

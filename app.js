@@ -515,7 +515,7 @@ function cardDetailHTML(c){
         <dt>Set</dt><dd>${esc(c.sn)} · #${esc(c.c)}</dd>
         <dt>Rarity</dt><dd>${esc(rarityLabel(c.r))}</dd>
         ${supplementalDetails(c)}
-        <dt>Price</dt><dd>${GAME_FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced. ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
+        <dt>Price</dt><dd>${GAME_FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced.${LORCANA?` ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.`:` ${esc(G.priceSource)}.`}${LORCANA&&ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
         ${c.il?`<dt>Artist</dt><dd>${esc(c.il)}</dd>`:''}
         ${LORCANA?`<dt>Core Constructed</dt><dd data-legality-status="${esc(legalityOf(c).status)}">${cardLegalityHTML(c)}</dd>`:''}
       </dl>
@@ -614,7 +614,7 @@ $('log').addEventListener('change',e=>{
 let scanPrintingScope='all', lastScanResolution=null;
 const printingToken=value=>String(value??'').trim().toUpperCase();
 const collectorToken=value=>printingToken(value).replace(/^0+(?=\d)/,'');
-const isSpecialPrinting=card=>!!card && (card.r==='Promo'||!/^\d+$/.test(String(card.s)));
+const isSpecialPrinting=card=>!!card && (LORCANA ? (card.r==='Promo'||!/^\d+$/.test(String(card.s))) : isSpecialCard(card));
 const printingAllowed=(card,scope)=>scope!=='promo'||isSpecialPrinting(card);
 function exactPrinting(set,collector,scope='all'){
   const reference={set:printingToken(set),collector:collectorToken(collector)};
@@ -626,12 +626,21 @@ function exactPrinting(set,collector,scope='all'){
   if(candidates.length!==1)return {status:'ambiguous',card:null,candidates,reference,message:`${label} matches multiple catalog printings. Nothing was added. Review and select the exact printing manually.`};
   return {status:'exact',card:candidates[0],candidates,reference,message:`${label} identified. Confirm the physical finish separately.`};
 }
+/* Other games: one code can cover a regular card plus parallels or alternate arts. The code alone
+   can't tell them apart, so it lands on the regular printing and lists the rest to choose from. */
+function regularPrinting(result){
+  if(LORCANA||result.status!=='ambiguous')return result;
+  const regular=result.candidates.filter(c=>!isSpecialCard(c));
+  if(regular.length!==1)return result;
+  const label=`${result.reference.set} #${result.reference.collector}`;
+  return {...result,status:'exact',card:regular[0],message:`${label} identified as the regular printing. If yours is a parallel or alternate art, choose it from the list.`};
+}
 function resolveNumberLine(text,scope='all'){
   if(!LORCANA){
     const refs=[...new Map(G.parseCode(text).map(r=>[printingToken(r.set)+'|'+collectorToken(r.collector),r])).values()];
     if(!refs.length)return {status:'unrecognized',card:null,candidates:[],reference:null,message:'The card code could not be read. Nothing was added. Search by its printed code or card name.'};
     if(refs.length>1){const candidates=[...new Map(refs.flatMap(r=>exactPrinting(r.set,r.collector,scope).candidates).map(c=>[c.id,c])).values()];return {status:'ambiguous',card:null,candidates,reference:null,message:'More than one card code was read. Nothing was added. Choose the exact printing.'};}
-    return exactPrinting(refs[0].set,refs[0].collector,scope);
+    return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope));
   }
   const source=String(text||'').replace(/\n/g,' '),references=[];
   // Full alphanumeric tokens are retained. A promo denominator is authoritative;
@@ -655,7 +664,7 @@ function searchPrintings(query,scope=scanPrintingScope){
   if(!DB)return {candidates:[],reference:null,message:''};
   if(!LORCANA&&q){
     const refs=G.parseCode(q);
-    if(refs.length===1)return exactPrinting(refs[0].set,refs[0].collector,scope);
+    if(refs.length===1)return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope));
     const pair=/^([A-Za-z0-9]{2,6})\s*[#\s]\s*#?([0-9]{1,4}[A-Za-z★]?)$/.exec(q);
     if(G.live&&pair&&/[A-Za-z]/.test(pair[1]))return exactPrinting(pair[1],pair[2],scope);
   }
@@ -690,7 +699,7 @@ function renderQuick(){
   el.hidden=!$('q').value.trim() && scanPrintingScope!=='promo';
   const hint=result.message && result.status!=='exact'?`<p class="note printing-search-note" role="status">${esc(result.message)}</p>`:'';
   const count=result.candidates.length>30?`<p class="note printing-search-note">Showing ${res.length} of ${result.candidates.length} matching printings. Search by name or full set code and collector number, or show more below.</p>`:'';
-  el.innerHTML=hint+count+(res.length?res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}${isSpecialPrinting(c)?' · Promo / special printing':''}</div>${result.status==='ambiguous'?`<div class="m">${esc(printingProvider(c))} ID: ${esc(c.id)}</div>`:''}</div><div class="acts"><button data-act="add" data-id="${c.id}" aria-label="Add ${esc(c.n)} ${esc(c.s)} number ${esc(c.c)}">Add</button></div></div></div>`).join(''):`<div class="empty" style="padding:16px">No exact printing found. Try its name or a full reference such as <b>P3 43</b>, <b>PD1 11</b>, or <b>P2 24B</b>. An absent printing cannot be added as its regular version.</div>`)+(result.candidates.length>res.length?`<button class="btn printing-more" id="qMore" data-more-printings>Show next ${Math.min(30,result.candidates.length-res.length)} printings</button>`:'');
+  el.innerHTML=hint+count+(res.length?res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}${isSpecialPrinting(c)?' · '+(LORCANA?'Promo / special printing':esc(c.pv)):''}</div>${result.status==='ambiguous'?`<div class="m">${esc(printingProvider(c))} ID: ${esc(c.id)}</div>`:''}</div><div class="acts"><button data-act="add" data-id="${c.id}" aria-label="Add ${esc(c.n)} ${esc(c.s)} number ${esc(c.c)}">Add</button></div></div></div>`).join(''):`<div class="empty" style="padding:16px">No exact printing found. Try its name or a full reference such as <b>P3 43</b>, <b>PD1 11</b>, or <b>P2 24B</b>. An absent printing cannot be added as its regular version.</div>`)+(result.candidates.length>res.length?`<button class="btn printing-more" id="qMore" data-more-printings>Show next ${Math.min(30,result.candidates.length-res.length)} printings</button>`:'');
 }
 $('qres').addEventListener('click',e=>{
   if(e.target.closest('[data-more-printings]')){quickVisible+=30;renderQuick();return;}
