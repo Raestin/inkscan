@@ -1217,14 +1217,14 @@ function renderDeckGuide(d){
   box.hidden=!g; if(!g){ $('deckGuideBody').innerHTML=''; return; }
   if(box.dataset.deck!==d.id){ box.dataset.deck=d.id; box.open=lsGet('inkscan.guideOpen',false)===true; }
   const t=v=>typeof v==='string'?esc(v):'';
-  const keyBtn=name=>{ const nv=G.nvKey?G.nvKey({n:name,v:''}):norm(name)+'|'; const c=repOf(nv)||[...byNV.keys()].filter(k=>k.startsWith(norm(name))).map(repOf)[0]; return c?`<button class="keycard" data-card="${esc(c.id)}">${esc(name)}</button>`:`<span class="keycard">${esc(name)}</span>`; };
+  const keyBtn=name=>{ const own=Object.keys(d.cards||{}).map(repOf).find(c=>c&&norm(c.n)===norm(name)); if(own) return `<button class="keycard" data-card="${esc(own.id)}">${esc(name)}</button>`; const nv=G.nvKey?G.nvKey({n:name,v:''}):norm(name)+'|'; const c=repOf(nv)||[...byNV.keys()].filter(k=>k.startsWith(norm(name))).map(repOf)[0]; return c?`<button class="keycard" data-card="${esc(c.id)}">${esc(name)}</button>`:`<span class="keycard">${esc(name)}</span>`; };
   $('deckGuideBody').innerHTML=`${Array.isArray(g.themes)&&g.themes.length?`<div class="chips">${g.themes.slice(0,6).map(x=>`<span class="chip">${t(x)}</span>`).join('')}</div>`:''}
     ${g.overview?`<p>${t(g.overview)}</p>`:''}
     ${g.early||g.middle||g.late?`<h4>How it plays</h4><dl class="phase">${g.early?`<dt>Early</dt><dd>${t(g.early)}</dd>`:''}${g.middle?`<dt>Middle</dt><dd>${t(g.middle)}</dd>`:''}${g.late?`<dt>Closing</dt><dd>${t(g.late)}</dd>`:''}</dl>`:''}
     ${Array.isArray(g.win)&&g.win.length?`<h4>Wins with</h4><ul>${g.win.map(x=>`<li>${t(x)}</li>`).join('')}</ul>`:''}
     ${Array.isArray(g.keys)&&g.keys.length?`<h4>Key cards</h4><div class="chips">${g.keys.map(keyBtn).join('')}</div>`:''}
     ${g.tip?`<h4>Tip</h4><p>${t(g.tip)}</p>`:''}
-    ${Array.isArray(g.sideboard)&&g.sideboard.length?`<h4>Sideboard (${g.sideboard.reduce((n,x)=>n+(+x?.[0]||0),0)})</h4><ul>${g.sideboard.map(x=>`<li>${+x?.[0]||1} ${t(String(x?.[1]||''))}</li>`).join('')}</ul>`:''}
+    ${Array.isArray(g.sideboard)&&g.sideboard.length?`<h4>Sideboard (${g.sideboard.reduce((n,x)=>n+(+x?.[0]||0),0)})</h4>${g.sideboard_plan?`<p>${t(g.sideboard_plan)}</p>`:''}<ul>${g.sideboard.map(x=>`<li>${+x?.[0]||1} ${t(String(x?.[1]||''))}</li>`).join('')}</ul>`:''}
     <p class="note">${t(g.source||'Built from EDHREC themes and combos, Scryfall card text and this decklist.')}</p>`;
 }
 $('deckGuide').addEventListener('toggle',()=>lsSet('inkscan.guideOpen',$('deckGuide').open));
@@ -1417,9 +1417,9 @@ function parseDeckImport(text){
   return {cards,lines,unresolved};
 }
 $('importDeckBtn').onclick=()=>{
-  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>${G.live?`<label for="impFile">Or import a deck file (many decks at once)</label><input type="file" id="impFile" accept=".json,application/json">`:''}`);
+  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>${!LORCANA?`<label for="impFile">Or import a deck file (many decks at once)</label><input type="file" id="impFile" accept=".json,application/json">`:''}`);
   let imported=false;
-  if(G.live) $('impFile').onchange=async e=>{ const f=e.target.files?.[0]; if(!f) return; try{ previewDeckFile(parseDeckFile(await f.text())); }catch(err){ $('impMsg').textContent=err.message; } e.target.value=''; };
+  if(!LORCANA) $('impFile').onchange=async e=>{ const f=e.target.files?.[0]; if(!f) return; try{ previewDeckFile(parseDeckFile(await f.text())); }catch(err){ $('impMsg').textContent=err.message; } e.target.value=''; };
   $('impGo').onclick=async()=>{
     if(imported)return;
     if(G.live){
@@ -1439,6 +1439,9 @@ $('importDeckBtn').onclick=()=>{
 /* Deck files: {kind:'inkscan-decks', game, decks:[{name, commanders:[scryfallId], cards:[[qty, scryfallId, name]]}]}.
    Cards are matched by exact Scryfall ID, so double-faced cards and reprints never depend on name matching. */
 const SF_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/* MTG files carry exact Scryfall IDs; bundled-catalog games (One Piece) carry the printed card code, like OP01-016 or P-093. */
+const FILE_ID=()=>G.live?SF_ID:/^[A-Z]{1,4}\d{0,2}-\d{3}$/;
+const fileCard=id=>G.live?byId.get('sf_'+id):repOf(G.nvKey?G.nvKey({n:'',v:id}):id);
 function parseDeckFile(text){
   let j; try{ j=JSON.parse(text); }catch(e){ throw Error('That file is not an InkScan deck file.'); }
   if(!j||j.kind!=='inkscan-decks'||j.version!==1||!Array.isArray(j.decks)) throw Error('That file is not an InkScan deck file.');
@@ -1446,17 +1449,17 @@ function parseDeckFile(text){
   if(j.decks.length>1000) throw Error('A deck file can hold at most 1,000 decks.');
   return j.decks.map((d,i)=>{
     if(!d||typeof d.name!=='string'||!d.name.trim()||d.name.length>200||!Array.isArray(d.cards)||d.cards.length>500) throw Error(`Deck ${i+1} in the file is invalid. Nothing was imported.`);
-    const cards=d.cards.map(c=>{ if(!Array.isArray(c)||!Number.isSafeInteger(c[0])||c[0]<1||c[0]>250||!SF_ID.test(c[1])||(c[3]!=null&&!FINISHES.includes(c[3]))) throw Error(`A card in "${d.name}" is invalid. Nothing was imported.`); return {qty:c[0],id:c[1],name:typeof c[2]==='string'?c[2].slice(0,200):c[1],finish:c[3]||'normal'}; });
-    const commanders=(Array.isArray(d.commanders)?d.commanders:[]).filter(id=>SF_ID.test(id)).slice(0,2);
+    const cards=d.cards.map(c=>{ if(!Array.isArray(c)||!Number.isSafeInteger(c[0])||c[0]<1||c[0]>250||!FILE_ID().test(c[1])||(c[3]!=null&&!FINISHES.includes(c[3]))) throw Error(`A card in "${d.name}" is invalid. Nothing was imported.`); return {qty:c[0],id:c[1],name:typeof c[2]==='string'?c[2].slice(0,200):c[1],finish:c[3]||'normal'}; });
+    const commanders=G.live?(Array.isArray(d.commanders)?d.commanders:[]).filter(id=>SF_ID.test(id)).slice(0,2):[];
     // owned: these are physical cards in hand, at these exact printings and finishes.
     const bracket=Number.isInteger(d.bracket)&&d.bracket>=1&&d.bracket<=5?d.bracket:null;
     const guide=d.guide&&typeof d.guide==='object'&&!Array.isArray(d.guide)&&JSON.stringify(d.guide).length<=6000?JSON.parse(JSON.stringify(d.guide)):null;
     const format=typeof d.format==='string'&&G.formats?.[d.format]&&d.format!=='commander'?d.format:null;
-    return {name:d.name.trim(),cards,commanders,owned:d.owned===true,bracket,guide,format};
+    return {name:d.name.trim(),cards,commanders,owned:G.live&&d.owned===true,bracket,guide,format};
   });
 }
 const ownedReceipt=d=>'deckfile-owned:'+d.name;
-const needsCard=id=>{ const c=byId.get('sf_'+id); return !c||!c.lgs||c.gc===undefined; };
+const needsCard=id=>{ if(!G.live) return false; const c=byId.get('sf_'+id); return !c||!c.lgs||c.gc===undefined; };
 function previewDeckFile(list){
   const byName=new Map(decks.map(d=>[d.name,d])), fresh=list.filter(d=>!byName.has(d.name)), same=list.filter(d=>byName.has(d.name));
   const owned=list.filter(d=>d.owned && !Object.hasOwn(savedState?.imports||{},ownedReceipt(d))), addCopies=owned.reduce((n,d)=>n+d.cards.reduce((m,c)=>m+c.qty,0),0);
@@ -1494,7 +1497,7 @@ async function importDeckFile(list, need, owned=[]){
   const now=Date.now(); let unresolved=0, updatedDecks=0;
   list.forEach((d,i)=>{
     const cards={}, lines=[], miss=[];
-    for(const c of d.cards){ const card=byId.get('sf_'+c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
+    for(const c of d.cards){ const card=fileCard(c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
     unresolved+=miss.length;
     const commanders=d.commanders.map(id=>byId.get('sf_'+id)?.nv).filter(nv=>nv&&cards[nv]);
     const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(d.guide?{guide:d.guide}:{}),...(d.format?{format:d.format}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};

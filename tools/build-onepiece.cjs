@@ -76,6 +76,18 @@ async function main() {
       p: price(r.market_price), pf: null, img: r.card_image || ''
     });
   }
+  // Hand-checked cards optcgapi does not have yet (newer promos), from tools/onepiece-extra.json.
+  // Added only while optcgapi lacks the code, so the API's own data wins once it catches up.
+  const extraPath = path.join(__dirname, 'onepiece-extra.json');
+  if (fs.existsSync(extraPath)) {
+    const have = new Set(cards.map(c => c.v));
+    for (const x of JSON.parse(fs.readFileSync(extraPath, 'utf8'))) if (!have.has(x.v)) { const {src, ...card} = x; cards.push(card); }
+  }
+  // optcgapi appends the code to some names ("Perona - OP14-111") and truncates a few; the name is
+  // what comes before the code, and tools/onepiece-names.json holds hand-checked fixes by card code.
+  const namesPath = path.join(__dirname, 'onepiece-names.json');
+  const fixes = fs.existsSync(namesPath) ? JSON.parse(fs.readFileSync(namesPath, 'utf8')) : {};
+  for (const c of cards) { if (c.n.endsWith(' - ' + c.v)) c.n = c.n.slice(0, -(c.v.length + 3)); if (fixes[c.v]) c.n = fixes[c.v]; }
   const sets = [...new Set(cards.map(c => c.s))].sort((a, b) => setOrder(a) - setOrder(b) || a.localeCompare(b))
     .map(code => ({code, name: setNames.get(code) || code}));
   const order = new Map(sets.map((s, i) => [s.code, i]));

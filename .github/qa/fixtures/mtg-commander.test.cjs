@@ -24,8 +24,8 @@ const CARDS=[
  card('12','Shahrazad','Sorcery','Players play a Magic subgame.','White','not_legal')
 ];
 const NV=n=>Games.norm(n)+'|';
-function harness(){
- const elements=new Map(), events=[], network=[], localStorage=storage({'inkscan.game':JSON.stringify('mtg')});
+function harness(game='mtg'){
+ const elements=new Map(), events=[], network=[], localStorage=storage({'inkscan.game':JSON.stringify(game)});
  function el(id){if(!elements.has(id))elements.set(id,{id,value:'',hidden:false,checked:false,dataset:{},style:{},textContent:'',innerHTML:'',classList:{toggle(){},add(){},remove(){}},addEventListener(type,fn){events.push({id,type,fn});},setAttribute(){},getAttribute(){return 'false';},removeAttribute(){},querySelector(){return el('child');},querySelectorAll(){return[];},getContext(){return{};},appendChild(){},click(){},remove(){},insertAdjacentHTML(){},select(){}});return elements.get(id);}
  const doc={getElementById:el,querySelector:el,querySelectorAll:()=>[],createElement:el,addEventListener(type,fn){events.push({id:'document',type,fn});},body:el('body'),hidden:false,activeElement:null};
  const context={InkSafety:S,InkCatalog:require(path.join(runtime,'catalog.js')),InkLegality:require(path.join(runtime,'legality.js')),InkGames:Games,document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:false},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn){return 1;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
@@ -381,9 +381,9 @@ test('Scryfall conversion keeps every supported format legality',()=>{
 });
 
 test('deck panel lists a sideboard when the guide carries one, escaped',()=>{
- const h=harness();const d=deck(['Sol Ring']);d.format='pauper';d.guide={overview:'Meta deck.',sideboard:[[2,'Campfire'],[4,'Pyroblast'],[1,'<b>x</b>']]};
+ const h=harness();const d=deck(['Sol Ring']);d.format='pauper';d.guide={overview:'Meta deck.',sideboard:[[2,'Campfire'],[4,'Pyroblast'],[1,'<b>x</b>']],sideboard_plan:'Bring in Pyroblast against blue.'};
  h.api.renderDeckGuide(d);const html=h.el('deckGuideBody').innerHTML;
- assert.match(html,/Sideboard \(7\)/);assert.match(html,/<li>4 Pyroblast<\/li>/);assert.doesNotMatch(html,/<b>x<\/b>/);
+ assert.match(html,/Sideboard \(7\)/);assert.match(html,/Bring in Pyroblast against blue\./);assert.match(html,/<li>4 Pyroblast<\/li>/);assert.doesNotMatch(html,/<b>x<\/b>/);
 });
 
 test('a deck read back from the cloud with reordered guide keys is not a conflict (jsonb key order)',()=>{
@@ -397,4 +397,19 @@ test('a deck read back from the cloud with reordered guide keys is not a conflic
  assert.equal(S.plan(base,remote,base).pulls.length,0,'an unchanged deck must not be re-pulled just for key order');
  assert.equal(S.same({a:1,b:{c:2,d:[1,{e:1,f:2}]}},{b:{d:[1,{f:2,e:1}],c:2},a:1}),true);
  assert.equal(S.same({a:[1,2]},{a:[2,1]}),false);
+});
+
+test('One Piece deck files import by printed card code, offline, with the Leader and strategy',async()=>{
+ const h=harness('onepiece');h.api.setState({});h.api.setOnline(false);
+ const op=(id,v,n,ty,i)=>({id,n,v,s:v.split('-')[0],sn:'Synthetic',c:v.split('-')[1],r:'C',pv:id===v?'':'Parallel',i,co:2,ik:1,ty,cl:'',st:5000,wp:1000,lo:ty==='Leader'?5:null,at:'',tx:'',p:1,pf:null,img:''});
+ h.api.setCatalog({asof:'2026-10-30',sets:[{code:'OP01',name:'Synthetic'},{code:'P',name:'Promo'}],cards:[op('OP01-001','OP01-001','Roronoa Zoro','Leader','Red'),op('OP01-016','OP01-016','Nami','Character','Red'),op('OP01-016_p1','OP01-016','Nami','Character','Red'),op('P-088_r1','P-088','Trafalgar Law','Character','Red')]});
+ assert.throws(()=>h.api.parseDeckFile(JSON.stringify({kind:'inkscan-decks',version:1,game:'onepiece',decks:[{name:'X',cards:[[1,'0b5d2c1e-0000-0000-0000-000000000000']]}]})),/invalid/);
+ const guide={overview:'Go wide.',keys:['Nami','Trafalgar Law'],source:'Limitless meta'};
+ const file={kind:'inkscan-decks',version:1,game:'onepiece',decks:[{name:'OPM01 · Red Zoro',owned:true,cards:[[1,'OP01-001','Roronoa Zoro'],[4,'OP01-016','Nami'],[4,'P-088','Trafalgar Law'],[2,'OP09-999','Nobody']],guide}]};
+ const list=h.api.parseDeckFile(JSON.stringify(file));assert.equal(list[0].owned,false);
+ await h.api.importDeckFile(list,[]);
+ const d=h.api.getDecks()[0];assert.equal(d.name,'OPM01 · Red Zoro');
+ assert.deepEqual({...d.cards},{'op|op01001':1,'op|op01016':4,'op|p088':4});assert.deepEqual([...d.unresolved],['2 Nobody']);
+ const st=h.api.deckStats(d);assert.equal(st.leaders,1);assert.equal(st.main,8);
+ h.api.renderDeckGuide(d);const body=h.el('deckGuideBody').innerHTML;assert.match(body,/data-card="P-088_r1">Trafalgar Law/);assert.match(body,/Limitless meta/);
 });
