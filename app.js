@@ -1139,6 +1139,8 @@ async function rest(method, path, body, extra){
 }
 // Full owner-scoped reads avoid timestamp-only pagination and detect missing rows.
 const TABLES={inv:'collection',wish:'wishlist',decks:'decks'};
+// Every cloud row carries its game. This build reads and writes Lorcana rows only, so rows for other games can never enter this collection.
+const GAME='lorcana';
 let cloudRainbow=false;
 async function probeRainbowCloud(){
   // Called only from explicit Update, never at startup or sign-in.
@@ -1153,7 +1155,7 @@ function ensureCloudOrigin(){
 async function pullAll(section){
   const table=TABLES[section], key=section==='decks'?'id':'card_id', out=[];
   for(let offset=0;;offset+=1000){
-    const page=await rest('GET',`${table}?user_id=eq.${encodeURIComponent(session.uid)}&select=*&order=${key}.asc&limit=1000&offset=${offset}`);
+    const page=await rest('GET',`${table}?user_id=eq.${encodeURIComponent(session.uid)}&game=eq.${GAME}&select=*&order=${key}.asc&limit=1000&offset=${offset}`);
     out.push(...page); if(page.length<1000) return out;
   }
 }
@@ -1187,14 +1189,14 @@ function replaceLocalMaps(values){
 async function guardedWrite(operation,previous){
   const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
   if(section==='inv' && !cloudRainbow && (value?.rf||previous?.rainbow_foil))throw Error('Cloud rainbow support is unavailable. Nothing was downgraded to generic foil.');
-  const row=section==='inv'?{user_id:session.uid,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
-    :section==='wish'?{user_id:session.uid,card_id:id,qty:value||0}
-    :{user_id:session.uid,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value};
+  const row=section==='inv'?{user_id:session.uid,game:GAME,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
+    :section==='wish'?{user_id:session.uid,game:GAME,card_id:id,qty:value||0}
+    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value};
   let path=table, method='POST';
   if(previous){
     method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
     const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted'];
-    path+=`?${eq('user_id',session.uid)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>eq(k,previous[k])).join('&');
+    path+=`?${eq('user_id',session.uid)}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>eq(k,previous[k])).join('&');
   }
   const result=await rest(method,path,row,{Prefer:'return=representation'});
   if(!Array.isArray(result)||result.length!==1) throw Error('A cloud item changed during this update. Stopped without overwriting that item. Review and retry.');

@@ -1,6 +1,6 @@
-const CACHE = 'inkscan-v10';
+const CACHE = 'inkscan-v11';
 const IMGS = 'inkscan-img';
-const SHELL = ['./','index.html','safety.js?v=10','catalog.js?v=10','legality.js?v=10','app.js?v=10','app.css?v=10','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
+const SHELL = ['./','index.html','safety.js?v=11','catalog.js?v=11','legality.js?v=11','app.js?v=11','app.css?v=11','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
   'tesseract.min.js','worker.min.js','tesseract-core-simd-lstm.wasm.js','tesseract-core-lstm.wasm.js','eng.traineddata.gz'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); });
 // No forced takeover of open scanning tabs. A new worker waits for the normal browser lifecycle.

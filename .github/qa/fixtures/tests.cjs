@@ -148,8 +148,8 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=10'));assert.ok(sw.includes(name+'.js?v=10'));}
- assert.match(sw,/const CACHE = 'inkscan-v10'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=11'));assert.ok(sw.includes(name+'.js?v=11'));}
+ assert.match(sw,/const CACHE = 'inkscan-v11'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.
@@ -182,3 +182,8 @@ test('save failure stays visible inside an open sheet across card rerenders and 
  h.storage.fail=false;h.api.saveInv();assert.equal(h.el('sheetSaveStatus').hidden,true);assert.equal(h.el('sheetSaveStatus').textContent,'');
  assert.equal(h.network.length,0);
 });
+
+// Multi-game foundation: this Lorcana build must stay inside its own game's cloud rows.
+test('cloud reads are scoped to Lorcana rows',async()=>{const h=harness();h.api.setState({inv:{card0:{q:1,f:0}}});const gets=[];h.api.setReview(async()=>false);h.api.setRest(async(method,path)=>{if(method==='GET')gets.push(path);return[];});await h.api.sync(true);const reads=gets.filter(p=>/^(collection|wishlist|decks)\?/.test(p)&&!p.includes('limit=0'));assert.equal(reads.length,3);for(const p of reads)assert.match(p,/&game=eq\.lorcana&/);});
+test('new cloud rows are tagged Lorcana in every section',async()=>{const h=harness();h.api.setState({});const rows=[];h.api.setRest(async(m,p,row)=>{rows.push(row);return[row];});await h.api.guardedWrite({section:'inv',id:'card0',value:{q:1,f:0}},null);await h.api.guardedWrite({section:'wish',id:'card1',value:2},null);await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'Deck',cards:{}}},null);assert.deepEqual(rows.map(r=>r.game),['lorcana','lorcana','lorcana']);});
+test('conditional updates only match Lorcana rows',async()=>{const h=harness();h.api.setState({});let path;h.api.setRest(async(m,p,row)=>{path=p;return[row];});await h.api.guardedWrite({section:'inv',id:'card0',value:{q:2,f:0}},{updated_at:'2026-10-01T00:00:00Z',q:1,f:0});assert.match(path,/game=eq\.lorcana/);});
