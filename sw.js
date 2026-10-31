@@ -1,6 +1,6 @@
-const CACHE = 'inkscan-v13';
+const CACHE = 'inkscan-v14';
 const IMGS = 'inkscan-img';
-const SHELL = ['./','index.html','safety.js?v=13','catalog.js?v=13','legality.js?v=13','games.js?v=13','app.js?v=13','app.css?v=13','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
+const SHELL = ['./','index.html','safety.js?v=14','catalog.js?v=14','legality.js?v=14','games.js?v=14','app.js?v=14','app.css?v=14','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
   'tesseract.min.js','worker.min.js','tesseract-core-simd-lstm.wasm.js','tesseract-core-lstm.wasm.js','eng.traineddata.gz'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); });
 // No forced takeover of open scanning tabs. A new worker waits for the normal browser lifecycle.
@@ -15,7 +15,8 @@ self.addEventListener('fetch', e => {
   }
   if (u.origin !== location.origin) return; // Lorcast API and fonts go straight to the network
   if (e.request.mode === 'navigate' || /\/(index\.html|app\.js|app\.css|catalog\.js|legality\.js|games\.js|onepiece-cards\.json|core-rules\.json|finish-quotes\.json|promo-catalog\.json)$/.test(u.pathname)) {
-    e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
+    // no-cache: always revalidate with the server, so a fresh release is never hidden behind the 10-minute HTTP cache
+    e.respondWith(fetch(e.request, {cache: 'no-cache'}).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
     return;
   }
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
