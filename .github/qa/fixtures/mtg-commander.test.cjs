@@ -32,7 +32,7 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+ source=source.replace('window.__inkscan =',`window.testAPI={remoteMaps,saveDecks,cheapest,previewDeckFile,getInv(){return inv;},ownedReceipt,deckRows,renderDecks,deckInkSel,parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;savedState=savedState||InkSafety.load(localStorage);session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
@@ -265,4 +265,14 @@ test('MTG saves go to the MTG storage slot and never touch the Lorcana save',asy
  assert.equal(h.storage.values.get(lorcanaKey),sentinel);
  const saved=JSON.parse(h.storage.values.get(mtgKey));assert.equal(saved.inv['sf_'+ID(103)].q,30);assert.equal(saved.decks.length,2);
  assert.doesNotMatch(fs.readFileSync(path.join(runtime,'app.js'),'utf8'),/InkSafety\.save\(localStorage/);
+});
+
+test('deck bracket syncs through the meta column and keeps unknown meta keys',async()=>{
+ const h=harness();h.api.setState({});let call;h.api.setRest(async(...args)=>{call=args;return [{id:'d1'}];});
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{x:1},bracket:3}},null);
+ assert.equal(JSON.stringify(call[2].meta),'{"bracket":3}');
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{x:1}}},{updated_at:'t',name:'A',cards:{x:1},deleted:false,commanders:[],meta:{bracket:3,tags:['fun']}});
+ assert.equal(JSON.stringify(call[2].meta),'{"tags":["fun"]}');assert.match(call[1],/meta=eq\./);
+ const maps=h.api.remoteMaps({inv:[],wish:[],decks:[{id:'d1',name:'A',cards:{x:1},deleted:false,commanders:[],meta:{bracket:4}},{id:'d2',name:'B',cards:{},deleted:false,commanders:[],meta:{}}]});
+ assert.equal(maps.decks.d1.bracket,4);assert.equal(maps.decks.d2.bracket,undefined);
 });

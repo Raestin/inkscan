@@ -1575,7 +1575,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted)};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1596,16 +1596,23 @@ function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
   decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;return o;});
 }
+/* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
+   Keys this build doesn't know (written by a newer build) are carried through untouched. */
+function deckMeta(value,previous){
+  const meta={...(previous?.meta&&typeof previous.meta==='object'&&!Array.isArray(previous.meta)?previous.meta:{})};
+  if(value?.bracket) meta.bracket=value.bracket; else delete meta.bracket;
+  return meta;
+}
 async function guardedWrite(operation,previous){
   const {section,id,value}=operation, table=TABLES[section], key=section==='decks'?'id':'card_id';
   if(section==='inv' && !cloudRainbow && (value?.rf||previous?.rainbow_foil))throw Error('Cloud rainbow support is unavailable. Nothing was downgraded to generic foil.');
   const row=section==='inv'?{user_id:session.uid,game:GAME,card_id:id,q:value?.q||0,f:value?.f||0,...(cloudRainbow?{rainbow_foil:value?.rf||0}:{})}
     :section==='wish'?{user_id:session.uid,game:GAME,card_id:id,qty:value||0}
-    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[],bracket:value?.bracket||null}:{})};
+    :{user_id:session.uid,game:GAME,id,name:value?.name||'Deleted deck',cards:value?.cards||{},deleted:!value,...(G.deck?.commander?{commanders:value?.commanders||[]}:{}),meta:deckMeta(value,previous)};
   let path=table, method='POST';
   if(previous){
     method='PATCH'; const eq=(k,v)=>`${k}=eq.${encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))}`;
-    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted',...(G.deck?.commander?['commanders','bracket']:[])];
+    const columns=section==='inv'?['q','f',...(cloudRainbow?['rainbow_foil']:[])]:section==='wish'?['qty']:['name','cards','deleted','meta',...(G.deck?.commander?['commanders']:[])];
     path+=`?${eq('user_id',session.uid)}&${eq('game',GAME)}&${eq(key,id)}&${eq('updated_at',previous.updated_at)}&`+columns.map(k=>previous[k]===null||previous[k]===undefined?`${k}=is.null`:eq(k,previous[k])).join('&');
   }
   const result=await rest(method,path,row,{Prefer:'return=representation'});
