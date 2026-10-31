@@ -33,9 +33,7 @@
   <section class="view" id="vScan">
     <p id="promoCatalogStatus" class="note printing-resolution" role="status" hidden></p>
     <label class="scan-finish">Printing scope <select id="scanPrintingScope"><option value="all">All printings</option><option value="promo">Promo / special only</option></select></label>
-    <p class="note">Promos and special printings are separate catalog cards, not foil settings. Match the full printed code; a stamp alone cannot identify a printing.</p>
     <label class="scan-finish">Finish for scans and search additions <select id="scanFinish"><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label>
-    <p class="note">Choose the physical finish yourself; scanning a card number does not identify its foil treatment.</p>
     <div class="cam" id="cam">
       <video id="video" playsinline muted></video>
       <div class="guide" id="guide" hidden><div class="strip"></div></div>
@@ -60,6 +58,8 @@
       <input type="search" id="q" placeholder="Card name, P3 43, PD1 11, or P2 24B" autocomplete="off" enterkeyhint="search">
       <div class="list" id="qres" hidden style="margin-top:8px"></div>
     </div>
+    <p class="note">Promos and special printings are separate catalog cards, not foil settings. Match the full printed code; a stamp alone cannot identify a printing.</p>
+    <p class="note">Choose the physical finish yourself; scanning a card number does not identify its foil treatment.</p>
   </section>
 
   <!-- ============ COLLECTION ============ -->
@@ -97,13 +97,13 @@
           </div>
           <label>Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
           <label>Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
-          <p class="note legality-info" id="cLegalityInfo"></p>
           <button class="btn" id="cReset">Reset collection filters</button>
         </div>
       </details>
       <p class="summary" id="cValue" role="status"></p>
       <div id="coll"></div>
       <p class="note" id="cValueNote"></p>
+      <p class="note legality-info" id="cLegalityInfo"></p>
     </div>
 
     <div id="collSets" class="stack" hidden><div class="list" id="setList"></div></div>
@@ -116,7 +116,6 @@
 
   <!-- ============ DECKS ============ -->
   <section class="view" id="vDecks" hidden>
-    <p class="note legality-info" id="deckLegalityCaveat">Size / ink badges are structural checks only, not full deck legality. Collection/Browse card-pool filters do not validate a whole deck. Check copy limits, card-text exceptions, card-pool eligibility and current event rules separately.</p>
     <div id="deckHome" class="stack">
       <div class="row between">
         <h2 class="h2">Decks</h2>
@@ -153,6 +152,7 @@
         <div id="dMore"></div>
       </div>
     </div>
+    <p class="note legality-info" id="deckLegalityCaveat">Size / ink badges are structural checks only, not full deck legality. Collection/Browse card-pool filters do not validate a whole deck. Check copy limits, card-text exceptions, card-pool eligibility and current event rules separately.</p>
   </section>
 
   <!-- ============ BROWSE ============ -->
@@ -180,10 +180,11 @@
     <div class="row between"><span class="note" id="bCount"></span><button class="btn ghost tiny" id="bReset">Reset filters</button></div>
     <label>Value / ownership finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
     <label>Card-pool eligibility <select id="bLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
-    <p class="note legality-info" id="bLegalityInfo"></p>
     <p class="summary" id="bValue" role="status"></p>
     <div class="grid" id="bGrid"></div>
     <div id="bSentinel" class="sentinel"></div>
+    <p class="note" id="bValueNote"></p>
+    <p class="note legality-info" id="bLegalityInfo"></p>
   </section>
 </main>
 

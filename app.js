@@ -716,7 +716,10 @@ $('cLegality').onchange=renderColl;
 $('cReset').onclick=()=>{$('cf').value='';collInks.clear();$('cFinish').value='all';$('cLegality').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
 function valueSummary(rows,finish){
   const result=InkSafety.valuation(rows,finish);
-  return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies across all matching results. ${result.unpriced} copies unpriced. TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
+  return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies${result.unpriced?` · ${result.unpriced} copies unpriced`:''}`;
+}
+function valueNote(){
+  return `TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
 }
 
 function renderFilterCount(){
@@ -754,9 +757,8 @@ function renderCollCards(){
   renderLegalityInfo();
   document.querySelectorAll('[data-lay]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.lay===layout));
   const el = $('coll'); const rows = collRows();
-  const valued=InkSafety.valuation(rows,'all');
-  $('cValue').textContent=`${valued.partial?'Partial estimate':'Estimated value'}: ${money(valued.value)} for ${valued.copies} owned copies${valued.unpriced?` · ${valued.unpriced} copies unpriced`:''}`;
-  const valueNote=$('cValueNote'); if(valueNote) valueNote.textContent=`TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
+  $('cValue').textContent=valueSummary(rows,'all');
+  const cNote=$('cValueNote'); if(cNote) cNote.textContent=valueNote();
   if (!rows.length){
     el.className=''; el.innerHTML = Object.keys(inv).length ? `<div class="list"><div class="empty"><strong>No matches</strong>Nothing in your collection matches that filter.</div></div>` : `<div class="list"><div class="empty"><strong>Your collection is empty</strong>Scan cards on the Scan tab, or open any card in Browse and add it.</div></div>`;
     return;
@@ -848,6 +850,7 @@ function renderBrowse(){
   let missCost=0, unpriced=0; if(own==='miss') for(const c of list){const p=shownPrice(c);if(p===null)unpriced++;else missCost+=p;}
   $('bCount').textContent = `${list.length.toLocaleString()} cards${own==='miss'&&list.length?` · ${money(missCost)} ${unpriced?`priced portion; ${unpriced} unpriced`:'estimated to buy them all'}`:''}`;
   $('bValue').textContent=valueSummary(list.map(c=>inventoryRows(c,inv[c.id])),finish);
+  const bNote=$('bValueNote'); if(bNote) bNote.textContent=valueNote();
   chunked($('bGrid'), $('bSentinel'), list, c=>{const q=finish==='all'||finish==='normal'?(inv[c.id]?.q||0):0,f=finish==='all'||finish==='foil'?(inv[c.id]?.f||0):0,rf=finish==='all'||finish==='rainbow'?(inv[c.id]?.rf||0):0;return tileHTML(c,{q:q+f+rf,f,rf,dim:true,cap:`${setLabel(c)} #${c.c} · ${money(shownPrice(c))}${finish==='all'?'':' '+finish}`});});
 }
 function refreshBrowseBadges(){
