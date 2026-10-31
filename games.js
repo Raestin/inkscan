@@ -53,6 +53,7 @@
     deckFormatNote: 'Decklists use one card per line, like "4xOP01-016" or "4 Nami - OP01-016". The Leader counts separately from the 50.',
     nvKey: c => 'op|' + norm(c.v),
     setLabel: c => c.s,
+    // Every public One Piece image (Bandai's sites, optcgapi, Limitless, most TCGplayer photos) is stamped SAMPLE by Bandai.
     imgUrl: c => c.img || '',
     displayVersion: c => [c.v, c.pv].filter(Boolean).join(' · '),
     stats: c => [['Cost', c.co], ['Power', c.st], ['Counter', c.wp], ['Life', c.lo], ['Attribute', c.at || null]],

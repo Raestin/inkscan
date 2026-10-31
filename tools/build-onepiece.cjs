@@ -8,6 +8,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const SOURCES = ['https://optcgapi.com/api/allSetCards/', 'https://optcgapi.com/api/allSTCards/'];
+// TCGplayer product IDs (for "View on TCGplayer" links) come from tcgcsv.com, TCGplayer's catalog (category 68).
+// Its photos are not used for art: nearly all are Bandai's SAMPLE-stamped images too.
+const TCGCSV = 'https://tcgcsv.com/tcgplayer/68';
+// tcgcsv's usage guidelines ask every script to identify itself.
+const UA = {headers: {'User-Agent': 'InkScan-catalog-builder/1.0 (+https://github.com/Raestin/inkscan)'}};
 const out = process.argv[2] || path.join(__dirname, '..', 'onepiece-cards.json');
 
 // Trailing parentheticals are printing labels ("(Parallel)", "(Jolly Roger Foil)") or a
@@ -35,7 +40,42 @@ const setOrder = code => {
   return group * 1000 + (Number(m[2]) || 0);
 };
 
+const flat = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+async function tcgplayerProducts() {
+  const groups = (await (await fetch(`${TCGCSV}/groups`, UA)).json()).results || [];
+  const byCode = new Map();
+  for (const g of groups) {
+    const res = await fetch(`${TCGCSV}/${g.groupId}/products`, UA);
+    if (!res.ok) throw Error(`tcgcsv group ${g.groupId} returned ${res.status}`);
+    for (const p of (await res.json()).results || []) {
+      const code = (p.extendedData || []).find(e => e.name === 'Number')?.value?.trim();
+      if (!code || !p.imageCount) continue;
+      p.group = flat(g.name); p.abbr = String(g.abbreviation || '').replace(/-/g, '');
+      (byCode.get(code) || byCode.set(code, []).get(code)).push(p);
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  if (byCode.size < 2000) throw Error(`Only ${byCode.size} card codes from tcgcsv; refusing to write`);
+  return byCode;
+}
+// optcgapi's names are TCGplayer's product names, so most printings match exactly. Fallbacks: punctuation-blind,
+// "(SPR)" is TCGplayer's "(SP)", and a base printing takes the product that is just the name (plus its number).
+function productFor(card, rawName, setName, byCode) {
+  const ps = byCode.get(card.v) || []; if (!ps.length) return null;
+  const tries = [rawName, String(rawName || '').replace(/\(SPR\)/, '(SP)')].filter(Boolean);
+  // The same name can repeat across products (a base card and its starter-deck reprint are both "Nami"),
+  // so prefer the product from this printing's own set, then the card's home set.
+  const set = flat(setName), home = card.s.replace(/-/g, '');
+  const pick = list => list.find(p => set && (p.group.includes(set) || set.includes(p.group))) || list.find(p => p.abbr === home) || list[0];
+  for (const t of tries) { const hits = ps.filter(p => p.name === t); const loose = hits.length ? hits : ps.filter(p => flat(p.name) === flat(t)); if (loose.length) return pick(loose).productId; }
+  if (card.pv) return null;
+  const num = card.v.split('-')[1];
+  const base = ps.filter(p => p.name === card.n || p.name === `${card.n} (${num})` || p.name === `${card.n} (${card.v})`);
+  return base.length ? base[0].productId : (ps.length === 1 ? ps[0].productId : null);
+}
+
 async function main() {
+  const byCode = await tcgplayerProducts();
   const rows = [];
   for (const url of SOURCES) {
     const res = await fetch(url);
@@ -73,7 +113,7 @@ async function main() {
       co: num(r.card_cost), ik: 1, ty: r.card_type || '', cl: String(r.sub_types || '').trim(),
       st: num(r.card_power), wp: num(r.counter_amount), lo: num(r.life),
       at: r.attribute && r.attribute !== 'NULL' ? r.attribute : '', tx: String(r.card_text || '').trim(),
-      p: price(r.market_price), pf: null, img: r.card_image || ''
+      p: price(r.market_price), pf: null, img: r.card_image || '', raw: r.card_name, rawSet: r.set_name
     });
   }
   // Hand-checked cards optcgapi does not have yet (newer promos), from tools/onepiece-extra.json.
@@ -88,6 +128,18 @@ async function main() {
   const namesPath = path.join(__dirname, 'onepiece-names.json');
   const fixes = fs.existsSync(namesPath) ? JSON.parse(fs.readFileSync(namesPath, 'utf8')) : {};
   for (const c of cards) { if (c.n.endsWith(' - ' + c.v)) c.n = c.n.slice(0, -(c.v.length + 3)); if (fixes[c.v]) c.n = fixes[c.v]; }
+  let matched = 0;
+  for (const c of cards) { const t = productFor(c, c.raw, c.rawSet, byCode); delete c.raw; delete c.rawSet; if (t) { c.t = t; matched++; } }
+  // Reprints share their original's photo (same art). Two different arts on one product means optcgapi gave
+  // them the same name; keep the photo only on a plain base printing and let the rest fall back to Bandai's image.
+  const shared = new Map();
+  for (const c of cards) if (c.t) (shared.get(c.t) || shared.set(c.t, []).get(c.t)).push(c);
+  const reprint = c => /_r\d+$/.test(c.id) || c.pv === 'Reprint';
+  for (const group of shared.values()) {
+    const arts = group.filter(c => !reprint(c)); if (arts.length < 2) continue;
+    for (const c of arts) if (c.pv) { delete c.t; matched--; }
+  }
+  console.log(`TCGplayer products matched for ${matched} of ${cards.length} printings`);
   const sets = [...new Set(cards.map(c => c.s))].sort((a, b) => setOrder(a) - setOrder(b) || a.localeCompare(b))
     .map(code => ({code, name: setNames.get(code) || code}));
   const order = new Map(sets.map((s, i) => [s.code, i]));

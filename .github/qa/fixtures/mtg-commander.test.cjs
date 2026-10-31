@@ -413,3 +413,8 @@ test('One Piece deck files import by printed card code, offline, with the Leader
  const st=h.api.deckStats(d);assert.equal(st.leaders,1);assert.equal(st.main,8);
  h.api.renderDeckGuide(d);const body=h.el('deckGuideBody').innerHTML;assert.match(body,/data-card="P-088_r1">Trafalgar Law/);assert.match(body,/Limitless meta/);
 });
+test('One Piece printings carry a TCGplayer product ID for store links',()=>{
+ const cards=JSON.parse(fs.readFileSync(path.join(runtime,'onepiece-cards.json'),'utf8')).cards;
+ assert.ok(cards.filter(c=>Number.isSafeInteger(c.t)).length>cards.length*0.95);
+ assert.equal(cards.find(c=>c.id==='OP01-016').t,454534);
+});
