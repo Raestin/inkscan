@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=18">
+<link rel="stylesheet" href="app.css?v=19">
 </head>
 <body>
 <header class="top">
@@ -136,6 +136,7 @@
           <label>Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option></select></label>
           <label>Contains card <input type="search" id="dCard" placeholder="Card name, like Sol Ring" autocomplete="off"></label>
           <label>Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option></select></label>
+          <label class="note"><input type="checkbox" id="dFavFirst" checked> ♥ Favorites first</label>
           <button class="btn" id="dReset">Reset deck filters</button>
         </div>
       </details>
@@ -229,10 +230,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=18"></script>
-<script src="catalog.js?v=18"></script>
-<script src="legality.js?v=18"></script>
-<script src="games.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="safety.js?v=19"></script>
+<script src="catalog.js?v=19"></script>
+<script src="legality.js?v=19"></script>
+<script src="games.js?v=19"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

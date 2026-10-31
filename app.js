@@ -1139,6 +1139,8 @@ function deckRows(){
     :s==='owned'?(a,b)=>((b.st.total-b.st.missing)/(b.st.total||1))-((a.st.total-a.st.missing)/(a.st.total||1))||a.st.missCost-b.st.missCost
     :s==='cost'?(a,b)=>a.st.missCost-b.st.missCost||a.st.missing-b.st.missing
     :(a,b)=>b.d.updated-a.d.updated);
+  // Favorites first: a stable re-sort that pins hearted decks above the rest, each group keeping the chosen order.
+  if($('dFavFirst').checked) rows.sort((a,b)=>(b.d.favorite?1:0)-(a.d.favorite?1:0));
   return rows;
 }
 function deckItemHTML({d,st}){
@@ -1164,7 +1166,9 @@ function renderDecks(keepScroll){
 }
 let dfT; for(const id of ['df','dCard']) $(id).addEventListener('input',()=>{ clearTimeout(dfT); dfT=setTimeout(()=>renderDecks(),150); });
 for(const id of ['dStatus','dBracket','dOwn','dSort','dExact','dFav']) $(id).onchange=()=>renderDecks();
-$('dReset').onclick=()=>{ $('dFav').checked=false;$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
+$('dFavFirst').checked=lsGet('inkscan.favFirst',true)!==false;
+$('dFavFirst').onchange=()=>{ lsSet('inkscan.favFirst',$('dFavFirst').checked); renderDecks(); };
+$('dReset').onclick=()=>{ $('dFav').checked=false;$('dFavFirst').checked=true;lsSet('inkscan.favFirst',true);$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
 inkChips($('deckInks'),deckInkSel,()=>renderDecks());
 function toggleFavorite(d){ if(!d) return; if(d.favorite) delete d.favorite; else d.favorite=true; saveDecks(); /* not an edit: keeps its place in Recently edited */ toast(d.favorite?`Added ${d.name} to favorites`:`Removed ${d.name} from favorites`); }
 $('deckList').addEventListener('click', e=>{ const f=e.target.closest('[data-fav]'); if(f){ const y=window.scrollY; toggleFavorite(decks.find(x=>x.id===f.dataset.fav)); renderDecks(); window.scrollTo(0,y); return; } const b=e.target.closest('[data-deck]'); if(b){ deckHomeScroll=window.scrollY; curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });

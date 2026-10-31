@@ -37,7 +37,7 @@ function harness(){
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
  context.testAPI.setCatalog({asof:'2026-10-30',sets:[{code:'tst',name:'Synthetic set'}],cards:JSON.parse(JSON.stringify(CARDS))});
- el('dFav').checked=false; for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
+ el('dFav').checked=false; el('dFavFirst').checked=false; for(const [id,v] of Object.entries({dStatus:'all',dBracket:'all',dOwn:'all',dSort:'recent'})) el(id).value=v;
  return {api:context.testAPI,network,el,storage:localStorage};
 }
 const deck=(names,commanders=[])=>({id:'d1',name:'Synthetic',cards:Object.fromEntries(names.map(n=>[NV(n),1])),commanders:commanders.map(NV),updated:1});
@@ -322,4 +322,12 @@ test('favorite syncs through meta and survives a deck-file update',async()=>{
  const list=h.api.parseDeckFile(DECKFILE());
  await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))]);
  assert.equal(h.api.getDecks().find(d=>d.id==='keep').favorite,true);
+});
+
+test('Favorites first pins hearted decks to the top and keeps the chosen order inside each group',()=>{
+ const h=filterHarness();const ds=h.api.getDecks();
+ ds.find(d=>d.id==='c').favorite=true;ds.find(d=>d.id==='a').favorite=true;
+ assert.equal(names(h),'dabc');
+ h.el('dFavFirst').checked=true;assert.equal(names(h),'acdb');
+ h.el('dSort').value='name';assert.equal(names(h),'acbd');
 });
