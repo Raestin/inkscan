@@ -211,3 +211,5 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .filterbox>summary{cursor:pointer;padding:10px 0;font-weight:600;list-style-position:inside}
 .filterbox[open]>summary{border-bottom:1px solid var(--line);margin-bottom:10px}
 .filterbox>.stack{padding-bottom:12px}
+.syncbar{margin-bottom:16px}
+.syncbar #saveStatus{flex:1 1 100%;margin:0}
