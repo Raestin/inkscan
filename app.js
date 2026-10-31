@@ -1224,6 +1224,7 @@ function renderDeckGuide(d){
     ${Array.isArray(g.win)&&g.win.length?`<h4>Wins with</h4><ul>${g.win.map(x=>`<li>${t(x)}</li>`).join('')}</ul>`:''}
     ${Array.isArray(g.keys)&&g.keys.length?`<h4>Key cards</h4><div class="chips">${g.keys.map(keyBtn).join('')}</div>`:''}
     ${g.tip?`<h4>Tip</h4><p>${t(g.tip)}</p>`:''}
+    ${Array.isArray(g.sideboard)&&g.sideboard.length?`<h4>Sideboard (${g.sideboard.reduce((n,x)=>n+(+x?.[0]||0),0)})</h4><ul>${g.sideboard.map(x=>`<li>${+x?.[0]||1} ${t(String(x?.[1]||''))}</li>`).join('')}</ul>`:''}
     <p class="note">${t(g.source||'Built from EDHREC themes and combos, Scryfall card text and this decklist.')}</p>`;
 }
 $('deckGuide').addEventListener('toggle',()=>lsSet('inkscan.guideOpen',$('deckGuide').open));

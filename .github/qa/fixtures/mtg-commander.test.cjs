@@ -379,3 +379,9 @@ test('Scryfall conversion keeps every supported format legality',()=>{
  const c=MTG.fromScryfall({id:'z',name:'Snap',set:'x',collector_number:'1',type_line:'Instant',legalities:{commander:'legal',pauper:'legal',vintage:'restricted'}});
  assert.equal(c.lgs.pauper,'legal');assert.equal(c.lgs.vintage,'restricted');assert.equal(c.lgs.standard,'not_legal');
 });
+
+test('deck panel lists a sideboard when the guide carries one, escaped',()=>{
+ const h=harness();const d=deck(['Sol Ring']);d.format='pauper';d.guide={overview:'Meta deck.',sideboard:[[2,'Campfire'],[4,'Pyroblast'],[1,'<b>x</b>']]};
+ h.api.renderDeckGuide(d);const html=h.el('deckGuideBody').innerHTML;
+ assert.match(html,/Sideboard \(7\)/);assert.match(html,/<li>4 Pyroblast<\/li>/);assert.doesNotMatch(html,/<b>x<\/b>/);
+});
