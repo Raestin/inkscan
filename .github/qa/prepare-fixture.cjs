@@ -9,6 +9,10 @@ const manifest = require('./baseline-manifest.json');
 fs.mkdirSync(fixture, { recursive: true });
 const runtime = [...Object.keys(manifest.unchangedFiles), 'app.js', 'app.css', 'index.html', 'sw.js', 'safety.js', 'cards.json', 'finish-quotes.json','catalog.js','promo-catalog.json','legality.js','core-rules.json','games.js','onepiece-cards.json','no-image.svg'];
 for (const name of runtime) fs.copyFileSync(path.join(root,name), path.join(fixture,name));
+// Pokémon catalog and the Help tab's per-game files ship with the release too.
+fs.copyFileSync(path.join(root,'pokemon-cards.json'), path.join(fixture,'pokemon-cards.json'));
+fs.mkdirSync(path.join(fixture,'help'),{recursive:true});
+for (const name of fs.readdirSync(path.join(root,'help'))) if (name.endsWith('.json')) fs.copyFileSync(path.join(root,'help',name), path.join(fixture,'help',name));
 const actual = fs.readFileSync(path.join(root,'app.js'),'utf8');
 let sanitized = actual;
 for (const [name, value] of Object.entries({SB_URL:'https://example.invalid',SB_KEY:'QA_DISABLED_NO_CREDENTIAL'})) {

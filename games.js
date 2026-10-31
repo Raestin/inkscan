@@ -75,6 +75,47 @@
     }
   };
 
+  const PK_RARITIES = ['Common','Uncommon','Rare','Rare Holo','Double Rare','Ultra Rare','Illustration Rare','Special Illustration Rare','Hyper Rare','Mega Hyper Rare','ACE SPEC Rare','Shiny Rare','Shiny Ultra Rare','Rare Ultra','Rare Secret','Rare Rainbow','Rare Shiny','Promo'];
+  const POKEMON = {
+    id: 'pokemon', name: 'Pokémon', tcgLine: 'Pokemon', colorWord: 'Type',
+    colors: ['Grass','Fire','Water','Lightning','Psychic','Fighting','Darkness','Metal','Dragon','Fairy','Colorless'],
+    rarities: PK_RARITIES,
+    rarityLabel: r => r || '',
+    // Chase printings (alt arts, golds, promos); a plain printing represents the card when you own none.
+    special: c => /Illustration|Hyper|Secret|Rainbow|Shiny|Gallery|Promo|Classic|Gold|Amazing|Radiant/i.test(c.r || ''),
+    finishes: {normal: 'Normal', foil: 'Reverse holo'},
+    types: ['Pokémon','Trainer','Energy'],
+    legality: false, inkable: false, live: false,
+    catalog: 'pokemon-cards.json', priceSource: 'TCGplayer market via tcgcsv.com',
+    // Four copies of a card by name; Basic Energy has no limit.
+    deck: {size: 60, maxCopies: 4, maxColors: 0, handSize: 7, singletonExempt: c => c.ty === 'Energy' && /\bBasic\b/.test(c.cl || '')},
+    searchPlaceholder: 'Search all Pokémon cards',
+    scanPlaceholder: 'Card name, or set code and number like TWM 130',
+    scanHint: 'Line the card up in the frame. The set code and number at the bottom left go in the gold box.',
+    guide: 'bottom-left',
+    deckFormatNote: 'Decklists use the Pokémon TCG Live format, like "4 Dreepy TWM 128". Basic Energy has no copy limit.',
+    setLabel: c => c.s,
+    // images.pokemontcg.io serves every printing at <set id>/<number>.png, from the card id "<set id>-<number>".
+    imgUrl: (c, size) => { const i = c.id.lastIndexOf('-'); return i < 1 ? '' : `https://images.pokemontcg.io/${c.id.slice(0, i)}/${c.id.slice(i + 1)}${size === 'small' ? '' : '_hires'}.png`; },
+    displayVersion: c => c.v,
+    stats: c => [['HP', c.st], ['Weakness', c.wk], ['Resistance', c.rs], ['Retreat', c.co], ['Evolves from', c.ef], ['Regulation', c.rg], ['Standard', c.lg ? 'Legal' : 'Not legal']],
+    rowMeta: c => [c.cl || c.ty, c.st != null ? `${c.st} HP` : ''].filter(Boolean).join(' · '),
+    deckGroups: [['Pokémon', c => c.ty === 'Pokémon'], ['Trainers', c => c.ty === 'Trainer'], ['Energy', c => c.ty === 'Energy']],
+    // Printed "TWM EN 130/167", typed "TWM 130", or a Live code "SVP 149".
+    parseCode(text){
+      const refs = [], src = String(text || '').toUpperCase();
+      for (const m of src.matchAll(/\b([A-Z][A-Z0-9]{1,4})\s+(?:EN\s+)?([A-Z]{0,3}\d{1,3})(?:\s*\/\s*\d{1,3})?\b/g)) if (!/^(EN|HP)$/.test(m[1])) refs.push({set: m[1], collector: m[2].replace(/^0+(?=\d)/, '')});
+      return refs;
+    },
+    // Pokémon TCG Live / Limitless: "4 Dreepy TWM 128"; plain "4 Ultra Ball" also works.
+    deckLine(text){
+      const m = /^\s*(\d+)\s+(.+?)\s+([A-Z][A-Z0-9-]{1,5})\s+([A-Z]{0,3}\d{1,3}[a-z]?)\s*$/.exec(text);
+      if (m) return {qty: +m[1], name: m[2], ref: {set: m[3], collector: m[4].replace(/^0+(?=\d)/, '')}};
+      const n = /^\s*(\d+)\s*x?\s+(.+?)\s*$/i.exec(text);
+      return n ? {qty: +n[1], name: n[2]} : null;
+    }
+  };
+
   const MTG_COLORS = {W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green'};
   const MTG = {
     id: 'mtg', name: 'MTG', tcgLine: 'Magic', colorWord: 'Color',
@@ -176,8 +217,8 @@
   };
   function num(v){ const n = Number.parseFloat(v); return Number.isFinite(n) ? n : null; }
 
-  const GAMES = {lorcana: LORCANA, mtg: MTG, onepiece: ONEPIECE};
-  const ORDER = ['lorcana', 'mtg', 'onepiece'];
+  const GAMES = {lorcana: LORCANA, mtg: MTG, onepiece: ONEPIECE, pokemon: POKEMON};
+  const ORDER = ['lorcana', 'mtg', 'onepiece', 'pokemon'];
 
   function currentId(storage){
     try { const g = JSON.parse(storage.getItem(GAME_KEY)); return GAMES[g] ? g : 'lorcana'; }

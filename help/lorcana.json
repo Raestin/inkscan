@@ -1,0 +1,764 @@
+{
+  "game": "lorcana",
+  "title": "How to play Disney Lorcana",
+  "updated": "2026-10-31",
+  "sources": [
+    "Disney Lorcana TCG Comprehensive Rules, Version 2.2.0 (effective July 9, 2026), https://files.disneylorcana.com/Comprehensive-Rules_2.2.0-EN.pdf",
+    "Disney Lorcana: Core Constructed rotation announcement (August 2026), https://www.disneylorcana.com/en-US/news/2026/08/rotation",
+    "Wilds Unknown Set Release Notes, https://files.disneylorcana.com/Wilds-Unknown_SetReleaseNotes_EN.pdf",
+    "Hyperia City rules changes summary (Comprehensive Rules 2.3.0, ink drops, Adventurous), https://gamertagmythras.com/blog/disney-lorcana/lorcana-hyperia-city-rules-changes",
+    "Ink drops explained, https://gamertagmythras.com/blog/disney-lorcana/lorcana-ink-drops-explained",
+    "Hyperia City Lorecast summary (ink drops, Adventurous), https://zatu.com/blogs/news/welcome-to-hyperia-city-exciting-news-from-this-weeks-lorecast",
+    "Attack of the Vine new Shift variants overview, https://nerdist.com/article/disney-lorcana-attack-of-the-vine-set-review/",
+    "Hyperia City release dates, https://thecardshopfinder.com/blog/disney-lorcana-hyperia-city-prerelease-october-16-guide-20260925/"
+  ],
+  "sections": [
+    {
+      "id": "basics",
+      "title": "The basics",
+      "blocks": [
+        {
+          "p": "Disney Lorcana is a trading card game for two or more players. You are an Illumineer, a wielder of magical ink, and your cards are glimmers: ink-made versions of Disney and Pixar characters, plus the actions, songs, items and locations from their stories."
+        },
+        {
+          "p": "You win by being the first player to reach 20 lore. Lore is the game's score. You mostly gain it by sending your characters on quests, and some locations give you lore at the start of each turn. You lose if your turn ends with no cards left in your deck."
+        },
+        {
+          "p": "There is no life total and no direct attacking of players. Instead, the game is a race. Every turn you choose between questing for lore and challenging (fighting) your opponent's characters to slow their race down. A character who quests is left exerted (turned sideways), which makes it a target for a challenge on the opponent's next turn."
+        },
+        {
+          "p": "Any card with the swirl symbol around its cost can be put face down into your inkwell to become ink, the resource you spend to play cards. Almost every card can be a resource, so games rarely stall because you drew the wrong mix."
+        },
+        {
+          "p": "Lorcana suits newcomers to card games, families and Disney fans, because the turn is simple and the art is friendly. It also has a deep competitive scene with official tournaments, so it suits experienced players who enjoy racing, tempo and careful resource decisions."
+        },
+        {
+          "tip": "Think of every turn as a question: is it better to score lore now, or to remove the threat that would score more for my opponent?"
+        }
+      ]
+    },
+    {
+      "id": "cards",
+      "title": "Cards and how to read them",
+      "blocks": [
+        {
+          "p": "There are four card types: characters, actions (including songs), items and locations. Each card belongs to one or two of the six ink types: Amber, Amethyst, Emerald, Ruby, Sapphire and Steel."
+        },
+        {
+          "h": "Parts of a card"
+        },
+        {
+          "terms": [
+            [
+              "Cost",
+              "The number in the hexagon at the top left. It is how much ink you must spend to play the card."
+            ],
+            [
+              "Inkwell symbol",
+              "A decorative swirl around the cost. If it is there, the card is inkable: you may put it into your inkwell as a resource. If the cost hexagon is plain, the card cannot be inked."
+            ],
+            [
+              "Ink type",
+              "The symbol under the cost and the colored bar behind the name. It matters for deckbuilding. A card with two ink symbols counts as both ink types."
+            ],
+            [
+              "Name and version",
+              "Characters and locations have a name (for example, Elsa) and a version subtitle (for example, Spirit of Winter). Name plus version is the full name. Effects that look for a name ignore the version; the 4-copy deck limit counts full names."
+            ],
+            [
+              "Classifications",
+              "The words on the line below the art, such as Storyborn, Floodborn, Dreamborn, Hero, Villain, Princess or Song. Other cards can refer to them."
+            ],
+            [
+              "Strength",
+              "The sword icon on characters. It is the damage the character deals in a challenge."
+            ],
+            [
+              "Willpower",
+              "The shield icon on characters and locations. When damage on the card equals or exceeds its willpower, it is banished (put into the discard pile)."
+            ],
+            [
+              "Lore value",
+              "The diamond icons on the right side of a character or location. A questing character gains you that much lore; a location gives it to you at the start of each of your turns."
+            ],
+            [
+              "Text box",
+              "Keywords (in bold, with reminder text in italics) and named abilities. Each named ability is one ability. Reminder text is a memory aid, not extra rules."
+            ],
+            [
+              "Move cost",
+              "Locations only: the ink needed to move one of your characters there, shown beside the location's willpower."
+            ],
+            [
+              "Collector information",
+              "Along the bottom: artist, set number, collector number, rarity symbol and language. Useful for collecting and identifying printings, not for gameplay."
+            ]
+          ]
+        },
+        {
+          "h": "Card types"
+        },
+        {
+          "terms": [
+            [
+              "Character",
+              "Stays in play. Characters are the only cards that can quest, challenge and sing songs. A character played this turn is drying and cannot quest, challenge or exert to pay costs until your next turn."
+            ],
+            [
+              "Action",
+              "Played from your hand, its effect happens immediately, then it goes to your discard pile."
+            ],
+            [
+              "Song",
+              "An action with the Song classification. You can pay its ink cost, or sing it for free by exerting one of your dry characters whose cost is equal to or higher than the song's cost."
+            ],
+            [
+              "Item",
+              "Stays in play and usually has an ability or ongoing effect. Unlike characters, an item's abilities can be used the turn you play it."
+            ],
+            [
+              "Location",
+              "Printed sideways. It stays in play, has willpower and often a lore value, and your characters can move there by paying its move cost. Its abilities can be used the turn it is played."
+            ]
+          ]
+        },
+        {
+          "tip": "Floodborn characters usually have Shift. Look for a cheaper character with the same name to put them on top of."
+        }
+      ]
+    },
+    {
+      "id": "setup",
+      "title": "Deckbuilding and setup",
+      "blocks": [
+        {
+          "h": "Constructed deck rules"
+        },
+        {
+          "list": [
+            "At least 60 cards. There is no maximum, but most players use exactly 60 so they draw their best cards more often.",
+            "No more than two ink types. A dual-ink card counts as both of its inks, so both must be among your two.",
+            "No more than 4 copies of any card with the same full name (name plus version). Different versions of the same character are separate cards for this limit.",
+            "No banned cards for the format you are playing.",
+            "A few cards change these rules (for example, Christopher Robin - Hunny Sage lets you include other Hunny characters of any ink). Such a card must itself fit your two inks."
+          ]
+        },
+        {
+          "p": "In Limited play (Sealed and Draft) the rules differ: Sealed decks need at least 40 cards, Draft decks at least 35, and you may use any number of ink types and copies."
+        },
+        {
+          "h": "Setting up a game"
+        },
+        {
+          "steps": [
+            "Randomly decide who goes first, for example with a die roll or coin flip. In tournaments, the winner of the roll usually chooses.",
+            "Each player shuffles and offers the opponent a chance to cut or shuffle.",
+            "Each player starts at 0 lore. Have a lore counter and damage counters ready.",
+            "Each player draws 7 cards as an opening hand.",
+            "Mulligan (alter your hand): starting with the first player, each player may put any number of cards from their hand on the bottom of their deck without revealing them, then draws back up to 7. You can do this only once.",
+            "Anyone who altered their hand shuffles their deck and offers it to an opponent to cut or shuffle.",
+            "The first player begins. They skip their draw on the first turn of the game."
+          ]
+        },
+        {
+          "tip": "A good opening hand has two or three cards you are happy to ink and a plan for your first three turns, usually a 1, 2 or 3 cost character."
+        }
+      ]
+    },
+    {
+      "id": "turn",
+      "title": "Taking a turn",
+      "blocks": [
+        {
+          "p": "A turn has three phases: the Start-of-Turn Phase (Ready, Set, Draw), the Main Phase and the End-of-Turn Phase."
+        },
+        {
+          "steps": [
+            "Ready: ready (turn upright) all your exerted cards in play and in your inkwell. Effects that last until the start of your turn end.",
+            "Set: your characters stop being drying, so they can now quest, challenge and exert. Gain lore from each of your locations that has a lore value. Resolve any start-of-turn triggered abilities.",
+            "Draw: draw one card. The first player skips this on the very first turn.",
+            "Main Phase: take any of the turn actions below, in any order, as many times as you can afford (except inking, which is once per turn).",
+            "End of turn: declare the end of your turn. End-of-turn abilities resolve, effects that last this turn end, and play passes to your opponent."
+          ]
+        },
+        {
+          "h": "Turn actions in the Main Phase"
+        },
+        {
+          "list": [
+            "Ink a card (once per turn): reveal an inkable card from your hand and put it face down and ready in your inkwell. Some effects let you ink extra cards.",
+            "Play a card: exert ready ink cards equal to its cost (or pay an alternate cost such as singing or Shift).",
+            "Use an activated ability: pay the cost shown before the dash, for example exert, or exert plus ink.",
+            "Quest: exert a dry, ready character and gain lore equal to its lore value.",
+            "Challenge: exert a dry, ready character to fight an exerted opposing character, or any opposing location.",
+            "Move a character to a location: pay the location's move cost. Your character stays ready or exerted as it was."
+          ]
+        },
+        {
+          "h": "Limits to remember"
+        },
+        {
+          "list": [
+            "Each ink card pays 1 ink and is exerted when used. Your inkwell readies at the start of your turn.",
+            "Characters are drying the turn they enter play. They cannot quest, challenge, sing or exert to pay a cost until your next turn, unless an ability (such as Rush) says otherwise.",
+            "Items and locations can use their abilities the turn you play them.",
+            "You only act on your own turn. There are no instant-speed responses in Lorcana.",
+            "Finish each action, and resolve every triggered ability, before starting the next one."
+          ]
+        },
+        {
+          "tip": "Ink first, then decide what to play. You can ink any time during your Main Phase, but doing it early keeps you from forgetting."
+        }
+      ]
+    },
+    {
+      "id": "combat",
+      "title": "Challenging and damage",
+      "blocks": [
+        {
+          "p": "Combat in Lorcana is called challenging. Only characters can challenge, and only on your own turn. There is no blocking: your opponent's ready characters cannot be challenged and do not defend each other, except through abilities like Bodyguard."
+        },
+        {
+          "h": "How a challenge works"
+        },
+        {
+          "steps": [
+            "Choose one of your characters that is ready and was in play at the start of your turn (dry).",
+            "Choose an exerted opposing character, or any opposing location (locations are never ready or exerted).",
+            "Check limiters: if the opponent has an exerted Bodyguard, you must challenge a Bodyguard; an Evasive character can only be challenged by a character with Evasive or Alert; Adventurous characters cannot challenge at all. (Ward does not stop challenges.)",
+            "Exert your challenging character. Any triggered abilities that care about challenging resolve.",
+            "Both characters deal damage equal to their strength to each other at the same time. A location has no strength and deals no damage back.",
+            "Check the board: any character or location with damage equal to or greater than its willpower is banished to its owner's discard pile."
+          ]
+        },
+        {
+          "h": "Damage"
+        },
+        {
+          "p": "Damage stays on a card until it leaves play or an effect removes it. It does not heal at the end of the turn. When a damaged card leaves play, the damage counters disappear. Damage can also come from actions and abilities, not just challenges."
+        },
+        {
+          "p": "Damage that is dealt (by a challenge or a damage effect) is reduced by Resist. Damage that is put or moved onto a card by an effect is not dealt, so Resist does not reduce it."
+        },
+        {
+          "h": "Who can be challenged"
+        },
+        {
+          "list": [
+            "Exerted characters: usually because they quested, challenged, sang or used an exert ability last turn.",
+            "Any opposing location, at any time in your Main Phase. Banishing a location stops its lore and strands nothing: characters at it stay in play.",
+            "Never a player, and never a ready character."
+          ]
+        },
+        {
+          "tip": "Challenging is a trade. Before you swing, check whether your character survives the strength coming back, and whether leaving it exerted invites a counter-challenge."
+        }
+      ]
+    },
+    {
+      "id": "winning",
+      "title": "Winning and losing",
+      "blocks": [
+        {
+          "list": [
+            "Win: you have 20 or more lore. This is checked constantly, so you win the moment you reach 20, even in the middle of your turn.",
+            "Lose: your turn ends while your deck has no cards in it. Drawing your last card is fine; ending your turn with an empty deck is what loses. Watch effects that make you draw or mill (put cards from your deck into your discard).",
+            "Lose: you concede, which you may do at any time.",
+            "Multiplayer: the last player remaining wins.",
+            "Card effects can change the target, for example a location or character that alters how much lore is needed."
+          ]
+        },
+        {
+          "p": "In the Pack Rush casual variant, the target is 15 lore and running out of cards does not lose; you shuffle your discard pile into a new deck."
+        },
+        {
+          "tip": "Lore counts from all sources. Count your opponent's possible lore next turn, including their locations at the start of the turn, before deciding to quest or challenge."
+        }
+      ]
+    },
+    {
+      "id": "keywords",
+      "title": "Keywords",
+      "blocks": [
+        {
+          "p": "These are all the keywords in the Comprehensive Rules as of October 2026. Keywords marked +N stack: Resist +1 and Resist +2 make Resist +3. Keywords without a number do not stack; getting the same one twice does nothing extra."
+        },
+        {
+          "terms": [
+            [
+              "Adventurous",
+              "Added in Hyperia City (October 2026). This character cannot challenge, and you cannot end your turn while it is ready and able to quest. It can still exert to sing songs or pay ability costs. It is the questing mirror image of Reckless."
+            ],
+            [
+              "Alert",
+              "This character can challenge characters with Evasive as if it had Evasive. It does not give the character Evasive itself."
+            ],
+            [
+              "Bodyguard",
+              "This character may enter play exerted. While it is in play, an opponent who challenges one of your characters must choose a character with Bodyguard if able. A ready Bodyguard cannot be challenged, so it only protects while exerted."
+            ],
+            [
+              "Boost N",
+              "Once during your turn, you may pay N ink to put the top card of your deck face down under this card. Many Boost cards get stronger for each card under them. Nobody may look at cards put under this way, and they are not in play."
+            ],
+            [
+              "Challenger +N",
+              "While this character is challenging, it gets +N strength. It gets no bonus when it is the one being challenged."
+            ],
+            [
+              "Evasive",
+              "This character can only be challenged by characters with Evasive (or Alert). Evasive characters are hard to pin down even when exerted."
+            ],
+            [
+              "Reckless",
+              "This character cannot quest, and you cannot end your turn while it is ready and able to challenge an opposing character or location. It can still exert to sing or use abilities."
+            ],
+            [
+              "Resist +N",
+              "Damage dealt to this character or location is reduced by N. Damage that is put or moved onto it is not reduced."
+            ],
+            [
+              "Rush",
+              "This character can challenge the turn it is played. It still cannot quest that turn."
+            ],
+            [
+              "Shift N",
+              "If you have a character in play with the same name, you may play this card for its Shift cost instead of its ink cost, on top of that character. The shifted character keeps the damage, ready or exerted state and drying or dry status of the card underneath, so if that card was dry, your new character can act right away. When it leaves play, the whole stack goes with it."
+            ],
+            [
+              "[Classification] Shift",
+              "A Shift variant (for example Puppy Shift or Princess Shift). You may shift onto any of your characters with that classification instead of a same-named character."
+            ],
+            [
+              "Universal Shift",
+              "A Shift variant that lets you shift onto any character you have in play."
+            ],
+            [
+              "Duo Shift",
+              "A Shift variant on two-name characters (such as Mickey Mouse and Minnie Mouse). If you have two characters in play that each match one of the names, you may shift on top of both of them at once."
+            ],
+            [
+              "Combo Shift",
+              "A Shift variant that lets you shift onto one character sharing one of this card's names, or onto two characters that each share one of its names."
+            ],
+            [
+              "Temporary Shift",
+              "Shift onto a same-named character as usual; at the end of your turn, if the card is still in play, remove all damage from it and return only that top card to your hand, leaving the original character behind."
+            ],
+            [
+              "Potato Shift",
+              "A Shift variant that lets you shift onto an item you have in play named Potato."
+            ],
+            [
+              "Singer N",
+              "For singing songs, this character counts as having cost N instead of its printed cost. It can exert to sing a song of cost N or less."
+            ],
+            [
+              "Sing Together N",
+              "A keyword on some songs. Instead of paying ink, you may exert any number of your dry characters whose costs add up to N or more. Each character that helps counts as having sung the song."
+            ],
+            [
+              "Support",
+              "Whenever this character quests, you may add its strength to another chosen character's strength for the rest of this turn."
+            ],
+            [
+              "Vanish",
+              "When an opponent chooses this character as part of resolving an action's effect, banish this character after the action resolves. Abilities from characters or items do not trigger it."
+            ],
+            [
+              "Ward",
+              "Your opponents cannot choose this card when resolving an effect. Effects that do not choose (such as 'banish all characters') still hit it, and Ward does not stop it from being challenged."
+            ]
+          ]
+        },
+        {
+          "tip": "Shift is the heart of Lorcana tempo. A Shift character played onto a dry character can quest or challenge the same turn, and inherits that character's place on the board."
+        }
+      ]
+    },
+    {
+      "id": "glossary",
+      "title": "Glossary",
+      "blocks": [
+        {
+          "terms": [
+            [
+              "Active player",
+              "The player whose turn it is. Only the active player takes actions."
+            ],
+            [
+              "Alternate cost",
+              "Any way of playing a card other than paying its ink cost: singing, Shift, or playing it for free."
+            ],
+            [
+              "Bag",
+              "The rules term for the waiting area where triggered abilities go before they resolve. The active player resolves theirs first, then players alternate."
+            ],
+            [
+              "Banish",
+              "Put a card from play into its owner's discard pile, by damage or by an effect."
+            ],
+            [
+              "Cost",
+              "The ink needed to play a card, shown at the top left. Also used for what an ability requires."
+            ],
+            [
+              "Damage counter",
+              "A token marking 1 damage on a character or location."
+            ],
+            [
+              "Deck",
+              "Your shuffled draw pile. It is a private zone."
+            ],
+            [
+              "Discard pile",
+              "Your face-up pile of used actions and banished or discarded cards. It is public."
+            ],
+            [
+              "Dreamborn",
+              "A classification for glimmers that are new takes on familiar characters."
+            ],
+            [
+              "Dry",
+              "A character that has been in play since the start of your turn. Dry characters can quest, challenge and exert."
+            ],
+            [
+              "Drying",
+              "A character that entered play this turn. It cannot quest, challenge or exert to pay costs yet. The name comes from fresh ink drying."
+            ],
+            [
+              "Dual-ink card",
+              "A card with two ink types. It counts as both, so it fits only decks using exactly those two inks."
+            ],
+            [
+              "Exert",
+              "Turn a card sideways to show it has been used. Questing, challenging and singing all exert a character."
+            ],
+            [
+              "Exerted",
+              "Turned sideways. Exerted characters can be challenged."
+            ],
+            [
+              "Floodborn",
+              "A classification for glimmers formed by the flood, usually with Shift."
+            ],
+            [
+              "Full name",
+              "A card's name plus its version, for example Mickey Mouse - Brave Little Tailor. The 4-copy limit uses full names."
+            ],
+            [
+              "Glimmer",
+              "The in-world name for a character card brought to life by ink."
+            ],
+            [
+              "Hand",
+              "Your cards held in hand. It is a private zone with no maximum size."
+            ],
+            [
+              "Illumineer",
+              "You, the player."
+            ],
+            [
+              "Inkable",
+              "A card with the inkwell symbol around its cost, so it can be put into your inkwell."
+            ],
+            [
+              "Ink drop",
+              "A counter introduced in Hyperia City. Some cards give you ink drops, which sit in your inkwell. You may remove an ink drop to pay 1 ink toward a cost; it is then gone. Ink drops are not cards and do not count as inking."
+            ],
+            [
+              "Ink type",
+              "One of the six colors: Amber, Amethyst, Emerald, Ruby, Sapphire, Steel."
+            ],
+            [
+              "Inkwell",
+              "The zone where your face-down ink cards sit. Each ready card there can be exerted for 1 ink."
+            ],
+            [
+              "Lore",
+              "Points. Reach 20 to win."
+            ],
+            [
+              "Mulligan",
+              "Player slang for altering your opening hand: bottom any number of cards and draw back to 7, once per game."
+            ],
+            [
+              "Opening hand",
+              "The 7 cards you draw at the start of the game."
+            ],
+            [
+              "Play zone",
+              "The table area where your characters, items and locations sit."
+            ],
+            [
+              "Quest",
+              "Exert a dry character to gain lore equal to its lore value."
+            ],
+            [
+              "Ready",
+              "Upright and unused. Also the act of turning a card upright."
+            ],
+            [
+              "Reminder text",
+              "The italic text in parentheses after a keyword. It explains the keyword but is not rules text."
+            ],
+            [
+              "Shifted character",
+              "A character played with Shift on top of another card. The cards beneath form a stack."
+            ],
+            [
+              "Sing",
+              "Exert a character to pay for a song instead of spending ink."
+            ],
+            [
+              "Storyborn",
+              "A classification for glimmers that look as they did in their original stories."
+            ],
+            [
+              "Triggered ability",
+              "An ability that starts with when, whenever, at the start of or at the end of. It goes to the bag when its condition happens."
+            ],
+            [
+              "Activated ability",
+              "An ability written as cost, dash, effect. You choose when to use it on your turn."
+            ],
+            [
+              "Static ability",
+              "An ability that is always on while its card is in play, such as most keywords."
+            ],
+            [
+              "Version",
+              "The subtitle that tells apart cards with the same name."
+            ],
+            [
+              "Card advantage",
+              "Slang: having more useful cards than your opponent, usually by drawing extra or trading one card for two of theirs."
+            ],
+            [
+              "Ramp",
+              "Slang: getting more ink than one per turn, for example by inking extra cards."
+            ],
+            [
+              "Removal",
+              "Slang: cards that banish, return to hand or otherwise get rid of opposing characters."
+            ],
+            [
+              "Bounce",
+              "Slang: returning a card from play to its owner's hand."
+            ],
+            [
+              "Mill",
+              "Slang: putting cards from the top of a deck into the discard pile."
+            ],
+            [
+              "Wipe",
+              "Slang: an effect that banishes many characters at once, also called a board wipe."
+            ],
+            [
+              "Aggro",
+              "Slang: a fast deck that plays cheap characters and quests early."
+            ],
+            [
+              "Control",
+              "Slang: a deck that removes the opponent's threats and wins late."
+            ],
+            [
+              "Midrange",
+              "Slang: a deck between aggro and control, with efficient mid-cost characters."
+            ],
+            [
+              "Value",
+              "Slang: getting more than your card's cost back, such as a character that draws a card when played and then quests."
+            ],
+            [
+              "Two-drop, three-drop",
+              "Slang for characters that cost 2 or 3 ink, the backbone of most curves."
+            ],
+            [
+              "Curve",
+              "The spread of costs in your deck. Playing on curve means spending all your ink each turn."
+            ],
+            [
+              "Ink color pairing",
+              "Slang names for two-ink decks combine the colors, such as Amber-Steel or Ruby-Sapphire, often shortened to AmSteel or RubySaph."
+            ],
+            [
+              "Meta",
+              "The set of decks most often played in a format right now."
+            ],
+            [
+              "Lore race",
+              "Slang for the core tension of a game: who reaches 20 first."
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tactics-beginner",
+      "title": "Beginner tips",
+      "blocks": [
+        {
+          "list": [
+            "Ink a card almost every turn for the first four or five turns. Skipping your ink for the turn early is one of the biggest beginner mistakes.",
+            "Ink the cards you are least likely to need: extra copies of situational cards or expensive cards you cannot cast soon. Keep your best plays in hand.",
+            "Aim for about 45 to 50 inkable cards in a 60-card deck so you never miss an ink.",
+            "Play a character every turn if you can. A board of characters is how you score lore.",
+            "Before you quest, ask what can challenge your character next turn. A quest that gets your best character banished may not be worth 1 lore.",
+            "Challenge characters that will score a lot of lore or have strong abilities. Do not trade your key character for a weak one.",
+            "Remember songs. A dry character can sing a song for free, which is often worth more than questing that turn.",
+            "Look for Shift targets. Playing a cheap version of a character early sets up a powerful Shift later.",
+            "Locations score every turn for you. Protect them, and challenge your opponent's locations before they snowball.",
+            "Track lore out loud. Both players should always know the score.",
+            "Build with two inks that cover each other: one that finds and protects threats, one that removes or pressures.",
+            "Play lots of games with a starter deck before buying singles. You will learn what you actually need."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tactics-advanced",
+      "title": "Advanced tactics",
+      "blocks": [
+        {
+          "h": "The lore race clock"
+        },
+        {
+          "p": "Every decision is about turns to 20. Count your lore per turn against your opponent's. If you are faster, quest and only challenge to stay ahead. If you are slower, you must challenge or remove their questers until the race flips. Recount after every big play."
+        },
+        {
+          "h": "Tempo and ink efficiency"
+        },
+        {
+          "p": "Tempo is using your ink well each turn. Spending all 4 ink on turn four is better than a 3-drop with 1 ink wasted. Shift and songs are tempo tools: Shift skips the drying turn, and singing gives you a free action while keeping your ink for something else."
+        },
+        {
+          "h": "Exert exposure"
+        },
+        {
+          "p": "Questing exposes a character to challenges. Before questing, list which of your opponent's characters can challenge next turn and with what strength. Quest with characters that survive, have Evasive, are protected by a Bodyguard, or whose loss you can afford. Sometimes the right play is to keep a key character ready."
+        },
+        {
+          "h": "Trading up"
+        },
+        {
+          "list": [
+            "A good challenge banishes a more expensive or more lore-rich character while your challenger survives.",
+            "A cheap character trading with a costly one is a win even if both die.",
+            "Challenger, Support and strength boosts let small characters win fights they otherwise would not."
+          ]
+        },
+        {
+          "h": "Card advantage"
+        },
+        {
+          "p": "Every card you ink is a card you do not play. Draw engines, characters that generate value when played, and removal that answers two threats keep your hand full in long games. In grindy matchups, the player with more meaningful cards in the late game usually wins."
+        },
+        {
+          "h": "Inking decisions"
+        },
+        {
+          "p": "Inking is your biggest hidden choice. Early, ink to hit your curve. Later, stop inking cards you need once you have enough ink to cast your top end, and ink only true dead cards. Think about which card types your deck runs out of first."
+        },
+        {
+          "h": "Sequencing within a turn"
+        },
+        {
+          "list": [
+            "Ink before you play so you have options.",
+            "Use draw and look-at-the-top effects before choosing your other plays.",
+            "Challenge before you quest when a challenge removes a Bodyguard or opens an Evasive target.",
+            "Quest with Support characters before the character receiving the strength challenges.",
+            "Play Bodyguards before you quest so your questers are protected."
+          ]
+        },
+        {
+          "h": "Shift setups"
+        },
+        {
+          "p": "Plan Shift lines two turns ahead. Getting a same-named base character dry on the turn before you shift lets the Floodborn act immediately. Protect the base, and consider whether the opponent can remove it in response to your setup turn."
+        },
+        {
+          "h": "Song economy"
+        },
+        {
+          "p": "Count singers when deckbuilding. A deck with many 4 and 5 cost characters can sing its songs for free. Singer characters let cheap characters sing expensive songs, and Sing Together lets your whole board fund a big song on a turn you were not going to quest."
+        },
+        {
+          "h": "Reading the opponent"
+        },
+        {
+          "p": "Their ink colors tell you a lot. Watch how much ink they leave unspent and what they keep in hand. An opponent who passes with lots of ink open next turn may be holding a board wipe or big song, so do not overcommit characters into it."
+        },
+        {
+          "h": "Locations and lore over time"
+        },
+        {
+          "p": "A location that gives 1 lore each turn is worth several quests over a game. Decide quickly whether to race past it or spend a challenge to banish it. Moving characters to locations can also protect them or grant bonuses."
+        },
+        {
+          "h": "Matchup and meta thinking"
+        },
+        {
+          "p": "In Core Constructed, the meta shifts with each new set and at annual rotation. Know the top decks, their key threats and their best turns. Build or tune your deck to beat what you expect to face, and plan your mulligans per matchup: keep cheap interaction against aggro and card draw against control."
+        },
+        {
+          "h": "Board wipe discipline"
+        },
+        {
+          "p": "Against decks with mass removal, deploy just enough characters to win the race. Holding back a threat or two means a wipe costs you less."
+        }
+      ]
+    },
+    {
+      "id": "formats",
+      "title": "Formats and ways to play",
+      "blocks": [
+        {
+          "h": "Core Constructed"
+        },
+        {
+          "p": "The main competitive format, with annual rotation. Since the release of Attack of the Vine (2026), Core allows cards from Fabled and every later set: Fabled, Whispers in the Well, Winterspell, Wilds Unknown, Attack of the Vine and Hyperia City (released October 23, 2026). Older cards are legal only if they were reprinted in Fabled or later with the same full name. Core has its own banned list."
+        },
+        {
+          "h": "Infinity Constructed"
+        },
+        {
+          "p": "An eternal format: almost any card ever printed is legal, from The First Chapter onward, apart from Infinity's banned list. It suits players with large collections and favors powerful older combinations."
+        },
+        {
+          "h": "Limited: Sealed and Draft"
+        },
+        {
+          "p": "You build a deck from boosters opened at the event. Sealed decks need at least 40 cards; Draft decks at least 35. Any number of inks and copies are allowed. Prerelease events use Sealed."
+        },
+        {
+          "h": "Casual play"
+        },
+        {
+          "list": [
+            "Kitchen table: agree on any house rules, or simply use starter decks.",
+            "Pack Rush: each player shuffles two unopened boosters into a deck, puts 2 marketing cards in their inkwell, starts with 5 cards, and plays to 15 lore. Running out of cards does not lose; shuffle your discard into a new deck.",
+            "Multiplayer: three or more players; turns pass to the left. A player who ends their turn with an empty deck leaves the game, and the last player remaining wins (or the first to 20 lore).",
+            "Team play and co-operative Illumineer's Quest products have their own rules in their boxes."
+          ]
+        },
+        {
+          "h": "Rotation"
+        },
+        {
+          "p": "Core Constructed rotates once a year, when a new rotation set releases. Check the official site each summer for which sets remain legal."
+        },
+        {
+          "h": "Ban lists and current rules"
+        },
+        {
+          "p": "The current banned lists for Core and Infinity, tournament rules and the latest Comprehensive Rules are on the official Disney Lorcana website (disneylorcana.com) under its rules and organized play resources. Each new set also comes with release notes explaining new mechanics."
+        },
+        {
+          "tip": "Before a tournament, check the banned list and confirm your deck is legal for the format: two inks, 60 or more cards, no more than 4 of a full name."
+        }
+      ]
+    }
+  ]
+}

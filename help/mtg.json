@@ -1,0 +1,978 @@
+{
+ "game": "mtg",
+ "title": "How to play Magic: The Gathering",
+ "updated": "2026-10-31",
+ "sources": [
+  "Magic: The Gathering Comprehensive Rules (effective June 19, 2026), https://media.wizards.com/2026/downloads/MagicCompRules%2020260619.pdf",
+  "Commander Brackets Beta Update, February 9, 2026 (Wizards of the Coast), https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-february-9-2026",
+  "Wizards of the Coast Commander Brackets Update for October 2025 (turn estimates, Game Changers removals), https://edhrec.com/articles/wizards-of-the-coast-commander-brackets-update-for-october-2025",
+  "WeeklyMTG Commander Brackets update summary (October 2025), https://articles.starcitygames.com/magic-the-gathering/weeklymtg-announces-2027-limited-championship-updates-to-commander-brackets/",
+  "Commander Brackets bracket restrictions, https://mtg.wiki/page/Commander_Brackets",
+  "Game Changers timeline, https://mtg.wiki/page/Game_Changers/Timeline",
+  "Banned and Restricted Announcement, February 9, 2026 summary, https://draftsim.com/mtg-banned-and-restricted-feb-2026/",
+  "Comprehensive Rules change history 2024 to 2025 (damage assignment order removal, vehicle commanders, new keywords), https://mtg.wiki/page/Comprehensive_Rules/Changes",
+  "Edge of Eternities rules update: Vehicles can be commanders, https://edhrec.com/articles/edge-of-eternities-rules-update-vehicles-can-be-commanders",
+  "Standard rotation guide (no 2026 rotation; next with first 2027 set), https://draftsim.com/mtg-standard-rotation/",
+  "Commander announcement tease, October 13, 2026 (no Game Changers changes since February 2026), https://mtgrocks.com/mtg-commander-announcement-2026-tease/",
+  "Official Banned and Restricted list, https://magic.wizards.com/en/banned-restricted-list"
+ ],
+ "sections": [
+  {
+   "id": "basics",
+   "title": "The basics",
+   "blocks": [
+    {
+     "p": "Magic: The Gathering is a trading card game for two or more players. You play a planeswalker, a powerful wizard, and your deck is your spell book. You cast spells to summon creatures, bend the rules with enchantments and artifacts, and blast or outwit your opponent."
+    },
+    {
+     "p": "In a normal game each player starts at 20 life. You win by reducing your opponent to 0 life, usually by attacking with creatures. You can also win if your opponent has to draw a card from an empty library (deck), if they get 10 poison counters, or through a card that simply says you win. In Commander, players start at 40 life and a single commander dealing you 21 combat damage also knocks you out."
+    },
+    {
+     "p": "Your resource is mana. Most of it comes from lands, which you can play one per turn. Mana comes in five colors (white, blue, black, red, green) plus colorless. Each color has its own personality, and most decks use one, two or three colors."
+    },
+    {
+     "p": "You can respond on your opponent's turn with instant-speed spells, so every turn is a back-and-forth of decisions. Magic suits players who like deck building, puzzles and long-term mastery. Casual Commander is the most popular way to play with friends; Standard, Modern and other formats suit competitive play; and Limited (draft and sealed) is a great way to learn because everyone builds a deck on the spot."
+    },
+    {
+     "tip": "If a card contradicts the rules, the card wins. And if one effect says you can do something while another says you can't, \"can't\" wins."
+    }
+   ]
+  },
+  {
+   "id": "cards",
+   "title": "Card types and reading a card",
+   "blocks": [
+    {
+     "h": "Reading a card"
+    },
+    {
+     "terms": [
+      [
+       "Name",
+       "Top left. Deck copy limits go by name."
+      ],
+      [
+       "Mana cost",
+       "Top right. Symbols show what you pay: a number is generic mana (any type), and a colored symbol needs mana of that color. Hybrid symbols (split in two) can be paid with either half. Phyrexian symbols can be paid with mana of that color or 2 life."
+      ],
+      [
+       "Mana value",
+       "The total amount of mana in the cost, ignoring color. A card costing {2}{U}{U} has mana value 4. X counts as 0 except on the stack."
+      ],
+      [
+       "Type line",
+       "Middle. Shows supertypes (like legendary or basic), card types (like creature or instant) and subtypes (like Elf Warrior or Equipment). Many effects care about these words."
+      ],
+      [
+       "Set symbol and rarity",
+       "Right of the type line. The symbol shows the set; its color shows rarity: black common, silver uncommon, gold rare, orange-red mythic rare."
+      ],
+      [
+       "Text box",
+       "The rules text. Keywords come first, then other abilities. Text in italics in parentheses is reminder text, and italic flavor text has no rules effect."
+      ],
+      [
+       "Power and toughness",
+       "Bottom right of creatures, written like 3/2. Power is the damage it deals in combat; toughness is how much damage it can take in a turn before it is destroyed."
+      ],
+      [
+       "Loyalty",
+       "Bottom right of planeswalkers. Its starting loyalty counters. Damage dealt to it removes loyalty."
+      ],
+      [
+       "Defense",
+       "Bottom right of battles. Damage dealt to it removes defense counters."
+      ],
+      [
+       "Collector info",
+       "Bottom left: collector number, set code and language. No effect on play."
+      ]
+     ]
+    },
+    {
+     "h": "Card types"
+    },
+    {
+     "terms": [
+      [
+       "Land",
+       "Played, not cast. You may play one land per turn during your main phase when the stack is empty. Most tap for mana. The five basic lands are Plains (white), Island (blue), Swamp (black), Mountain (red) and Forest (green)."
+      ],
+      [
+       "Creature",
+       "A permanent that can attack and block. Creatures have \"summoning sickness\": they can't attack or use abilities with the tap symbol until you have controlled them continuously since the start of your most recent turn."
+      ],
+      [
+       "Artifact",
+       "A permanent representing an object or machine. Often colorless. Subtypes include Equipment (attach to your creatures), Vehicle (crew it to make it a creature), and token types like Treasure, Clue and Food."
+      ],
+      [
+       "Enchantment",
+       "A permanent magical effect. Auras attach to another permanent or player. Other subtypes include Saga (chapters that trigger over several turns), Class, Case, Room and Shrine."
+      ],
+      [
+       "Planeswalker",
+       "A permanent ally. Once per turn, at sorcery speed, you may activate one of its loyalty abilities, adding or removing loyalty counters as shown. Opponents can attack it. It is put into the graveyard at 0 loyalty."
+      ],
+      [
+       "Battle",
+       "A permanent you cast that is protected by an opponent. You attack it to remove its defense counters; when it reaches 0, you defeat it and get its reward. Sieges are the current battle subtype."
+      ],
+      [
+       "Instant",
+       "A spell you can cast any time you have priority, even on your opponent's turn or in response to another spell. It resolves, then goes to the graveyard."
+      ],
+      [
+       "Sorcery",
+       "A spell you can cast only on your own turn, in a main phase, while the stack is empty. Then it goes to the graveyard."
+      ]
+     ]
+    },
+    {
+     "p": "Everything except instants and sorceries is a permanent: it stays on the battlefield after it resolves."
+    },
+    {
+     "h": "Special card frames"
+    },
+    {
+     "list": [
+      "Double-faced cards have two faces. Some transform during play; modal double-faced cards (MDFCs) let you choose which face to play.",
+      "Legendary permanents follow the legend rule: if you control two with the same name, you choose one and put the other into your graveyard."
+     ]
+    }
+   ]
+  },
+  {
+   "id": "setup",
+   "title": "Deck building and setup",
+   "blocks": [
+    {
+     "h": "Deck building rules"
+    },
+    {
+     "list": [
+      "Constructed formats (Standard, Pioneer, Modern, Legacy, Vintage, Pauper): at least 60 cards, no maximum. No more than four copies of any card by English name, except basic lands. Optional sideboard of up to 15 cards.",
+      "Commander: exactly 100 cards including your commander, only one copy of each card except basic lands, and every card must fit your commander's color identity. See the Commander section.",
+      "Limited (draft and sealed): at least 40 cards built from the cards you opened, plus any number of basic lands. No copy limit.",
+      "Each format has its own list of legal sets and banned cards. Vintage also has a restricted list (one copy only)."
+     ]
+    },
+    {
+     "tip": "A good starting ratio for a 60-card deck is 24 lands; for a 40-card Limited deck, 17 lands; for Commander, 36 to 38 lands plus a few mana rocks."
+    },
+    {
+     "h": "Setting up a game"
+    },
+    {
+     "steps": [
+      "Each player shuffles their deck thoroughly and presents it to an opponent, who may shuffle or cut it.",
+      "Each player sets their starting life: 20 in most formats, 40 in Commander.",
+      "Decide who goes first. In the first game of a match, flip a coin or roll a die; the winner chooses to play first or draw first. In later games of a match, the loser of the previous game chooses.",
+      "Each player draws an opening hand of seven cards.",
+      "Starting with the first player, each player decides whether to keep or mulligan.",
+      "In Commander, each commander starts in the command zone, face up."
+     ]
+    },
+    {
+     "h": "Mulligans"
+    },
+    {
+     "p": "Magic uses the London mulligan. If you don't like your seven cards, shuffle your hand back into your deck and draw a fresh seven. Once you keep, put one card from your hand on the bottom of your library for each mulligan you took. You can mulligan as many times as you like, down to zero cards."
+    },
+    {
+     "p": "In multiplayer games, including Commander, your first mulligan is free: you draw a new seven and do not bottom a card for that first mulligan. Later mulligans cost one card each as normal."
+    },
+    {
+     "h": "Who draws on turn one"
+    },
+    {
+     "p": "In a two-player game, the player who goes first skips the draw on their first turn, which balances the advantage of playing first. In multiplayer games such as Commander, nobody skips their first draw."
+    }
+   ]
+  },
+  {
+   "id": "turn",
+   "title": "Turn structure",
+   "blocks": [
+    {
+     "p": "Every turn has five phases, some split into steps. Lands and sorcery-speed spells only go in your main phases, but instants work in almost every step."
+    },
+    {
+     "steps": [
+      "Beginning phase, untap step: untap all your permanents. Nobody can cast spells here.",
+      "Beginning phase, upkeep step: \"at the beginning of your upkeep\" abilities trigger. Players can cast instants.",
+      "Beginning phase, draw step: draw a card (unless you are the first player on turn one of a two-player game).",
+      "First main phase: play your land for the turn and cast any spells. Activate planeswalker loyalty abilities.",
+      "Combat phase, beginning of combat step: the last chance to act before attackers are declared.",
+      "Combat phase, declare attackers step: choose which of your untapped creatures attack and what each attacks (a player, a planeswalker, or a battle). Attacking taps them unless they have vigilance.",
+      "Combat phase, declare blockers step: the defending player chooses blockers.",
+      "Combat phase, combat damage step: creatures deal damage. If any creature has first strike or double strike, there are two damage steps.",
+      "Combat phase, end of combat step: \"at end of combat\" abilities trigger.",
+      "Second main phase: same as the first main phase.",
+      "Ending phase, end step: \"at the beginning of the end step\" abilities trigger.",
+      "Ending phase, cleanup step: if you have more than seven cards in hand, discard down to seven. Then all damage on creatures is removed and \"until end of turn\" effects end."
+     ]
+    },
+    {
+     "h": "Limits each turn"
+    },
+    {
+     "list": [
+      "One land per turn, only in your main phase, with the stack empty (some cards let you play more).",
+      "Sorcery-speed actions (sorceries, creatures and other permanents without flash, planeswalker abilities, equip) only in your own main phase with the stack empty.",
+      "Maximum hand size is seven at cleanup. There is no limit on how many spells you cast if you have the mana.",
+      "Unused mana empties from your mana pool at the end of every step and phase."
+     ]
+    },
+    {
+     "h": "The stack and priority, in plain English"
+    },
+    {
+     "p": "When you cast a spell or an ability triggers, it doesn't happen right away. It goes on the stack, a waiting area. Then every player in turn order gets a chance to respond. That chance is called priority. If someone responds, their spell goes on top of the stack."
+    },
+    {
+     "p": "When all players pass in a row without adding anything, the top item resolves (happens). Then everyone gets priority again. So the stack works last in, first out: the most recent response happens first. For example, you cast a removal spell on a creature; your opponent responds with a spell that gives it protection; their spell resolves first, and your removal then fails."
+    },
+    {
+     "p": "Playing a land does not use the stack, so nobody can respond to it. Mana abilities (like tapping a land for mana) also don't use the stack. Steps and phases only end when all players pass priority with the stack empty."
+    }
+   ]
+  },
+  {
+   "id": "combat",
+   "title": "Combat",
+   "blocks": [
+    {
+     "h": "Attacking"
+    },
+    {
+     "p": "In your combat phase, you declare attackers all at once. Each attacking creature taps and chooses one target to attack: an opponent, a planeswalker an opponent controls, or a battle an opponent protects. A creature can't attack if it is tapped, has defender, or has summoning sickness (unless it has haste). In multiplayer games you can attack several opponents in the same combat."
+    },
+    {
+     "h": "Blocking"
+    },
+    {
+     "p": "The defending player then chooses which of their untapped creatures block. Each blocker can block one attacker. Several blockers can gang up on one attacker. Blocking does not tap a creature. Evasion abilities change who can block: flying creatures can only be blocked by creatures with flying or reach, and a creature with menace needs two or more blockers."
+    },
+    {
+     "h": "Damage"
+    },
+    {
+     "list": [
+      "An unblocked creature deals damage equal to its power to whatever it attacked.",
+      "A blocked creature and its blocker deal damage to each other at the same time. A blocked creature deals no damage to the player, even if its blocker leaves combat, unless it has trample.",
+      "If several creatures block one attacker, the attacking player splits its damage among them however they like. If one creature blocks several attackers (only possible with special abilities), the blocker's controller splits its damage.",
+      "A creature with damage at least equal to its toughness is destroyed (it dies and goes to the graveyard). Damage wears off in the cleanup step.",
+      "Damage to a player reduces their life. Damage to a planeswalker removes that many loyalty counters. Damage to a battle removes that many defense counters."
+     ]
+    },
+    {
+     "h": "First strike and double strike"
+    },
+    {
+     "p": "If any attacking or blocking creature has first strike or double strike, combat has two damage steps. Creatures with first strike or double strike deal damage in the first step. Then everyone else, plus double strikers again, deals damage in the second step. A creature killed in the first step never gets to deal its damage."
+    },
+    {
+     "h": "Trample"
+    },
+    {
+     "p": "A blocked creature with trample must assign lethal damage to its blockers (enough to equal their remaining toughness), and can assign the rest to the player, planeswalker or battle it attacked. With deathtouch, 1 damage counts as lethal, so a deathtouch trampler only needs to assign 1 to each blocker."
+    },
+    {
+     "tip": "Combat tricks are instants cast during combat, often after blockers are declared, to pump a creature or remove a blocker. When your opponent attacks into a bad block with open mana, suspect a trick."
+    }
+   ]
+  },
+  {
+   "id": "winning",
+   "title": "Winning and losing",
+   "blocks": [
+    {
+     "p": "You win when every opponent has lost or left the game. A player loses in any of these ways:"
+    },
+    {
+     "list": [
+      "Life at 0 or less. Checked constantly; a player at 0 life loses the next time the game checks, even in the middle of a turn.",
+      "Drawing from an empty library. You don't lose when your library runs out; you lose when you have to draw a card and can't.",
+      "10 or more poison counters. Poison comes from infect, toxic and some other effects.",
+      "21 combat damage from one commander (Commander format only). This is tracked separately for each commander and counts all combat damage that commander dealt you over the whole game, even if it changed controllers.",
+      "Conceding. You can concede at any time; it can't be prevented.",
+      "A card that says a player loses or wins. Alternate win cards include Thassa's Oracle, Laboratory Maniac, Approach of the Second Sun, Coalition Victory and Felidar Sovereign."
+     ]
+    },
+    {
+     "p": "Cards like Platinum Angel (\"You can't lose the game\") override these while they remain."
+    },
+    {
+     "p": "If all remaining players lose at the same time, the game is a draw. In tournaments, a match is usually best of three games, and a round that runs out of time can end in a draw."
+    }
+   ]
+  },
+  {
+   "id": "keywords",
+   "title": "Keywords",
+   "blocks": [
+    {
+     "p": "Keywords are shorthand for common rules. Evergreen keywords appear in almost every set; others (called deciduous or set mechanics) show up when a set needs them. This list reflects the Comprehensive Rules as of October 2026. Reminder text on the card itself is always the final word for that card."
+    },
+    {
+     "h": "Evergreen keyword abilities"
+    },
+    {
+     "terms": [
+      [
+       "Deathtouch",
+       "Any amount of damage this deals to a creature is enough to destroy it. In combat with trample, 1 damage to each blocker counts as lethal."
+      ],
+      [
+       "Defender",
+       "This creature can't attack. It can still block."
+      ],
+      [
+       "Double strike",
+       "This creature deals both first-strike and regular combat damage."
+      ],
+      [
+       "Enchant",
+       "Found on Auras. It says what the Aura can target and be attached to, such as \"Enchant creature.\" If it ends up attached to something illegal, it goes to the graveyard."
+      ],
+      [
+       "Equip",
+       "\"Equip [cost]\": pay the cost to attach this Equipment to target creature you control. Only at sorcery speed. If the creature leaves, the Equipment stays on the battlefield unattached."
+      ],
+      [
+       "First strike",
+       "This creature deals combat damage before creatures without first strike."
+      ],
+      [
+       "Flash",
+       "You may cast this spell any time you could cast an instant."
+      ],
+      [
+       "Flying",
+       "This creature can't be blocked except by creatures with flying or reach. A flyer can block creatures without flying."
+      ],
+      [
+       "Haste",
+       "This creature can attack and use tap-symbol abilities as soon as it comes under your control."
+      ],
+      [
+       "Hexproof",
+       "This can't be the target of spells or abilities your opponents control. You can still target it. \"Hexproof from [quality]\" only stops opponents' things of that quality."
+      ],
+      [
+       "Indestructible",
+       "Lethal damage and \"destroy\" effects don't destroy it. It can still be exiled, sacrificed, bounced, or die from 0 toughness."
+      ],
+      [
+       "Lifelink",
+       "Damage dealt by this source also causes you to gain that much life."
+      ],
+      [
+       "Menace",
+       "This creature can't be blocked except by two or more creatures."
+      ],
+      [
+       "Prowess",
+       "Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn."
+      ],
+      [
+       "Reach",
+       "This creature can block creatures with flying."
+      ],
+      [
+       "Trample",
+       "If blocked, it can assign damage beyond what is lethal to its blockers to the player, planeswalker or battle it is attacking."
+      ],
+      [
+       "Vigilance",
+       "Attacking doesn't cause this creature to tap, so it can attack and still block next turn."
+      ],
+      [
+       "Ward",
+       "\"Ward [cost]\": whenever this becomes the target of a spell or ability an opponent controls, counter that spell or ability unless they pay the cost (mana, life, or something else)."
+      ],
+      [
+       "Protection",
+       "\"Protection from [quality]\": it can't be Damaged, Enchanted or Equipped, Blocked, or Targeted by anything with that quality (remembered as DEBT). Not evergreen anymore but very common."
+      ]
+     ]
+    },
+    {
+     "h": "Keyword actions"
+    },
+    {
+     "terms": [
+      [
+       "Scry",
+       "\"Scry N\": look at the top N cards of your library, put any number on the bottom and the rest back on top in any order."
+      ],
+      [
+       "Surveil",
+       "\"Surveil N\": look at the top N cards of your library, put any number into your graveyard and the rest back on top in any order."
+      ],
+      [
+       "Mill",
+       "\"Mill N\": put the top N cards of your library into your graveyard."
+      ],
+      [
+       "Fight",
+       "Two creatures fight: each deals damage equal to its power to the other. Not combat damage."
+      ],
+      [
+       "Investigate",
+       "Create a Clue token, an artifact with \"{2}, Sacrifice this: Draw a card.\""
+      ],
+      [
+       "Sacrifice",
+       "Put a permanent you control into its owner's graveyard. It isn't destroyed, so indestructible doesn't stop it, and you can only sacrifice your own permanents."
+      ],
+      [
+       "Destroy",
+       "Move a permanent to its owner's graveyard. Indestructible and regeneration stop it."
+      ],
+      [
+       "Exile",
+       "Remove a card from the game to the exile zone. Unless an effect returns it, it is gone for good."
+      ],
+      [
+       "Counter",
+       "Cancel a spell or ability on the stack. A countered spell goes to the graveyard and has no effect."
+      ],
+      [
+       "Discard",
+       "Move a card from your hand to your graveyard. If the effect doesn't say \"random\" or let an opponent choose, you choose."
+      ],
+      [
+       "Search",
+       "Look through a zone (usually your library) for a card, then shuffle if it was your library. Effects that do this are called tutors."
+      ],
+      [
+       "Cast and play",
+       "Cast means put a spell on the stack and pay its costs. Play means either cast a spell or play a land."
+      ]
+     ]
+    },
+    {
+     "h": "Common set mechanics and tokens"
+    },
+    {
+     "terms": [
+      [
+       "Treasure",
+       "A token artifact with \"{T}, Sacrifice this: Add one mana of any color.\""
+      ],
+      [
+       "Food",
+       "A token artifact with \"{2}, {T}, Sacrifice this: You gain 3 life.\""
+      ],
+      [
+       "Clue, Blood and Map tokens",
+       "Clue: {2}, sacrifice: draw a card. Blood: {1}, {T}, discard a card, sacrifice: draw a card. Map: {1}, {T}, sacrifice: target creature you control explores (sorcery speed)."
+      ],
+      [
+       "Proliferate",
+       "Choose any number of permanents and players that have counters, then give each one more counter of each kind already there."
+      ],
+      [
+       "Explore",
+       "Reveal the top card of your library. If it's a land, put it into your hand. If not, put a +1/+1 counter on the exploring creature, and you may put the revealed card into your graveyard."
+      ],
+      [
+       "Connive",
+       "Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on the conniving creature."
+      ],
+      [
+       "Kicker",
+       "An optional extra cost you may pay as you cast the spell for a bigger effect."
+      ],
+      [
+       "Flashback",
+       "You may cast this card from your graveyard by paying its flashback cost. Then it is exiled."
+      ],
+      [
+       "Cycling",
+       "\"Cycling [cost]\": pay the cost and discard this card from your hand to draw a card."
+      ],
+      [
+       "Convoke",
+       "Each creature you tap while casting this spell pays for {1} or one mana of that creature's color."
+      ],
+      [
+       "Cascade",
+       "When you cast this spell, exile cards from the top of your library until you hit a nonland card with lower mana value. You may cast it free. Put the rest on the bottom in random order."
+      ],
+      [
+       "Crew",
+       "\"Crew N\": tap any number of your untapped creatures with total power N or more to make this Vehicle an artifact creature until end of turn."
+      ],
+      [
+       "Landfall",
+       "An ability word (no rules meaning of its own) for abilities that trigger whenever a land enters the battlefield under your control."
+      ],
+      [
+       "Toxic",
+       "\"Toxic N\": combat damage this deals to a player also gives that player N poison counters."
+      ],
+      [
+       "Infect",
+       "This deals damage to creatures as -1/-1 counters and to players as poison counters instead of life loss."
+      ],
+      [
+       "Affinity",
+       "\"Affinity for artifacts\": this spell costs {1} less to cast for each artifact you control. Other affinity types work the same way."
+      ],
+      [
+       "Delve",
+       "Each card you exile from your graveyard while casting this spell pays for {1}."
+      ],
+      [
+       "Manifest dread",
+       "Look at the top two cards of your library. Put one onto the battlefield face down as a 2/2 creature with no text and the other into your graveyard. You may turn it face up for its mana cost if it's a creature."
+      ],
+      [
+       "Offspring",
+       "\"Offspring [cost]\": you may pay this extra cost as you cast the creature. When it enters, if you did, create a 1/1 token copy of it."
+      ],
+      [
+       "Mobilize",
+       "\"Mobilize N\": whenever this attacks, create N 1/1 red Warrior creature tokens tapped and attacking. Sacrifice them at the beginning of the next end step."
+      ],
+      [
+       "Warp",
+       "You may cast this card from your hand for its warp cost. At the beginning of the next end step, exile it; later you may cast it from exile normally."
+      ],
+      [
+       "Station",
+       "Tap another untapped creature you control: put charge counters equal to its power on this permanent. Sorcery speed only. Spacecraft and other station cards gain abilities, and may become creatures, once they reach the listed number of counters."
+      ],
+      [
+       "Partner",
+       "Lets you have two commanders. See the Commander section for partner variants."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "glossary",
+   "title": "Glossary",
+   "blocks": [
+    {
+     "h": "Zones"
+    },
+    {
+     "terms": [
+      [
+       "Library",
+       "Your deck, face down. You draw from the top."
+      ],
+      [
+       "Hand",
+       "Cards you hold. Hidden from opponents. Maximum seven at end of turn."
+      ],
+      [
+       "Battlefield",
+       "Where permanents are in play. Shared by all players."
+      ],
+      [
+       "Graveyard",
+       "Your discard pile, face up. Destroyed, sacrificed, discarded, countered and resolved instant and sorcery cards go here. Order matters in some formats."
+      ],
+      [
+       "Stack",
+       "Where spells and abilities wait to resolve. Last in, first out."
+      ],
+      [
+       "Exile",
+       "A zone for cards removed from the game, usually face up."
+      ],
+      [
+       "Command zone",
+       "Holds commanders, emblems, and some special cards like planes. Things here can't be targeted by normal effects."
+      ]
+     ]
+    },
+    {
+     "h": "Game terms"
+    },
+    {
+     "terms": [
+      [
+       "Generic and colorless mana",
+       "Generic costs (a plain number) can be paid with any mana. Colorless mana is its own type, shown by a diamond symbol {C}, and some costs require it specifically."
+      ],
+      [
+       "Permanent",
+       "A card or token on the battlefield."
+      ],
+      [
+       "Token",
+       "A permanent created by an effect rather than a card. It ceases to exist if it leaves the battlefield."
+      ],
+      [
+       "Emblem",
+       "A permanent effect in the command zone, usually from a planeswalker ultimate. It can't be removed."
+      ],
+      [
+       "Activated ability",
+       "Written \"cost: effect.\" You choose when to use it."
+      ],
+      [
+       "Triggered ability",
+       "Starts with \"when,\" \"whenever\" or \"at.\" It happens automatically when its event occurs, and uses the stack."
+      ],
+      [
+       "Enters (ETB)",
+       "Short for \"enters the battlefield.\" An ETB trigger happens when the permanent arrives."
+      ],
+      [
+       "Dies",
+       "A creature or planeswalker goes from the battlefield to a graveyard."
+      ],
+      [
+       "Summoning sickness",
+       "A creature can't attack or use tap abilities until you've controlled it since the start of your turn. Haste removes it."
+      ],
+      [
+       "Owner and controller",
+       "The owner is who brought the card into the game. The controller is who currently uses it. Cards always go to their owner's zones."
+      ],
+      [
+       "Target",
+       "A specific choice made when casting or activating. If all targets become illegal, the spell or ability does nothing."
+      ],
+      [
+       "Counters",
+       "Markers placed on permanents or players, such as +1/+1, -1/-1, loyalty or poison. A +1/+1 and a -1/-1 counter on the same permanent cancel out."
+      ],
+      [
+       "State-based actions",
+       "Automatic checks the game makes whenever a player would get priority: players at 0 life lose, creatures with lethal damage die, the legend rule applies, and so on."
+      ],
+      [
+       "Sorcery speed",
+       "Only during your main phase with an empty stack."
+      ],
+      [
+       "Mana value (MV, CMC)",
+       "The total mana cost as a number. Older players say CMC (converted mana cost)."
+      ],
+      [
+       "Color identity",
+       "All colors in a card's mana cost and rules text (not reminder text). Used to build Commander decks."
+      ],
+      [
+       "Legend rule",
+       "If you control two legendary permanents with the same name, you keep one and put the rest in the graveyard."
+      ],
+      [
+       "Bounce",
+       "Slang for returning a permanent to its owner's hand."
+      ],
+      [
+       "Ramp",
+       "Slang for cards that give extra mana or lands to cast big spells sooner."
+      ],
+      [
+       "Removal",
+       "Cards that destroy, exile or neutralize opposing permanents. A board wipe (sweeper, wrath) removes many at once."
+      ],
+      [
+       "Tutor",
+       "Slang for a card that searches your library for another card."
+      ],
+      [
+       "Card advantage",
+       "Having more useful cards than your opponent. A two-for-one is a card that trades for two of theirs."
+      ],
+      [
+       "Tempo",
+       "Using your mana and turns more efficiently than your opponent."
+      ],
+      [
+       "Mana rock and mana dork",
+       "A rock is an artifact that taps for mana. A dork is a creature that taps for mana."
+      ],
+      [
+       "Fetch, shock and dual lands",
+       "Common land cycles. Fetches sacrifice to search for a land, shocks cost 2 life to enter untapped, and duals tap for two colors."
+      ],
+      [
+       "Aggro, control, midrange, combo",
+       "The four main deck archetypes: fast attackers, answer-everything decks, flexible value decks, and decks that win with a specific card interaction."
+      ],
+      [
+       "Meta",
+       "The mix of decks people are currently playing in a format."
+      ],
+      [
+       "Sideboard",
+       "Up to 15 extra cards you can swap into your deck between games of a match."
+      ],
+      [
+       "Mulligan",
+       "Shuffling away your opening hand for a new one."
+      ],
+      [
+       "Pod",
+       "A Commander table, usually four players."
+      ],
+      [
+       "Rule 0",
+       "The pregame talk in Commander about power level, house rules and expectations."
+      ],
+      [
+       "Precon",
+       "A preconstructed deck sold ready to play."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tactics-beginner",
+   "title": "Beginner tips",
+   "blocks": [
+    {
+     "list": [
+      "Play a land every turn if you can. Missing land drops is the most common way to lose early games.",
+      "Use your mana every turn. Unspent mana is wasted, so plan a curve: cheap spells early, bigger ones later.",
+      "Cast creatures in your second main phase unless they help you attack this turn. It hides information and keeps tricks available during combat.",
+      "Ask to read any opponent's card you don't know.",
+      "Not every attack is a good one. Before attacking, ask what happens if your opponent blocks with their best creature.",
+      "Don't block just because you can. Sometimes taking damage is better than losing a key creature, especially at high life.",
+      "Save removal for threats that matter. Killing the first small creature you see often leaves you helpless against the big one.",
+      "Count your opponent's open mana. Untapped lands on their turn mean they might have a counterspell or a combat trick.",
+      "Build two-color decks at first. They are consistent and easy to mana up.",
+      "Keep a seven-card hand with two to five lands and something to do early. Mulligan hands with zero, one, six or seven lands.",
+      "Learn the stack with simple examples. You can always respond to a spell before it resolves.",
+      "In Commander, don't make yourself the biggest threat too early. Politics matter when three opponents can gang up on you."
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tactics-advanced",
+   "title": "Advanced tactics",
+   "blocks": [
+    {
+     "h": "Who's the beatdown"
+    },
+    {
+     "p": "In every matchup one deck is the aggressor and one the controller. If their late game is stronger, race. If yours is, trade resources and survive. Playing the wrong role loses games with the better deck."
+    },
+    {
+     "h": "Card advantage"
+    },
+    {
+     "p": "Spells that answer two threats, draw extra cards, or leave a creature behind generate advantage over time. Against control, avoid overextending into board wipes; against aggro, cheap one-for-one trades are often enough."
+    },
+    {
+     "h": "Tempo"
+    },
+    {
+     "p": "Spending two mana to answer their four-mana play gains you tempo. Well-timed bounce spells and counterspells can steal whole turns."
+    },
+    {
+     "h": "Sequencing"
+    },
+    {
+     "list": [
+      "Play lands that give information last, after you've drawn and scryed.",
+      "Cast card draw and scry effects before choosing your land drop.",
+      "Cast the spell that's most likely to be countered first to bait the counter."
+     ]
+    },
+    {
+     "h": "Holding up mana"
+    },
+    {
+     "p": "Passing with instants available makes your opponent play around cards you may not have. Flash creatures make this costless, and bluffing open mana is a real skill."
+    },
+    {
+     "h": "Playing around cards"
+    },
+    {
+     "p": "Ask what their best possible card is and whether you can afford to play into it. Hold back threats from a board wipe when ahead; commit when behind and you need pressure."
+    },
+    {
+     "h": "Combat math and attacking order"
+    },
+    {
+     "p": "Work out every blocking option before you attack. In multiplayer, attacking the player who can't punish you back is often better than attacking the leader."
+    },
+    {
+     "h": "Mulligan and keep decisions"
+    },
+    {
+     "p": "Evaluate a hand against the likely opponent, not in a vacuum. In best-of-three, games two and three are about your sideboarded deck, so know what each matchup wants and keep hands that do it."
+    },
+    {
+     "h": "Metagame and sideboarding"
+    },
+    {
+     "p": "Pick a deck that beats the popular decks, and sideboard targeted answers such as graveyard hate, artifact removal and cheap interaction for combo. In Commander, know your pod."
+    },
+    {
+     "h": "Threat assessment in multiplayer"
+    },
+    {
+     "p": "In Commander, deal with the engine that will win the game, not just the biggest creature. Remove a card that makes infinite mana before you remove a 6/6. Let opponents spend removal on each other, and hold your own answers for what threatens to end the game."
+    },
+    {
+     "h": "Stack tricks"
+    },
+    {
+     "p": "Respond to removal by sacrificing the targeted creature for value. Respond to a triggered ability by removing its source if it says \"this creature.\" Remember that a spell fizzles (does nothing) if all its targets become illegal."
+    }
+   ]
+  },
+  {
+   "id": "formats",
+   "title": "Formats",
+   "blocks": [
+    {
+     "p": "A format decides which cards are legal and how decks are built. Each has its own ban list, posted on the official banned and restricted page at magic.wizards.com (search \"Banned and Restricted\"). Commander bans and the Game Changers list are announced by Wizards of the Coast's Commander Format Panel."
+    },
+    {
+     "terms": [
+      [
+       "Commander (EDH)",
+       "Casual multiplayer, usually four players. A 100-card singleton deck led by a legendary creature, 40 life. Uses Commander Brackets 1 to 5 to match decks by power. See the Commander section for details."
+      ],
+      [
+       "Standard",
+       "Uses only recent sets. Sets stay legal about three years, and the format rotates once a year. There was no rotation in 2026; the next rotation is scheduled with the first set released in 2027. 60-card decks."
+      ],
+      [
+       "Pioneer",
+       "Non-rotating. Sets from Return to Ravnica (2012) forward. 60-card decks."
+      ],
+      [
+       "Modern",
+       "Non-rotating. Sets from Eighth Edition (2003) forward, plus Modern Horizons sets and other sets released directly into it. 60-card decks."
+      ],
+      [
+       "Legacy",
+       "Every card ever printed except those on its ban list. Very powerful decks. 60-card decks."
+      ],
+      [
+       "Vintage",
+       "Every card ever printed. Instead of banning most powerful cards, it restricts them to one copy each (like Black Lotus and the Moxen). The most powerful format."
+      ],
+      [
+       "Pauper",
+       "Only cards printed at common rarity in at least one paper or Magic Online release. Cheap to build and surprisingly deep."
+      ],
+      [
+       "Limited: Booster Draft",
+       "Players open packs (usually three each), pick one card, pass the rest, and repeat until all cards are taken. Then build a 40-card deck."
+      ],
+      [
+       "Limited: Sealed",
+       "Each player opens six packs (common at prerelease events) and builds a 40-card deck from them."
+      ],
+      [
+       "Other ways to play",
+       "Brawl (Standard-legal 60-card Commander, two players, 25 life), Two-Headed Giant (teams of two sharing 30 life), Cube (drafting from a curated card list), Historic and Timeless (MTG Arena formats), Oathbreaker, Planechase and Archenemy."
+      ]
+     ]
+    },
+    {
+     "h": "Commander Brackets in brief"
+    },
+    {
+     "p": "Brackets are a pregame conversation tool, not a strict rule. The current system (beta, last updated February 9, 2026) gives each bracket a rough expected game length and limits on Game Changers, a list of 53 especially powerful cards (as of October 2026)."
+    },
+    {
+     "steps": [
+      "Bracket 1, Exhibition: theme first, power last. No Game Changers, no intentional two-card infinite combos, no mass land destruction, no extra-turn cards. Expect at least nine turns before anyone wins.",
+      "Bracket 2, Core: average, unoptimized decks. No Game Changers, no intentional two-card infinite combos, no mass land destruction, extra turns only in low numbers with no chaining. Expect at least eight turns.",
+      "Bracket 3, Upgraded: strong synergy and good cards. Up to three Game Changers. No mass land destruction, no early-game two-card infinite combos, extra turns only in low numbers with no chaining. Expect at least six turns.",
+      "Bracket 4, Optimized: high power, fast and lethal, no restrictions beyond the banned list. Expect at least four turns.",
+      "Bracket 5, cEDH: competitive Commander built for the tournament metagame. No restrictions beyond the banned list. Games can end on any turn."
+     ]
+    }
+   ]
+  },
+  {
+   "id": "commander",
+   "title": "Commander deep-dive",
+   "blocks": [
+    {
+     "p": "Commander (EDH, for Elder Dragon Highlander) is Magic's most popular format, built for social multiplayer games. Wizards of the Coast has managed the format since September 2024, with input from the Commander Format Panel."
+    },
+    {
+     "h": "Core rules"
+    },
+    {
+     "list": [
+      "Your deck is exactly 100 cards including your commander (or 99 plus two commanders if you have partners).",
+      "Singleton: only one copy of each card by English name, except basic lands and cards that say a deck can have any number of them.",
+      "Your commander is usually a legendary creature. Legendary Vehicles and Spacecraft with power and toughness can also be commanders (a rules change made in 2025), as can cards that say they can be your commander.",
+      "Each player starts with 40 life.",
+      "A player who has been dealt 21 or more combat damage by a single commander over the game loses.",
+      "Multiplayer games use the free first mulligan, and no player skips their first draw."
+     ]
+    },
+    {
+     "h": "The command zone"
+    },
+    {
+     "p": "Your commander starts the game in the command zone, a special zone visible to everyone. You may cast it from there whenever you could normally cast it. If your commander would go to your graveyard or exile from anywhere, you may move it to the command zone instead. If it would go to your hand or library, you may also send it to the command zone instead."
+    },
+    {
+     "h": "Commander tax"
+    },
+    {
+     "p": "Each time you cast your commander from the command zone, it costs {2} more for each previous time you cast it from there this game. The first cast is normal, the second costs {2} more, the third {4} more, and so on. Casting it from anywhere else (like your hand) doesn't count and costs no tax. With two commanders, each has its own tax."
+    },
+    {
+     "h": "Color identity"
+    },
+    {
+     "p": "Every card in your deck must use only colors in your commander's color identity. Color identity includes every mana symbol in a card's cost and rules text, ignoring reminder text. A land with a mana ability that adds blue has blue in its identity. Hybrid symbols count as both colors, so a card with a red/white hybrid symbol needs a commander with both red and white. Colorless cards fit in any deck. If your commander is colorless, you may run only colorless cards (and Wastes or other colorless lands)."
+    },
+    {
+     "h": "Partners and backgrounds"
+    },
+    {
+     "terms": [
+      [
+       "Partner",
+       "Two commanders that both have partner can be used together. Your color identity is the combination of both."
+      ],
+      [
+       "Partner with [name]",
+       "Can only partner with the named card. Each also helps you find the other when it enters."
+      ],
+      [
+       "Friends forever and other variants",
+       "Pair only with another card that has the same ability, including newer \"Partner, [text]\" variants."
+      ],
+      [
+       "Choose a Background",
+       "A legendary creature with this ability can be paired with a legendary Background enchantment as a second commander."
+      ]
+     ]
+    },
+    {
+     "h": "Banned list and Game Changers"
+    },
+    {
+     "p": "Commander has its own banned list, including cards such as Black Lotus, Mana Crypt, Jeweled Lotus, Dockside Extortionist and Nadu, Winged Wisdom, plus every card that refers to playing for ante. Wish effects can't fetch cards from outside the game. The Game Changers list is separate: those cards are legal, but they push a deck into Bracket 3 (up to three) or Bracket 4 and above (any number). As of October 2026 the list has 53 cards, including Rhystic Study, Cyclonic Rift, Smothering Tithe, Demonic Tutor, The One Ring, Farewell and Biorhythm."
+    },
+    {
+     "h": "Brackets"
+    },
+    {
+     "p": "Before a game, players describe their decks by bracket (1 Exhibition, 2 Core, 3 Upgraded, 4 Optimized, 5 cEDH). The bracket reflects both rules (how many Game Changers, whether mass land destruction, chained extra turns or early two-card combos are in the deck) and intent (how fast and ruthless the deck is meant to be). Precons are no longer automatically Bracket 2, and tutors are no longer limited. A deck with zero Game Changers can still be a 4 if it is built to win fast. Bracket details are in the Formats section."
+    },
+    {
+     "tip": "Have a Rule 0 conversation before every game with new people. Name your bracket, mention any combos, and ask about house rules. It prevents most feel-bad games."
+    }
+   ]
+  }
+ ]
+}

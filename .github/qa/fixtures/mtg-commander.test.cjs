@@ -418,3 +418,26 @@ test('One Piece printings carry a TCGplayer product ID for store links',()=>{
  assert.ok(cards.filter(c=>Number.isSafeInteger(c.t)).length>cards.length*0.95);
  assert.equal(cards.find(c=>c.id==='OP01-016').t,454534);
 });
+test('Pokémon: deck files by set code and number, Live-format text import, Basic Energy unlimited, Standard legality',async()=>{
+ const h=harness('pokemon');h.api.setState({});h.api.setOnline(false);
+ const pk=(id,s,c,n,ty,cl,v,lg=1)=>({id,n,v,s,sn:'Synthetic',c,r:'Common',pv:'',i:ty==='Pokémon'?'Psychic':'',co:1,ik:1,ty,cl,st:ty==='Pokémon'?70:null,lg,tx:'',p:0.1,pf:null});
+ h.api.setCatalog({asof:'2026-10-31',sets:[{code:'TWM',name:'Twilight Masquerade'},{code:'SVE',name:'Energies'},{code:'SVI',name:'Scarlet & Violet'}],cards:[
+  pk('sv6-128','TWM','128','Dreepy','Pokémon','Basic','Petty Grudge / Bite'),pk('sv6-130','TWM','130','Dragapult ex','Pokémon','Stage 2 · Tera · ex','Jet Headbutt / Phantom Dive'),
+  pk('sve-5','SVE','5','Basic Psychic Energy','Energy','Basic',''),pk('sv1-1','SVI','1','Old Trainer','Trainer','Item','',0)]});
+ const file={kind:'inkscan-decks',version:1,game:'pokemon',decks:[{name:'PKM01 · Dragapult ex',cards:[[4,'TWM-128','Dreepy'],[3,'TWM-130','Dragapult ex'],[12,'SVE-5','Basic Psychic Energy'],[1,'SVI-1','Old Trainer'],[1,'XYZ-999','Nothing']],guide:{overview:'Spread.',keys:['Dragapult ex']}}]};
+ await h.api.importDeckFile(h.api.parseDeckFile(JSON.stringify(file)),[]);
+ const d=h.api.getDecks()[0];assert.equal(Object.values(d.cards).reduce((a,b)=>a+b,0),20);assert.deepEqual([...d.unresolved],['1 Nothing']);
+ const st=h.api.deckStats(d);assert.equal(st.overCopies,0);assert.equal(st.notLegal,1);
+ const t=h.api.parseDeckImport('Pokémon: 2\n4 Dreepy TWM 128\n2 Dragapult ex TWM 130\nEnergy: 1\n8 Psychic Energy MEE 13\n5 Dreepy\n1 Mystery Card');
+ assert.equal(t.cards['dreepy|pettygrudgebite'],9);assert.equal(t.cards['dragapultex|jetheadbuttphantomdive'],2);assert.equal(t.cards['basicpsychicenergy|'],8);
+ assert.deepEqual([...t.unresolved],['1 Mystery Card']);
+});
+test('Help: every game has a how-to-play file with the required sections and only known block types',()=>{
+ const REQ=['basics','cards','setup','turn','combat','winning','keywords','glossary','tactics-beginner','tactics-advanced','formats'];
+ for(const g of Games.ORDER){
+  const j=JSON.parse(fs.readFileSync(path.join(runtime,'help',g+'.json'),'utf8'));
+  assert.equal(j.game,g);assert.deepEqual(j.sections.slice(0,REQ.length).map(s=>s.id),REQ);
+  for(const s of j.sections) for(const b of s.blocks){ const k=Object.keys(b); assert.equal(k.length,1); assert.ok(['p','h','steps','list','terms','tip'].includes(k[0]),g+' '+k[0]); }
+  assert.doesNotMatch(JSON.stringify(j),/[–—]/);
+ }
+});

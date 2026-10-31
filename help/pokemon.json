@@ -1,0 +1,701 @@
+{
+ "game": "pokemon",
+ "title": "How to play Pokémon Trading Card Game",
+ "updated": "2026-10-31",
+ "sources": [
+  "Pokémon TCG Standard format rotation announcement, April 10, 2026 (PokeGuardian report): https://www.pokeguardian.com/2925613_pokemon-tcg-standard-format-rotation-announced-for-april-10-2026-cards-with-g-regulation-mark-no-longer-legal",
+  "Bulbapedia, 2026-27 Standard format (TCG): https://bulbapedia.bulbagarden.net/wiki/2026-27_Standard_format_(TCG)",
+  "Bulbapedia, Rule Box (TCG), ex and Mega Evolution ex Prize rules: https://bulbapedia.bulbagarden.net/wiki/Rule_Box",
+  "Bulbapedia, Supporter card (TCG), first-turn Supporter rule: https://bulbapedia.bulbagarden.net/wiki/Supporter_card_(TCG)",
+  "GamesRadar, Mega Evolution ex mechanics in the Mega Evolution series: https://www.gamesradar.com/tabletop-gaming/mark-my-words-pokemon-tcg-mega-evolutions-is-going-to-change-the-face-of-the-game",
+  "Official Pokémon TCG rules page (not reachable during research): https://www.pokemon.com/us/pokemon-tcg/rules"
+ ],
+ "sections": [
+  {
+   "id": "basics",
+   "title": "The basics",
+   "blocks": [
+    {
+     "p": "The Pokémon Trading Card Game is a two-player game. You and your opponent each bring a 60-card deck of Pokémon, Energy and Trainer cards. Your Pokémon battle one at a time from the Active Spot while others wait on your Bench. Attacks put damage on the opposing Active Pokémon, and when a Pokémon takes damage equal to its HP (Hit Points), it is Knocked Out."
+    },
+    {
+     "p": "Each time you Knock Out one of your opponent's Pokémon, you take one or more of your Prize cards: six face-down cards you set aside at the start of the game. Take your last Prize card and you win. You also win if your opponent has no Pokémon left in play, or if they cannot draw a card at the start of their turn."
+    },
+    {
+     "p": "Games are quick (about 20 to 30 minutes), the rules are easy to learn, and decks are built around one or two star Pokémon. It suits newcomers and families thanks to cheap preconstructed decks, and it suits competitive players with a deep, worldwide tournament scene. If you like planning several turns ahead and managing resources, you will feel at home."
+    },
+    {
+     "tip": "Learn the game with two preconstructed decks (a Battle Academy box or two League Battle Decks) before building your own."
+    }
+   ]
+  },
+  {
+   "id": "cards",
+   "title": "Card types and reading a card",
+   "blocks": [
+    {
+     "p": "There are three card types: Pokémon, Energy and Trainer. Every card has a set symbol, collector number, rarity mark, illustrator credit and, on modern cards, a regulation mark (a letter in a small box near the bottom left) that decides Standard legality."
+    },
+    {
+     "h": "Pokémon"
+    },
+    {
+     "p": "Basic Pokémon can be played straight from your hand onto your Bench. Stage 1 Pokémon evolve from a named Basic, and Stage 2 Pokémon evolve from a named Stage 1. To evolve, you place the evolution card on top of the matching Pokémon in play. The evolved Pokémon keeps its attached cards and damage, but loses any Special Conditions and effects from attacks."
+    },
+    {
+     "list": [
+      "Name and stage: top left. Evolution cards show the Pokémon they evolve from.",
+      "HP: top right. The total damage the Pokémon can take before it is Knocked Out.",
+      "Type: the Energy symbol next to the HP (Grass, Fire, Water, Lightning, Psychic, Fighting, Darkness, Metal, Dragon or Colorless).",
+      "Ability: a red-labelled effect that is not an attack. Read its text to see when you can use it.",
+      "Attacks: each has an Energy cost (symbols on the left), a name, a damage number on the right, and sometimes effect text. A Colorless symbol in a cost can be paid with any Energy.",
+      "Weakness, Resistance and Retreat Cost: along the bottom. Weakness usually doubles damage from that type, Resistance usually reduces it by 30, and the Retreat Cost is how much Energy you discard to swap the Pokémon out.",
+      "Rule Box: a shaded box with special rules, such as the extra Prize cards a Pokémon ex gives up."
+     ]
+    },
+    {
+     "h": "Special Pokémon"
+    },
+    {
+     "p": "Pokémon ex are powerful Pokémon with high HP. When one is Knocked Out, your opponent takes 2 Prize cards. Mega Evolution Pokémon ex (\"Mega ex\") are even stronger, and give up 3 Prize cards when Knocked Out. In the current Mega Evolution era, a Mega ex is just a normal Basic, Stage 1 or Stage 2 card: playing or evolving into one does not end your turn, unlike the old XY-era Mega rule. Tera Pokémon ex show a crystal pattern and a Tera label; while they are on your Bench, all damage to them from attacks (yours and your opponent's) is prevented."
+    },
+    {
+     "h": "Energy"
+    },
+    {
+     "p": "Energy powers attacks and pays Retreat Costs. Basic Energy provides one Energy of its type. Special Energy cards have their own text and may provide different Energy, add effects, or both. You may attach only one Energy card from your hand per turn, though card effects can attach more."
+    },
+    {
+     "h": "Trainers"
+    },
+    {
+     "list": [
+      "Item: play as many as you like during your turn. Usually one-shot effects like search or switching.",
+      "Supporter: powerful effects such as drawing several cards. Only one per turn, and the player going first cannot play one on their first turn.",
+      "Stadium: stays in play and affects both players. Only one Stadium can be in play; playing a new one discards the old. You cannot play a Stadium with the same name as the one in play. One per turn.",
+      "Pokémon Tool: attach to one of your Pokémon, where it stays and gives a lasting effect. Each Pokémon can have only one Tool unless an effect says otherwise.",
+      "ACE SPEC: an extra-powerful Item, Tool, Stadium or Special Energy. You may have only one ACE SPEC card in your whole deck."
+     ]
+    }
+   ]
+  },
+  {
+   "id": "setup",
+   "title": "Deck building and setting up",
+   "blocks": [
+    {
+     "h": "Deck rules"
+    },
+    {
+     "list": [
+      "Exactly 60 cards.",
+      "No more than 4 copies of any card with the same name, except Basic Energy, which is unlimited. Different versions with the same name (for example two different Pikachu cards) share the limit of 4. Pokémon ex and trainer-owned Pokémon have different names from the plain versions (\"Pikachu ex\" or \"N's Zoroark ex\" is not \"Pikachu\" or \"Zoroark\").",
+      "At least one Basic Pokémon (in practice, many more).",
+      "Only one ACE SPEC card in the deck, and only one Radiant Pokémon (Radiant cards are no longer Standard legal).",
+      "Every card must be legal in the format you are playing."
+     ]
+    },
+    {
+     "h": "Setting up a game"
+    },
+    {
+     "steps": [
+      "Shake hands, shuffle your deck and let your opponent cut or shuffle it.",
+      "Flip a coin. The winner chooses whether to go first or second.",
+      "Each player draws 7 cards.",
+      "If you have no Basic Pokémon in hand, you must mulligan: show your hand to your opponent, shuffle it into your deck and draw 7 new cards. Repeat until you have a Basic.",
+      "Place one Basic Pokémon face down in your Active Spot. You may also place up to 5 more Basic Pokémon face down on your Bench.",
+      "For each mulligan your opponent took, you may draw 1 extra card (this is optional). If both players have no Basic on the same draw, both simply redraw and those mulligans do not give extra cards. You may put any Basics you draw onto your Bench.",
+      "Each player places the top 6 cards of their deck face down to the side as Prize cards.",
+      "Both players flip their Pokémon face up, and the player going first begins their turn."
+     ]
+    },
+    {
+     "h": "Going first"
+    },
+    {
+     "p": "The player who goes first does draw a card on their first turn, but cannot attack and cannot play a Supporter that turn. Neither player can evolve a Pokémon on their own first turn, and no Pokémon can evolve on the same turn it was put into play. Many players still choose to go first, because setting up a Bench a turn earlier is often worth more than a first-turn attack."
+    }
+   ]
+  },
+  {
+   "id": "turn",
+   "title": "Taking a turn",
+   "blocks": [
+    {
+     "steps": [
+      "Draw a card. If you cannot draw because your deck is empty, you lose.",
+      "Do any of these actions, in any order, as often as allowed:",
+      "Put Basic Pokémon from your hand onto your Bench (Bench limit is 5).",
+      "Evolve your Pokémon, as many as you like, but each Pokémon only once per turn, not on your first turn, and not a Pokémon that came into play this turn.",
+      "Attach one Energy card from your hand to one of your Pokémon (Active or Benched). Once per turn.",
+      "Play Trainer cards: any number of Items and Tools, one Supporter, and one Stadium.",
+      "Retreat your Active Pokémon once per turn.",
+      "Use Abilities, following each Ability's own text.",
+      "Attack with your Active Pokémon (optional). Attacking ends your turn. If you do not attack, announce that your turn is over.",
+      "Pokémon Checkup: between turns, resolve Special Conditions and any other between-turn effects, then your opponent's turn begins."
+     ]
+    },
+    {
+     "h": "Retreating"
+    },
+    {
+     "p": "To retreat, discard Energy from your Active Pokémon equal to its Retreat Cost, then swap it with one of your Benched Pokémon. You can retreat only once per turn, and Asleep or Paralyzed Pokémon cannot retreat. Switching effects from cards (like a Switch Item) are not retreating, cost no Energy, and do not use up your retreat for the turn."
+    },
+    {
+     "tip": "Sequence your turn: play draw and search cards first, then decide where your Energy goes, and attack last. Attaching too early can lock you into a bad line."
+    }
+   ]
+  },
+  {
+   "id": "combat",
+   "title": "Attacking, damage and Knock Outs",
+   "blocks": [
+    {
+     "p": "Only your Active Pokémon can attack, and it targets the opponent's Active Pokémon unless the attack says otherwise. To attack, the Pokémon must have the Energy shown in the attack cost attached. Energy is not spent when you attack; it stays attached. Your opponent does not block: the Active Pokémon simply takes the hit."
+    },
+    {
+     "h": "Working out damage"
+    },
+    {
+     "steps": [
+      "Start with the damage printed on the attack. A number followed by +, x or minus means the text changes it.",
+      "Apply effects on the attacking Pokémon (for example a Tool that adds damage).",
+      "Apply Weakness: if the defender is weak to the attacker's type, usually double the damage.",
+      "Apply Resistance: if the defender resists the attacker's type, usually subtract 30.",
+      "Apply effects on the defending Pokémon (for example damage reduction).",
+      "Place damage counters on the defender: one counter for each 10 damage."
+     ]
+    },
+    {
+     "p": "Weakness and Resistance only apply to the opposing Active Pokémon, and only for damage from attacks. Damage to Benched Pokémon ignores them unless the attack says otherwise. Effects that \"put damage counters\" are not damage, so Weakness, Resistance and damage-reducing effects do not apply to them."
+    },
+    {
+     "h": "Knock Outs and Prize cards"
+    },
+    {
+     "p": "When a Pokémon has damage counters equal to or greater than its HP, it is Knocked Out. Its owner discards it along with all attached cards. The opponent then takes Prize cards: 1 for most Pokémon, 2 for a Pokémon ex, and 3 for a Mega Evolution Pokémon ex. If your Active Pokémon is Knocked Out, you must promote one of your Benched Pokémon to the Active Spot."
+    },
+    {
+     "tip": "Count the Prize trade. If your opponent needs three Knock Outs on your single-Prize attackers but you only need two on their ex, you are winning the race even if the board looks even."
+    }
+   ]
+  },
+  {
+   "id": "winning",
+   "title": "Winning and losing",
+   "blocks": [
+    {
+     "list": [
+      "Take your last Prize card.",
+      "Your opponent has no Pokémon in play (their Active is Knocked Out and they have nothing on the Bench to promote).",
+      "Your opponent cannot draw a card at the start of their turn because their deck is empty.",
+      "A card effect says a player wins or loses."
+     ]
+    },
+    {
+     "p": "If both players meet a win condition at the same time, the player who meets more win conditions wins. If it is still tied, you play Sudden Death: a new game where each player uses only 1 Prize card. Running out of cards is a real danger in long games, so watch your deck size. In tournaments, a player can also concede or lose a game to penalties or time rules."
+    }
+   ]
+  },
+  {
+   "id": "keywords",
+   "title": "Keywords and recurring terms",
+   "blocks": [
+    {
+     "p": "The Pokémon TCG has fewer keyword abilities than many card games; most effects are written out in full. These are the labels and card classes you will see on current cards, plus a few older ones you will meet in Expanded."
+    },
+    {
+     "terms": [
+      [
+       "Ability",
+       "An effect printed on a Pokémon that is not an attack. Using an Ability does not end your turn. Some work automatically, others you activate as the text describes, often once per turn."
+      ],
+      [
+       "Pokémon ex",
+       "A Pokémon with a Rule Box stating that when it is Knocked Out, the opponent takes 2 Prize cards. Written with a lowercase ex in the name."
+      ],
+      [
+       "Mega Evolution Pokémon ex",
+       "Mega Pokémon from the current Mega Evolution series. When Knocked Out, the opponent takes 3 Prize cards. They are normal Basic, Stage 1 or Stage 2 cards; Mega Evolving does not end your turn."
+      ],
+      [
+       "Tera",
+       "A Tera Pokémon ex has a crystal-style card with a Tera label. While it is on your Bench, all damage done to it by attacks (from either player) is prevented. Damage counters placed by effects still apply. Its type can differ from the Energy its attacks need."
+      ],
+      [
+       "ACE SPEC",
+       "A class of extra-powerful Trainer or Special Energy cards. You may include only one ACE SPEC card in your entire deck, regardless of name."
+      ],
+      [
+       "Radiant",
+       "Radiant Pokémon are Basic Pokémon with a Rule Box limiting you to one Radiant Pokémon per deck. Knocking one out gives only 1 Prize. All carry F or G regulation marks, so they are legal in Expanded and Unlimited but not Standard since April 2026."
+      ],
+      [
+       "Ancient",
+       "A label on some Pokémon (the paradox Pokémon of the past, such as Roaring Moon) and some Trainers. It has no rule by itself, but other cards refer to it, such as Ancient Booster Energy Capsule or Professor Sada's Vitality."
+      ],
+      [
+       "Future",
+       "The counterpart of Ancient, found on paradox Pokémon of the future such as Iron Hands. Cards like Future Booster Energy Capsule and Techno Radar refer to it."
+      ],
+      [
+       "Trainer's Pokémon",
+       "Pokémon owned by a named trainer, such as N's Zoroark ex, Team Rocket's Mewtwo ex, Iono's Bellibolt ex or Ethan's Typhlosion. The owner's name is part of the card's name, so N's Zorua evolves into N's Zoroark ex, not into a plain Zoroark. Many Trainer cards support a specific trainer's Pokémon."
+      ],
+      [
+       "Rule Box",
+       "The shaded box on special cards (ex, Mega ex, Radiant, ACE SPEC, and older V, VSTAR, VMAX and GX cards) that holds a special rule. Some effects target or ignore \"Pokémon with a Rule Box\"."
+      ],
+      [
+       "Regulation mark",
+       "A letter printed near the bottom left of cards since 2020. It decides Standard legality. As of October 2026, H, I and J are Standard legal."
+      ],
+      [
+       "Basic",
+       "A Pokémon you can play directly onto your Bench. Also the name for Basic Energy, the plain one-type Energy cards that you may run in any number."
+      ],
+      [
+       "Stage 1 / Stage 2",
+       "Evolved Pokémon. Stage 1 evolves from a Basic, Stage 2 from a Stage 1. Rare Candy lets a Basic evolve directly into a Stage 2."
+      ],
+      [
+       "Item",
+       "A Trainer card you may play any number of per turn."
+      ],
+      [
+       "Supporter",
+       "A Trainer card limited to one per turn. The player going first cannot play one on their first turn."
+      ],
+      [
+       "Stadium",
+       "A Trainer that stays in play and affects both players. One per turn, and only one Stadium in play at a time."
+      ],
+      [
+       "Pokémon Tool",
+       "An Item-like Trainer attached to a Pokémon for a lasting effect. One Tool per Pokémon unless stated."
+      ],
+      [
+       "Special Energy",
+       "Energy with its own text and effects. Limited to 4 copies by name like other cards."
+      ],
+      [
+       "Special Condition",
+       "Asleep, Burned, Confused, Paralyzed or Poisoned. See the Special Conditions section."
+      ],
+      [
+       "Pokémon V, VSTAR, VMAX",
+       "Sword and Shield era Rule Box Pokémon (2 or 3 Prizes). VSTAR Powers can be used only once per game across all your VSTARs. Legal in Expanded and Unlimited."
+      ],
+      [
+       "Pokémon-GX and EX (uppercase)",
+       "Older Rule Box Pokémon from Sun and Moon and XY. GX attacks are once per game. Legal in Expanded and Unlimited."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "glossary",
+   "title": "Glossary",
+   "blocks": [
+    {
+     "terms": [
+      [
+       "Active Spot",
+       "Where your one battling Pokémon sits. It attacks and takes attacks."
+      ],
+      [
+       "Bench",
+       "Up to 5 Pokémon waiting to come in. Benched Pokémon can hold Energy and use Abilities but cannot attack."
+      ],
+      [
+       "In play",
+       "Your Active and Benched Pokémon and any Stadium. Cards in hand, deck, discard or Prizes are not in play."
+      ],
+      [
+       "Hand",
+       "Cards you hold. There is no maximum hand size."
+      ],
+      [
+       "Deck",
+       "Your face-down draw pile. You lose if you cannot draw at the start of your turn."
+      ],
+      [
+       "Discard pile",
+       "Face-up pile for used Trainers, Knocked Out Pokémon and discarded cards. Many cards recover from it."
+      ],
+      [
+       "Prize cards",
+       "Six face-down cards set aside at setup. You take them as you Knock Out Pokémon."
+      ],
+      [
+       "Lost Zone",
+       "A zone for cards removed from the game for good. Seen mostly in Expanded on older cards."
+      ],
+      [
+       "HP",
+       "Hit Points. How much damage a Pokémon can take."
+      ],
+      [
+       "Damage counter",
+       "A marker worth 10 damage. Placing counters directly is not the same as dealing damage."
+      ],
+      [
+       "Knock Out (KO)",
+       "When damage equals or exceeds HP. The Pokémon and attached cards go to the discard pile."
+      ],
+      [
+       "OHKO / 2HKO",
+       "One-hit Knock Out, or two-hit Knock Out. Shorthand for how many attacks a target needs."
+      ],
+      [
+       "Promote",
+       "Move a Benched Pokémon to the Active Spot after your Active is Knocked Out."
+      ],
+      [
+       "Retreat Cost",
+       "Energy you discard to retreat. Free retreat means a cost of zero."
+      ],
+      [
+       "Switch",
+       "Swapping your Active with a Benched Pokémon by a card effect rather than retreating."
+      ],
+      [
+       "Gust",
+       "Slang for forcing an opponent's Benched Pokémon into the Active Spot, as Boss's Orders does."
+      ],
+      [
+       "Pivot",
+       "A low or free retreat Pokémon you send Active to absorb a hit or buy time while you set up."
+      ],
+      [
+       "Attach / manual attachment",
+       "Putting an Energy from hand onto a Pokémon, limited to once per turn. \"Manual\" separates it from card effects that attach extra Energy."
+      ],
+      [
+       "Energy acceleration",
+       "Any effect that attaches more than your one manual Energy per turn."
+      ],
+      [
+       "Weakness",
+       "A type that does extra damage to this Pokémon, usually x2."
+      ],
+      [
+       "Resistance",
+       "A type that does less damage to this Pokémon, usually minus 30."
+      ],
+      [
+       "Spread",
+       "Attacks that damage several Pokémon, including the Bench."
+      ],
+      [
+       "Snipe",
+       "Damaging a specific Benched Pokémon directly."
+      ],
+      [
+       "Prize trade",
+       "The race of how many Prizes each player gives up per Knock Out. Central to deck strategy."
+      ],
+      [
+       "Single-Prizer",
+       "A Pokémon worth 1 Prize, such as non-ex Pokémon. Decks built from them force more Knock Outs."
+      ],
+      [
+       "Two-Prizer / Three-Prizer",
+       "Slang for Pokémon ex (2) and Mega ex (3)."
+      ],
+      [
+       "Evolution line",
+       "The Basic, Stage 1 and Stage 2 counts in a list, written like 4-2-3 (four Basics, two Stage 1, three Stage 2)."
+      ],
+      [
+       "Thick line / thin line",
+       "Many copies, or few copies, of an evolution line. Thin lines save space but are easier to lose."
+      ],
+      [
+       "Rare Candy",
+       "An Item that lets a Basic evolve straight into its Stage 2, skipping Stage 1. Not on your first turn or on a Pokémon played that turn."
+      ],
+      [
+       "Draw support",
+       "Supporters and Abilities that draw cards. The backbone of consistency."
+      ],
+      [
+       "Search",
+       "Taking specific cards from your deck, such as Ultra Ball for Pokémon."
+      ],
+      [
+       "Consistency",
+       "How reliably a deck does its plan each game. Most competitive deck-building is about this."
+      ],
+      [
+       "Hand disruption",
+       "Effects that shrink or shuffle away the opponent's hand, such as Iono-style cards."
+      ],
+      [
+       "Item lock",
+       "An effect that stops a player from playing Item cards."
+      ],
+      [
+       "Ability lock",
+       "An effect that stops Abilities from working."
+      ],
+      [
+       "Tech",
+       "A one-of or two-of card added to beat specific matchups."
+      ],
+      [
+       "Meta",
+       "The decks most commonly played at the moment, and what beats them."
+      ],
+      [
+       "Archetype",
+       "A known deck type built around a main attacker, such as a Mega ex deck named after its star."
+      ],
+      [
+       "Brick",
+       "A hand with nothing useful to do. Also used as a verb."
+      ],
+      [
+       "Dead draw",
+       "Drawing a card that cannot help this turn."
+      ],
+      [
+       "Mill",
+       "Discarding cards from the top of a deck, often to win by deck-out."
+      ],
+      [
+       "Deck out",
+       "Losing because you cannot draw at the start of your turn."
+      ],
+      [
+       "Stall / control",
+       "Decks that win by locking or disrupting rather than racing for Prizes."
+      ],
+      [
+       "Turbo",
+       "A deck built to attack hard as early as possible."
+      ],
+      [
+       "Checkup",
+       "The between-turns step where Special Conditions are resolved."
+      ],
+      [
+       "Mulligan",
+       "Reshuffling and redrawing a starting hand that has no Basic Pokémon."
+      ],
+      [
+       "Sudden Death",
+       "A 1-Prize tiebreaker game played if both players win at once."
+      ],
+      [
+       "Top-deck",
+       "To draw the card you needed off the top of your deck."
+      ],
+      [
+       "Ruling",
+       "An official answer on how a card works, published by Pokémon in compendiums and FAQs."
+      ],
+      [
+       "Regulation rotation",
+       "The yearly removal of older regulation marks from Standard."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tactics-beginner",
+   "title": "Beginner tips",
+   "blocks": [
+    {
+     "list": [
+      "Run plenty of Basic Pokémon (12 or more is common) so you rarely mulligan and always have backups.",
+      "Play draw Supporters and search Items. A 60-card deck without them will stall.",
+      "Attach an Energy every turn, even to a Benched Pokémon. Missing attachments is the most common way to fall behind.",
+      "Always fill a few Bench spots early. An empty Bench means one Knock Out can end the game.",
+      "But do not fill your Bench with low-HP Basics your opponent can easily Knock Out for free Prizes.",
+      "Count Prizes before you commit. Ask how many Knock Outs each player still needs.",
+      "Read Weakness on both sides. Doubling damage often turns a 2HKO into an OHKO.",
+      "Keep a cheap pivot so you are not stuck with a high Retreat Cost Pokémon Active.",
+      "Watch your deck size in long games. Draw effects can deck you out.",
+      "Before attacking, check that you used everything else you wanted that turn. Attacking ends it.",
+      "Build with 3 or 4 copies of your key cards rather than one copy of many cards."
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tactics-advanced",
+   "title": "Advanced tactics",
+   "blocks": [
+    {
+     "h": "Prize mapping"
+    },
+    {
+     "p": "Plan the exact Knock Outs you need to take all six Prizes. Against an ex deck, two ex Knock Outs plus a single-Prizer gets you there; against a Mega ex deck, two Mega Knock Outs is the whole game. Choose targets that fit your map, and build your own board so the opponent's map is awkward (for example, making them take an odd Prize at a bad time)."
+    },
+    {
+     "h": "Prize trade and attacker choice"
+    },
+    {
+     "p": "Lead with a single-Prizer when the opponent must spend resources to Knock it Out, and save your ex or Mega ex for the turns where it takes a decisive Knock Out. Making your opponent take 7 or more Prizes worth of work is often how slower decks win."
+    },
+    {
+     "h": "Gust timing"
+    },
+    {
+     "p": "Boss's Orders style effects win games by grabbing a Benched support Pokémon, a damaged target, or a Pokémon with a big Retreat Cost to strand it Active. Hold your gust for the turn it produces a Knock Out or a game-winning stall, rather than using it early."
+    },
+    {
+     "h": "Sequencing"
+    },
+    {
+     "list": [
+      "Use draw that does not shuffle your hand first, then shuffle-draw effects.",
+      "Search for Pokémon before deciding Energy attachments.",
+      "Play Stadiums after you know whether the opponent's Stadium hurts you.",
+      "Hold non-essential Pokémon in hand if the opponent plays Bench-damage attacks."
+     ]
+    },
+    {
+     "h": "Resource management"
+    },
+    {
+     "p": "Count your remaining copies of key cards: draw Supporters, gust effects, switching and Energy. Late game, the deck with resources left wins. Do not burn a search card for a Pokémon you will not need for three turns."
+    },
+    {
+     "h": "Board resilience"
+    },
+    {
+     "p": "Prepare the next attacker before the current one goes down. A two-attacker setup each turn (one Active, one powered on the Bench) beats a stronger single attacker that leaves you empty after a Knock Out."
+    },
+    {
+     "h": "Hand disruption and late game"
+    },
+    {
+     "p": "Shuffle-and-draw effects that scale with Prizes remaining punish the leader. If you are ahead, keep your board self-sufficient with draw Abilities so a small hand does not stop you; if you are behind, disruption is your comeback tool."
+    },
+    {
+     "h": "Tera and Bench protection"
+    },
+    {
+     "p": "Tera Pokémon ex cannot be damaged by attacks on the Bench, so spread and snipe attacks miss them. Against Tera decks, rely on gust effects or direct damage-counter placement instead of Bench damage."
+    },
+    {
+     "h": "Going first or second"
+    },
+    {
+     "p": "Going first gives you a full extra turn of setup but no Supporter and no attack. Going second lets you use a Supporter and possibly attack right away. Aggressive or fragile setups often prefer second; setup-heavy Stage 2 decks usually prefer first."
+    },
+    {
+     "h": "Reading the opponent"
+    },
+    {
+     "p": "Note what they search for, what they discard and what they hold. A player who keeps two Energy in hand and no attacker likely has a Rare Candy line coming. Track their used ACE SPEC and gust effects to know what threats remain."
+    },
+    {
+     "h": "Meta and matchups"
+    },
+    {
+     "p": "Identify the top decks in your format and decide which matchups you accept losing. Tech choices (a counter Stadium, Tool removal, a Weakness-hitting attacker) should target the decks you actually expect to face, not every possible deck."
+    },
+    {
+     "h": "Tempo"
+    },
+    {
+     "p": "Tempo is about being the one forcing reactions. Taking the first Knock Out, removing a key Ability Pokémon early, or making the opponent spend their Supporter on a switch all buy you turns that compound."
+    }
+   ]
+  },
+  {
+   "id": "formats",
+   "title": "Formats and ways to play",
+   "blocks": [
+    {
+     "terms": [
+      [
+       "Standard",
+       "The main tournament format. Since April 10, 2026 (March 26 on Pokémon TCG Live), cards with regulation marks H, I and J are legal, plus later marks as new sets release. Cards with G or older marks rotated out. A card is legal if any printing with a legal mark exists, so older prints of reprinted cards can be used. New sets typically become legal about two weeks after release. Rotation happens roughly once a year."
+      ],
+      [
+       "Expanded",
+       "Cards from Black and White onward, with a banned card list. No yearly rotation. Older mechanics like V, VSTAR, GX and Radiant Pokémon live here."
+      ],
+      [
+       "Unlimited",
+       "Every card ever printed. Mostly casual."
+      ],
+      [
+       "Pokémon TCG Live",
+       "The official digital game for PC and mobile. It supports Standard and is phasing in Expanded support. Good for testing decks before buying cards."
+      ],
+      [
+       "Prerelease and limited",
+       "Build a 40-card deck from new booster packs plus Basic Energy, and play with 4 Prize cards. Held at local stores around each set launch."
+      ],
+      [
+       "Gym Leader Challenge (casual)",
+       "A popular community format, not official: 60-card singleton (one copy of each card except Basic Energy), every Pokémon must share one type, and no Rule Box Pokémon or ACE SPEC cards. See gymleaderchallenge.com for its own card pool and ban list."
+      ]
+     ]
+    },
+    {
+     "p": "Pokémon TCG Pocket is a separate mobile game with its own simplified rules; this guide does not cover it."
+    },
+    {
+     "p": "Find the current banned card list and format legality on the official Play! Pokémon pages at pokemon.com (search \"Pokémon TCG banned card list\"). Official rulings and the full rulebook are also published there."
+    }
+   ]
+  },
+  {
+   "id": "special-conditions",
+   "title": "Special Conditions",
+   "blocks": [
+    {
+     "p": "Special Conditions affect only Active Pokémon. Moving a Pokémon to the Bench (by retreating or switching) or evolving it removes all its Special Conditions. Asleep, Confused and Paralyzed are shown by turning the card and replace each other: a Pokémon can have only one of those three at a time. Burned and Poisoned use markers and can stack with any other condition."
+    },
+    {
+     "terms": [
+      [
+       "Asleep",
+       "Turn the card counterclockwise. It cannot attack or retreat. During Pokémon Checkup, flip a coin; heads, it wakes up."
+      ],
+      [
+       "Burned",
+       "Place a Burn marker. During Pokémon Checkup, put 2 damage counters on it, then flip a coin; heads, it recovers."
+      ],
+      [
+       "Confused",
+       "Turn the card upside down. When it tries to attack, flip a coin; tails, the attack does nothing and you put 3 damage counters on your Pokémon. It can still retreat normally."
+      ],
+      [
+       "Paralyzed",
+       "Turn the card clockwise. It cannot attack or retreat. It recovers during the Pokémon Checkup at the end of its owner's next turn."
+      ],
+      [
+       "Poisoned",
+       "Place a Poison marker. During Pokémon Checkup, put 1 damage counter on it (some cards add more). It stays Poisoned until removed."
+      ]
+     ]
+    },
+    {
+     "h": "Checkup order"
+    },
+    {
+     "steps": [
+      "Poisoned: place damage counters.",
+      "Burned: place damage counters, then flip to recover.",
+      "Asleep: flip to wake up.",
+      "Paralyzed: remove it if it has lasted through its owner's turn.",
+      "Apply other between-turn effects from cards, then check for Knock Outs from all of this."
+     ]
+    },
+    {
+     "tip": "Retreating is the cleanest cure: switching into a pivot removes every Special Condition at once."
+    }
+   ]
+  }
+ ]
+}

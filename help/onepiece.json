@@ -1,0 +1,774 @@
+{
+  "game": "onepiece",
+  "title": "How to play One Piece Card Game",
+  "updated": "2026-10-31",
+  "sources": [
+    "ONE PIECE CARD GAME Comprehensive Rules, Version 1.2.1 (last updated 8/28/2026): https://en.onepiece-cardgame.com/pdf/rule_comprehensive.pdf",
+    "ONE PIECE CARD GAME Official Rule Manual, Version 1.11: https://en.onepiece-cardgame.com/pdf/rule_manual.pdf",
+    "Official announcement on Standard block icons, Extra Regulation and the shared banned/restricted list (April 1, 2026): https://en.onepiece-cardgame.com/topics/025.php",
+    "ONE PIECE CARD GAME 5 PACKS BATTLE Rules: https://asia-en.onepiece-cardgame.com/pdf/rule_5packs-battle.pdf",
+    "Official rules page: https://en.onepiece-cardgame.com/rules/"
+  ],
+  "sections": [
+    {
+      "id": "basics",
+      "title": "The basics",
+      "blocks": [
+        {
+          "p": "The One Piece Card Game is a two-player trading card game from Bandai based on the One Piece manga and anime. Each player brings one Leader card, a 50-card main deck and a separate 10-card DON!! deck. Your Leader stays on the table all game and can attack every turn. Your Characters fight alongside it, and your DON!! cards are the energy you spend to play cards and to make your attackers stronger."
+        },
+        {
+          "p": "You win by attacking your opponent's Leader until their Life runs out, then landing one more hit. At the start of the game each Leader gets a stack of face-down Life cards (the number printed on the Leader, usually 4 or 5). Each time a Leader takes damage, its owner moves the top Life card into their hand. If a Leader with no Life left takes damage, that player loses. You also lose if your deck runs out of cards."
+        },
+        {
+          "p": "Because every hit on a Leader gives the defender a new card, the game has a built-in comeback swing: the player who is behind on Life often has more cards to defend with. Most of the skill is deciding when to attack, when to take a hit, and how much of your hand to spend on defence."
+        },
+        {
+          "p": "The game suits players who like fast, aggressive games with clear decisions each turn. There is no separate resource card to draw, because DON!! arrives automatically, so you rarely lose to bad luck with resources. Games usually take 20 to 40 minutes. If you know Magic: The Gathering or Lorcana, think of DON!! as mana that also works as a power boost, and Life as a health total made of cards."
+        },
+        {
+          "tip": "Read your Leader first. Its colors decide which cards your deck can use, and its text usually tells you what the deck is trying to do."
+        }
+      ]
+    },
+    {
+      "id": "cards",
+      "title": "Card types and how to read a card",
+      "blocks": [
+        {
+          "p": "There are five card categories: Leader, Character, Event, Stage and DON!!. Your 50-card deck contains only Characters, Events and Stages. The Leader starts on the table and DON!! cards live in their own deck."
+        },
+        {
+          "terms": [
+            [
+              "Leader",
+              "The card that represents you. It starts face-up in your Leader area, cannot be removed by effects, and can attack once per turn like a Character. It has power and a Life value but no cost."
+            ],
+            [
+              "Character",
+              "The main card type. You pay its cost to play it into your Character area, where it can attack from your next turn, block if it has [Blocker], and use its effects. You can have at most 5 Characters on the field."
+            ],
+            [
+              "Event",
+              "A one-shot effect. You pay its cost, trash it, and resolve its text. Events marked [Main] are used during your Main Phase. Events marked [Counter] are used during your opponent's attack to defend."
+            ],
+            [
+              "Stage",
+              "A location or ship that stays in play in your Stage area and gives an ongoing or activated effect. You can have only 1 Stage at a time. Playing a new one trashes the old one."
+            ],
+            [
+              "DON!! card",
+              "Your resource. You get 1 or 2 from your DON!! deck each turn. You rest DON!! to pay costs, or give them to your Leader and Characters to add 1000 power each during your turn."
+            ]
+          ]
+        },
+        {
+          "h": "Reading a card face"
+        },
+        {
+          "terms": [
+            [
+              "Cost (top left)",
+              "The number of active DON!! you must rest to play the card. Leaders and DON!! cards have no cost."
+            ],
+            [
+              "Life (top right, Leaders only)",
+              "How many Life cards you place face-down at the start of the game. Most Leaders have 4 or 5. Multicolor Leaders usually have lower Life than single-color ones."
+            ],
+            [
+              "Power (top right)",
+              "The card's strength in battle, in thousands. An attacker wins if its power is equal to or higher than the defender's power."
+            ],
+            [
+              "Counter value (left edge, Characters only)",
+              "A number such as +1000 or +2000. During your opponent's attack you may trash this Character from your hand to add that much power to your Leader or one of your Characters for that battle. Many strong Characters have no Counter value."
+            ],
+            [
+              "Attribute (top right, near power)",
+              "An icon such as Slash, Strike, Ranged, Special or Wisdom. Only Leaders and Characters have one. It matters only when a card refers to it, written in angle brackets like <Slash>."
+            ],
+            [
+              "Card name and type (bottom)",
+              "The name sits above the type line. Types such as Straw Hat Crew or Navy are separated by slashes. Card text refers to types in curly braces, like {Straw Hat Crew}, and to names in square brackets."
+            ],
+            [
+              "Color (hexagon, bottom left)",
+              "Red, green, blue, purple, black or yellow. A card can have more than one color and counts as each of them. Your deck can only use colors shown on your Leader."
+            ],
+            [
+              "Effect text (middle)",
+              "What the card does. Bracketed tags like [On Play] or [Blocker] tell you when or how the effect works. Text in parentheses is a reminder and does not change the rules."
+            ],
+            [
+              "[Trigger] (bottom of the text box)",
+              "An effect you may use for free when this card is revealed from your Life during damage, instead of adding it to your hand."
+            ],
+            [
+              "Card number and block icon (bottom right)",
+              "The card number, such as OP05-119, is what the 4-copy limit counts. The small block icon shows which block the card belongs to, which decides Standard legality. Neither affects play."
+            ],
+            [
+              "Rarity and illustrator",
+              "Collectible information only. Rarity (C, UC, R, SR, SEC, L, SP and so on) and art versions never change how a card plays."
+            ]
+          ]
+        },
+        {
+          "tip": "Two cards with the same card number count toward the same 4-copy limit even if one is an alternate art. Two different cards with the same name but different numbers each get their own 4 copies."
+        }
+      ]
+    },
+    {
+      "id": "setup",
+      "title": "Deck building and setup",
+      "blocks": [
+        {
+          "h": "Building a deck"
+        },
+        {
+          "list": [
+            "Exactly 1 Leader card.",
+            "Exactly 50 cards in your main deck, made of Characters, Events and Stages.",
+            "No more than 4 copies of any one card number.",
+            "Every card in the deck must share at least one color with your Leader. A red and green Leader lets you play red cards, green cards and red-green cards.",
+            "A separate DON!! deck of exactly 10 DON!! cards. These do not count toward the 50.",
+            "Some Leaders change these rules (for example limiting you to certain types or costs). Their text overrides the normal rules during deck building.",
+            "In organized play, follow the format's card pool and the official banned and restricted list."
+          ]
+        },
+        {
+          "h": "Setting up a game"
+        },
+        {
+          "steps": [
+            "Show that your deck is legal, shuffle it well, and place it face-down.",
+            "Place your Leader face-up in your Leader area and your 10 DON!! cards face-down in your DON!! deck.",
+            "Use rock-paper-scissors or a dice roll. The winner chooses whether to go first or second.",
+            "Resolve any Leader effect that says \"at the start of the game\".",
+            "Each player draws 5 cards.",
+            "Mulligan: starting with the player going first, each player may once shuffle their whole hand back and draw a new 5. You keep the second hand no matter what.",
+            "Each player takes cards from the top of their deck equal to their Leader's Life value and places them face-down in the Life area without looking. The top card of the deck ends up at the bottom of the Life stack.",
+            "The first player begins their turn."
+          ]
+        },
+        {
+          "h": "Going first or second"
+        },
+        {
+          "p": "The player going first skips their first draw and gets only 1 DON!! on their first turn. Neither player may attack on their own first turn. Going second gives you a draw and 2 DON!! on your first turn, so you develop faster but your opponent sets up first. Most competitive players choose based on their deck and matchup."
+        },
+        {
+          "tip": "Mulligan hands that have no plays for your first two or three turns. A hand of only high-cost cards or only Events usually loses the tempo race."
+        }
+      ]
+    },
+    {
+      "id": "turn",
+      "title": "Turn structure",
+      "blocks": [
+        {
+          "p": "Each turn has five phases, always in this order."
+        },
+        {
+          "steps": [
+            "Refresh Phase: effects that last \"until the start of your next turn\" end. Return every DON!! given to your Leader and Characters to your cost area, then set all your rested cards (Leader, Characters, Stage and DON!!) as active.",
+            "Draw Phase: draw 1 card. The player going first skips this on their first turn.",
+            "DON!! Phase: move 2 DON!! cards from your DON!! deck to your cost area, face-up and active. The player going first takes only 1 on their very first turn. If only 1 DON!! is left, take 1. Once the DON!! deck is empty you get no more.",
+            "Main Phase: do any of the main actions below, in any order and as many times as you are able. Then declare the end of your Main Phase.",
+            "End Phase: [End of Your Turn] effects happen, then your opponent's [End of Your Opponent's Turn] effects, then effects that last \"this turn\" expire. Play passes to your opponent."
+          ]
+        },
+        {
+          "h": "Main Phase actions"
+        },
+        {
+          "list": [
+            "Play a card: rest active DON!! equal to the cost to play a Character or Stage, or to use a [Main] Event (trash it and resolve it).",
+            "Activate an effect: use [Activate: Main] effects on your field, paying any activation cost shown before the colon.",
+            "Give DON!!: move an active DON!! from your cost area underneath your Leader or a Character. Each given DON!! adds 1000 power during your turn. You can give as many as you like, including several to one card.",
+            "Attack: rest your active Leader or an active Character to start a battle (see Combat)."
+          ]
+        },
+        {
+          "h": "Limits to remember"
+        },
+        {
+          "list": [
+            "You can have at most 5 Characters. To play a sixth, trash one of your Characters first. This is not a K.O., so [On K.O.] effects do not happen.",
+            "You can have at most 1 Stage. A new Stage replaces the old one.",
+            "Characters cannot attack on the turn they are played unless they have [Rush] (or [Rush: Character], which allows attacking Characters only).",
+            "Neither player may attack during their own first turn.",
+            "Your DON!! total never goes above 10 unless a card says otherwise. Effects that use DON!! −X send DON!! back to the DON!! deck, and you will get them again in later DON!! Phases.",
+            "You cannot use [Activate: Main] effects or [Main] Events in the middle of a battle."
+          ]
+        },
+        {
+          "tip": "Giving DON!! is free in the sense that it does not rest anything, but every DON!! you give is one you cannot spend on cards this turn. Decide what you want to play before you power up attackers."
+        }
+      ]
+    },
+    {
+      "id": "combat",
+      "title": "Combat",
+      "blocks": [
+        {
+          "p": "A battle happens each time you attack. You can attack as many times per turn as you have active attackers. Each battle runs through five steps."
+        },
+        {
+          "steps": [
+            "Attack Step: rest your active Leader or one active Character and choose a target: your opponent's Leader or one of their rested Characters. You cannot attack an active Character. [When Attacking] effects happen, then the defender's [On Your Opponent's Attack] effects.",
+            "Block Step: the defender may rest one active Character with [Blocker] to make it the new target. Only one block per battle. [On Block] effects happen.",
+            "Counter Step: the defender may trash any number of Characters with a Counter value from hand to add that power to their Leader or one of their Characters for this battle, and may pay for and use [Counter] Events. These can be done in any order.",
+            "Damage Step: compare power. If the attacker's power is equal to or higher than the target's, the attacker wins. A Character that loses is K.O.'d (trashed). A Leader that loses takes 1 damage. If the attacker's power is lower, nothing happens.",
+            "End of Battle: \"at the end of this battle\" effects happen and effects that last \"during this battle\" end."
+          ]
+        },
+        {
+          "h": "Damage and Life"
+        },
+        {
+          "p": "When your Leader takes 1 damage, move the top card of your Life into your hand. If that card has [Trigger], you may reveal it and use its Trigger effect instead; afterwards it goes to the trash unless the effect says otherwise. If your Leader takes damage while you have 0 Life, you lose. [Double Attack] makes a winning hit deal 2 damage, one Life card at a time. [Banish] trashes the Life card instead, and no Trigger can be used."
+        },
+        {
+          "h": "Blocking"
+        },
+        {
+          "p": "[Blocker] is the main way to protect your Leader without spending cards from hand. A blocker must be active, rests to block, and then becomes the target, so it can be K.O.'d. A rested Character cannot block, which is why attacking first with something your opponent wants to block, then with your real threat, is a common pattern. [Unblockable] attackers cannot be blocked."
+        },
+        {
+          "h": "Power and DON!!"
+        },
+        {
+          "p": "Given DON!! add 1000 power each, but only during your turn. On your opponent's turn your Leader and Characters defend at their printed power plus any effects. This is why Counter values matter: they are how you raise your defence on your opponent's turn."
+        },
+        {
+          "h": "K.O. and other removal"
+        },
+        {
+          "p": "K.O. means a Character goes to its owner's trash because it lost a battle or because an effect K.O.'d it. Only K.O.s trigger [On K.O.] and are stopped by \"cannot be K.O.'d\". Effects that trash, return to hand, or place a Character at the bottom of the deck are not K.O.s."
+        },
+        {
+          "tip": "Attacking your opponent's Leader is not always right. Each hit gives them a card. Early on, removing a strong Character or forcing them to spend Counter cards can be worth more than a Life card."
+        }
+      ]
+    },
+    {
+      "id": "winning",
+      "title": "Winning and losing",
+      "blocks": [
+        {
+          "list": [
+            "Your opponent's Leader takes damage while they have 0 Life cards: they lose.",
+            "A player has 0 cards in their deck: that player loses as soon as the rules check, not when they next try to draw. Watch effects that mill or draw.",
+            "A player concedes: they lose immediately. Concession cannot be forced or prevented by cards.",
+            "A card effect says a player wins or loses: that happens as the effect resolves.",
+            "If both players meet a loss condition at the same rules check, both lose.",
+            "An infinite loop that neither player can stop ends the game in a draw. If a player can stop a loop, they choose how many times it repeats."
+          ]
+        },
+        {
+          "tip": "Count your deck in long games. Search and draw effects can quietly empty it, and reaching 0 cards loses on the spot."
+        }
+      ]
+    },
+    {
+      "id": "keywords",
+      "title": "Keywords",
+      "blocks": [
+        {
+          "p": "These are the keyword effects and bracketed timing or condition tags in the Comprehensive Rules (Version 1.2.1, updated August 28, 2026). Keyword effects grant an ability. Tags tell you when an effect happens or what it needs."
+        },
+        {
+          "h": "Keyword effects"
+        },
+        {
+          "terms": [
+            [
+              "[Rush]",
+              "This Character can attack on the turn it is played. It still cannot attack during your first turn of the game."
+            ],
+            [
+              "[Rush: Character]",
+              "This Character can attack your opponent's Characters on the turn it is played, but not their Leader. Added in recent sets."
+            ],
+            [
+              "[Blocker]",
+              "When one of your other cards is attacked, you may rest this active card during the Block Step to make it the new target. Only one [Blocker] can be used per battle."
+            ],
+            [
+              "[Unblockable]",
+              "Your opponent cannot activate [Blocker] when this card attacks. Added in recent sets."
+            ],
+            [
+              "[Double Attack]",
+              "When this card's attack deals damage to the opponent's Leader, it deals 2 damage instead of 1."
+            ],
+            [
+              "[Banish]",
+              "When this card's attack deals damage to the opponent's Leader, the Life card is trashed instead of going to their hand, and its [Trigger] cannot be used."
+            ],
+            [
+              "[Trigger]",
+              "When this card is moved from your Life during damage, you may reveal it and use the Trigger effect instead of adding it to your hand. Then trash it unless told otherwise. You may choose to just take it into your hand instead."
+            ]
+          ]
+        },
+        {
+          "h": "Timing and condition tags"
+        },
+        {
+          "terms": [
+            [
+              "[On Play]",
+              "The effect happens when the card is played."
+            ],
+            [
+              "[When Attacking]",
+              "The effect happens when this card declares an attack, during the Attack Step."
+            ],
+            [
+              "[On Your Opponent's Attack]",
+              "The effect happens when your opponent declares an attack, after their [When Attacking] and other Attack Step effects."
+            ],
+            [
+              "When Attacked",
+              "Shown in Japanese-style corner brackets on some cards. The effect happens in the Attack Step when this card becomes the target of an attack."
+            ],
+            [
+              "[On Block]",
+              "The effect happens when this card's [Blocker] is activated."
+            ],
+            [
+              "[On K.O.]",
+              "The effect starts when this Character is K.O.'d on the field and resolves after it reaches the trash. It does not happen if the Character is trashed or removed some other way."
+            ],
+            [
+              "[Activate: Main]",
+              "You may use this effect during your Main Phase, but not during a battle. Usually paired with a cost or [Once Per Turn]."
+            ],
+            [
+              "[Main]",
+              "Found on Events. You may use this Event during your Main Phase, but not during a battle."
+            ],
+            [
+              "[Counter]",
+              "Found on Events. You may use this Event during your opponent's Counter Step to defend. This is different from a Character's printed Counter value."
+            ],
+            [
+              "[End of Your Turn]",
+              "The effect happens once in your End Phase."
+            ],
+            [
+              "[End of Your Opponent's Turn]",
+              "The effect happens once in your opponent's End Phase."
+            ],
+            [
+              "[Your Turn]",
+              "The effect only works during your turn."
+            ],
+            [
+              "[Opponent's Turn]",
+              "The effect only works during your opponent's turn."
+            ],
+            [
+              "[Once Per Turn]",
+              "The effect can be activated and resolved only once each turn per copy. If the card leaves the field and comes back, it counts as a new card."
+            ],
+            [
+              "[DON!! x1] (or x2 and so on)",
+              "A condition: the effect only works while this card has at least that many DON!! given to it."
+            ],
+            [
+              "DON!! −X",
+              "A cost: return X DON!! from your field (cost area, Leader or Characters, active or rested) to your DON!! deck."
+            ],
+            [
+              "Numbered circle cost (such as 1 in a circle)",
+              "A cost: rest that many active DON!! in your cost area."
+            ],
+            [
+              "K.O.",
+              "Trash a Character from the field, by battle or by an effect."
+            ],
+            [
+              "Trash (as a cost)",
+              "Choose a card from your hand and put it in your trash."
+            ],
+            [
+              "Set power to 0",
+              "Reduces the target's power by its current power for the stated time. It does nothing to a card already below 0."
+            ],
+            [
+              "Base power / base cost",
+              "The number printed on the card, before other modifiers."
+            ]
+          ]
+        },
+        {
+          "tip": "Check whether text says \"Character\" or \"Character card\". \"Character\" means one on the field. \"Character card\" means one somewhere else, such as your hand, deck or trash."
+        }
+      ]
+    },
+    {
+      "id": "glossary",
+      "title": "Glossary",
+      "blocks": [
+        {
+          "terms": [
+            [
+              "Active",
+              "A card standing upright. Active Characters and Leaders can attack, and active DON!! can be spent."
+            ],
+            [
+              "Rested",
+              "A card turned sideways. Rested cards have been used this turn. Only rested Characters can be attacked."
+            ],
+            [
+              "Leader area",
+              "Where your Leader sits all game."
+            ],
+            [
+              "Character area",
+              "Where your Characters go when played. Up to 5."
+            ],
+            [
+              "Stage area",
+              "Where your one Stage goes."
+            ],
+            [
+              "Cost area",
+              "Where your DON!! cards sit until spent or given."
+            ],
+            [
+              "DON!! deck",
+              "Your 10 DON!! cards. You take 2 per turn from here. It is an open area: either player may look at it."
+            ],
+            [
+              "Life area",
+              "Your face-down Life cards. A secret area unless an effect turns a Life card face-up."
+            ],
+            [
+              "Trash",
+              "Your discard pile. Face-up and open to both players."
+            ],
+            [
+              "Field",
+              "Your Leader, Character, Stage and cost areas together."
+            ],
+            [
+              "Hand",
+              "Your cards in hand. Secret to your opponent, though they may know how many you hold."
+            ],
+            [
+              "Open area / secret area",
+              "Open areas are face-up for everyone (field, trash, DON!! deck). Secret areas are hidden (deck, hand, face-down Life)."
+            ],
+            [
+              "Give (DON!!)",
+              "Moving an active DON!! from your cost area under your Leader or a Character. Players often say \"attach\". Each adds 1000 power during your turn."
+            ],
+            [
+              "Turn player",
+              "The player whose turn it is. When both players' effects happen at once, the turn player resolves theirs first."
+            ],
+            [
+              "Battle",
+              "One attack from declaration to its end."
+            ],
+            [
+              "Damage",
+              "What a Leader takes when it loses a battle or an effect deals it. Each point moves a Life card to hand."
+            ],
+            [
+              "Counter value",
+              "The +1000 or +2000 printed on the side of many Characters, used from hand during the Counter Step."
+            ],
+            [
+              "Counter Step",
+              "The step in your opponent's battle where you use Counter values and [Counter] Events."
+            ],
+            [
+              "Play",
+              "Paying a card's cost and putting a Character or Stage onto the field, or using an Event."
+            ],
+            [
+              "Activation cost",
+              "Anything written before a colon in an effect. You must pay all of it to get the effect."
+            ],
+            [
+              "Reveal",
+              "Show a card to both players. Searching your deck for a named card always requires revealing it."
+            ],
+            [
+              "Search",
+              "Look at cards from your deck and add a matching card to your hand, as directed. Players often call this \"digging\" when you look at the top few cards."
+            ],
+            [
+              "Type",
+              "Crew or group tags such as {Straw Hat Crew} or {Navy}. Many decks are built around one type."
+            ],
+            [
+              "Attribute",
+              "Slash, Strike, Ranged, Special, Wisdom or \"?\" on Leaders and Characters."
+            ],
+            [
+              "Multicolor",
+              "A card with two or more colors. It counts as every one of its colors."
+            ],
+            [
+              "Block icon",
+              "The small number at the bottom right showing the card's release block, used for Standard legality."
+            ],
+            [
+              "Vanilla",
+              "A Character with no effect text, usually with high power or a big Counter value for its cost."
+            ],
+            [
+              "Swing",
+              "Slang for attacking. \"Swing with Leader\" means attack with your Leader."
+            ],
+            [
+              "Rest them / rest target",
+              "Slang for effects that rest an opponent's card, often to stop a blocker or open a Character to attack."
+            ],
+            [
+              "Bounce",
+              "Returning a card from the field to its owner's hand."
+            ],
+            [
+              "Bottom deck",
+              "Placing a card on the bottom of its owner's deck, a common removal effect that is not a K.O."
+            ],
+            [
+              "Ramp",
+              "Getting extra DON!! faster than the normal 2 per turn."
+            ],
+            [
+              "DON!! minus",
+              "Strategies that pay DON!! −X costs for strong effects and accept having less DON!! afterward."
+            ],
+            [
+              "Curve",
+              "The spread of costs in your deck. A good curve has plays for each turn as your DON!! grows."
+            ],
+            [
+              "Top-end",
+              "The expensive cards a deck builds toward, often 8 to 10 cost."
+            ],
+            [
+              "Finisher",
+              "A card that ends the game, such as a big [Rush] or [Double Attack] Character."
+            ],
+            [
+              "Lethal",
+              "Having enough attacks to win this turn. \"Checking lethal\" means counting it."
+            ],
+            [
+              "Life lead",
+              "Having more Life than your opponent."
+            ],
+            [
+              "Taking a hit",
+              "Choosing not to defend so your Leader takes damage, keeping your counters for later."
+            ],
+            [
+              "Over-power / tax",
+              "Attacking with more power than needed so the defender must use bigger or more counters to stop it."
+            ],
+            [
+              "2k counter / 1k counter",
+              "Shorthand for a Character with a +2000 or +1000 Counter value."
+            ],
+            [
+              "Event counter",
+              "A [Counter] Event used to defend, often with an extra effect."
+            ],
+            [
+              "Trigger hit",
+              "Revealing a useful [Trigger] from your Life."
+            ],
+            [
+              "Mill",
+              "Moving cards from a deck to the trash without drawing them."
+            ],
+            [
+              "Toolbox",
+              "A deck with single copies of answers to fetch with search effects."
+            ],
+            [
+              "Aggro / midrange / control",
+              "Deck styles: fast attacking, balanced, or slow and defensive aiming to win late."
+            ],
+            [
+              "Meta",
+              "The decks most played in competitive events right now."
+            ],
+            [
+              "Tier list",
+              "A ranking of current decks by community estimates of strength."
+            ],
+            [
+              "Restricted",
+              "On the official list, a card limited to 1 copy per deck."
+            ],
+            [
+              "Banned pair",
+              "Two cards that cannot both be in the same deck."
+            ],
+            [
+              "Alt art / parallel",
+              "Alternate artwork versions of a card. They play exactly the same."
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tactics-beginner",
+      "title": "Beginner tips",
+      "blocks": [
+        {
+          "list": [
+            "Count your Counter values when building. Aim for most of your Characters to carry a +1000 or +2000 so your hand doubles as defence.",
+            "Do not attack the opponent's Leader just because you can. Each hit draws them a card. Make attacks that either force them to spend cards or set up a win.",
+            "Remember your opponent defends at printed power on your turn. A 5000 Leader needs a 5000 attacker to be hit; add DON!! to stay above their counters.",
+            "Attack with weaker cards first. Your opponent must decide whether to block or counter before they see your biggest attack.",
+            "Keep 1 or 2 counters in hand when you are low on Life. Spending everything to stop one attack often loses to the next.",
+            "Rested Characters are targets. If you attack with a Character, it can be attacked back next turn. Keep blockers active when your opponent has a strong board.",
+            "Look at your opponent's trash and count their DON!!. Both are open information and tell you what they can afford next turn.",
+            "Do not overfill your board. Five Characters is the cap, and replacing one is a trash, not a K.O.",
+            "Read your Life Triggers. A deck with many good Triggers can afford to take more hits early.",
+            "Learn one deck well before switching. Knowing your own curve and combos matters more than having the strongest list.",
+            "Before ending your turn, check whether any DON!! or [Activate: Main] effects are still unused."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tactics-advanced",
+      "title": "Advanced tactics",
+      "blocks": [
+        {
+          "h": "Life as a resource"
+        },
+        {
+          "p": "Life is not only a health bar. Each Life card is a draw, and Leaders with 5 Life can often take early hits on purpose to build a hand, then defend hard later. Decide how many hits you can afford before the game reaches lethal range, usually 2 Life or fewer."
+        },
+        {
+          "h": "Counter economy"
+        },
+        {
+          "p": "Every battle is a trade of cards. If your opponent spends a 2k counter to stop an attack that cost you nothing, you gained a card. Size your attacks so that stopping them costs the most cards: an attacker at 7000 into a 5000 Leader needs a +2000 plus another, while 6000 needs only one +2000."
+        },
+        {
+          "h": "Attack sequencing"
+        },
+        {
+          "list": [
+            "Lead with attacks your opponent is likely to block or let through, so they commit blockers and counters early.",
+            "Hold your [Double Attack], [Banish] or [Unblockable] attacker until blockers are rested.",
+            "Use rest effects or K.O. removal on blockers before swinging, not after.",
+            "Attack Characters first when K.O.ing them removes a blocker or an engine; attack the Leader last when the opponent has fewer options left."
+          ]
+        },
+        {
+          "h": "DON!! allocation"
+        },
+        {
+          "p": "Each turn split DON!! between playing cards and powering attacks. Early on, developing the board usually beats an extra 1000 power. In lethal turns, put DON!! where the opponent's counters run out. Remember [DON!! x1] and [DON!! x2] conditions: a given DON!! might switch on an effect as well as add power."
+        },
+        {
+          "h": "Tempo and the 10 DON!! turn"
+        },
+        {
+          "p": "Both players reach 10 DON!! around turn 5 or 6. Decks with strong top-end cards want the game to get there, while aggressive decks want to win or drain hands before it does. Know which side of that race you are on in each matchup."
+        },
+        {
+          "h": "Reading the opponent's hand"
+        },
+        {
+          "p": "Count cards in hand and remember what they gained from Life. A player who lets a big attack through probably lacks counters. A player who blocks with a valuable Character may be protecting a key piece in hand. Watch which Life cards went to hand without a Trigger: they might be Events."
+        },
+        {
+          "h": "Trigger risk"
+        },
+        {
+          "p": "Every hit on the Leader can reveal a Trigger that K.O.s, rests or plays a Character. Before a lethal turn, attack in an order that still wins if one Trigger hits, and keep [Banish] for the moment a Trigger would hurt most."
+        },
+        {
+          "h": "Board limit management"
+        },
+        {
+          "p": "At 5 Characters you must trash one to play another. Plan ahead: use [On Play] value Characters early, then replace them, and prefer having a few strong Characters with blockers over a full board of weak ones that all become rested targets."
+        },
+        {
+          "h": "Going first or second"
+        },
+        {
+          "p": "Going first lets you develop and use the first [On Play] effects. Going second gives an extra card and an extra DON!! early. Defensive and top-end decks often prefer second for the card; fast decks and decks with strong early plays often prefer first. Check what the current meta does for your Leader."
+        },
+        {
+          "h": "Leader effects as the engine"
+        },
+        {
+          "p": "Most decks are built around a Leader effect that fires every turn. Keep track of its conditions (DON!! given, Life count, type on field) and build your turn so the Leader effect is active. Against an opponent, ask what their Leader needs and deny it: K.O. the right type, force them to spend DON!!, or keep their Life above a threshold."
+        },
+        {
+          "h": "Matchup and meta thinking"
+        },
+        {
+          "list": [
+            "Know which decks in the current meta rely on blockers, Triggers or Events, and adjust your counter count and removal.",
+            "Track ban and restricted list changes: one change can make a whole Leader rise or fall.",
+            "In best-of-three, plan your choice of going first or second for each game based on the opponent's deck.",
+            "Keep a few flexible removal cards in your deck to answer the strongest Characters in the meta, even if they do not fit your main plan."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formats",
+      "title": "Formats",
+      "blocks": [
+        {
+          "h": "Standard"
+        },
+        {
+          "p": "Standard is the main organized play format, used at store events, Regionals and Championships. Since April 1, 2026, Standard legality is set by the block icon at the bottom right of each card: each block covers about a year of sets. For the 2026 season, cards with Block 2 icons or higher are legal and Block 1 cards are not. Bandai's stated plan is to move the window forward about once a year, so expect the oldest block to leave each spring; check the official site for the next announced date. When a Block 1 card is reprinted with a newer block icon, older printings of that card become legal again. Some cards carry a special block mark and do not rotate."
+        },
+        {
+          "h": "Extra Regulation"
+        },
+        {
+          "p": "Extra Regulation also began on April 1, 2026. Almost every card ever released is legal, except cards on the banned and restricted list. It is played at Extra Grand Battle events and some larger events."
+        },
+        {
+          "h": "Banned and restricted list"
+        },
+        {
+          "p": "One official list covers both Standard and Extra events. It has banned cards (no copies), restricted cards (1 copy) and banned pairs (two cards that cannot share a deck). Bandai updates it regularly, often several weeks before a new season or set. Always check the official site before an event."
+        },
+        {
+          "h": "Limited events"
+        },
+        {
+          "p": "Bandai runs sealed-style events such as 5 Packs Battle, where you open packs at the event and build a smaller deck (30 cards with special Leaders, as described in that event's rules). Prerelease and release events vary by region."
+        },
+        {
+          "h": "Casual play"
+        },
+        {
+          "list": [
+            "Starter decks: each preconstructed starter deck is a legal, balanced deck and a good way to learn.",
+            "Kitchen table: agree on any card pool, with or without the ban list.",
+            "Proxy or budget play: many groups allow printed stand-ins for practice.",
+            "Online practice: unofficial simulators let you test decks, but follow the official rules for tournaments."
+          ]
+        },
+        {
+          "tip": "Current ban list, block legality and event rules are on the official site: en.onepiece-cardgame.com (Rules and Events sections)."
+        }
+      ]
+    }
+  ]
+}

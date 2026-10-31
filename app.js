@@ -568,16 +568,59 @@ document.addEventListener('click', e=>{
    Tabs
    ========================================================= */
 let tab = 'scan';
-const VIEWS = {scan:'vScan', coll:'vColl', decks:'vDecks', browse:'vBrowse'};
+const VIEWS = {scan:'vScan', coll:'vColl', decks:'vDecks', browse:'vBrowse', help:'vHelp'};
 function showTab(t){
   tab = t;
   for (const [k,v] of Object.entries(VIEWS)) $(v).hidden = k!==t;
   document.querySelectorAll('.tabbar button').forEach(b=>{ if (b.dataset.tab===t) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   if (t!=='scan' && stream) stopCam();
-  if (t==='coll') renderColl(); if (t==='decks') renderDecks(); if (t==='browse') renderBrowse();
+  if (t==='coll') renderColl(); if (t==='decks') renderDecks(); if (t==='browse') renderBrowse(); if (t==='help') renderHelp();
   lsSet('inkscan.tab', t); window.scrollTo(0,0);
 }
 document.querySelector('.tabbar').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab); });
+/* =========================================================
+   HELP: how to play, keywords, glossary and tactics for each game, from help/<game>.json
+   ========================================================= */
+const helpDocs=new Map(); let helpGame=null;
+const HELP_KEYS=['p','h','steps','list','terms','tip'];
+function helpBlockHTML(b,q){
+  const t=v=>esc(String(v??'')), hit=v=>!q||String(v).toLowerCase().includes(q);
+  if(b.terms){ const rows=b.terms.filter(x=>Array.isArray(x)&&(hit(x[0])||hit(x[1]))); return rows.length?`<dl class="terms">${rows.map(([k,v])=>`<dt>${t(k)}</dt><dd>${t(v)}</dd>`).join('')}</dl>`:''; }
+  if(b.steps){ const rows=b.steps.filter(hit); return rows.length?`<ol>${rows.map(x=>`<li>${t(x)}</li>`).join('')}</ol>`:''; }
+  if(b.list){ const rows=b.list.filter(hit); return rows.length?`<ul>${rows.map(x=>`<li>${t(x)}</li>`).join('')}</ul>`:''; }
+  if(b.h) return q?'':`<h4>${t(b.h)}</h4>`;
+  if(b.tip) return hit(b.tip)?`<p class="tip">${t(b.tip)}</p>`:'';
+  if(b.p) return hit(b.p)?`<p>${t(b.p)}</p>`:'';
+  return '';
+}
+function renderHelpDoc(){
+  const doc=helpDocs.get(helpGame), q=$('helpQ').value.trim().toLowerCase();
+  if(!doc){ $('helpBody').innerHTML=''; return; }
+  let shown=0;
+  const secs=(doc.sections||[]).map((s,i)=>{
+    const body=(s.blocks||[]).map(b=>helpBlockHTML(b,q)).join('');
+    if(q&&!body&&!String(s.title).toLowerCase().includes(q)) return '';
+    shown++;
+    return `<details class="filterbox helpsec" data-sec="${esc(s.id||'')}"${q||i===0?' open':''}><summary>${esc(s.title||'')}</summary><div class="stack dguide">${body||(s.blocks||[]).map(b=>helpBlockHTML(b,'')).join('')}</div></details>`;
+  }).join('');
+  $('helpBody').innerHTML=`<p class="note">${esc(doc.title||'')}${doc.updated?` · updated ${esc(doc.updated)}`:''}</p>${secs||'<p class="note">Nothing matches that search.</p>'}${!q&&doc.sources?.length?`<p class="note">Checked against: ${doc.sources.map(esc).join('; ')}</p>`:''}`;
+  $('helpMsg').textContent=q?`${shown} section${shown===1?'':'s'} match`:'';
+}
+async function renderHelp(){
+  const ids=GAMES?GAMES.ORDER:['lorcana'];
+  if(!helpGame) helpGame=GAME_ID;
+  $('helpGames').innerHTML=ids.map(id=>`<button data-help="${id}" aria-pressed="${id===helpGame}">${esc(GAMES?GAMES.get(id).name:'Lorcana')}</button>`).join('');
+  if(!helpDocs.has(helpGame)){
+    $('helpMsg').textContent='Loading…'; $('helpBody').innerHTML='';
+    try{ const r=await fetch(`help/${helpGame}.json?v=${HELP_V}`); if(!r.ok) throw Error(); const j=await r.json(); if(!Array.isArray(j.sections)) throw Error(); helpDocs.set(helpGame,j); }
+    catch(e){ $('helpMsg').textContent='Couldn’t load the help for this game. Check your connection and try again.'; return; }
+    $('helpMsg').textContent='';
+  }
+  renderHelpDoc();
+}
+const HELP_V=25;
+$('helpGames').addEventListener('click',e=>{ const b=e.target.closest('[data-help]'); if(!b) return; helpGame=b.dataset.help; $('helpQ').value=''; renderHelp(); });
+$('helpQ').addEventListener('input',()=>renderHelpDoc());
 function renderAll(){ renderTotals(); renderLog(); if(tab==='scan')renderQuick(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
 function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(true); if(tab==='browse') renderBrowse(); }
 
@@ -1063,6 +1106,7 @@ function deckStats(d){
       const L=legalIn(c,R.key);
       if (L==='banned') banned+=q; else if (L==='not_legal') notLegal+=q; else if (L!=='legal'&&L!=='restricted') unchecked+=q;
     }
+    if (!R.key && G.id==='pokemon' && !(byNV.get(nv)||[]).some(x=>x.lg)) notLegal+=q; // legal if any printing of the card is
     if (cmd){
       if (c.gc===true){ gameChangers++; gcNames.push(c.n); } else if (c.gc===undefined) gcUnknown++;
     }
@@ -1251,6 +1295,7 @@ function renderDeckEdit(keepScroll){
     if (st.main>size && (st.exact||!st.format)) warns.push(`<span class="chip warn">${st.main-size} cards over ${size}</span>`);
     if (G.deck.leaderType && st.leaders!==1) warns.push(`<span class="chip warn">${st.leaders?'More than one Leader':'No Leader yet'}</span>`);
     if (st.overCopies) warns.push(`<span class="chip warn">${st.overCopies} cards over the copy limit</span>`);
+    if (!st.format && st.notLegal) warns.push(`<span class="chip warn">${st.notLegal} not Standard legal</span>`);
     if (st.format){
       if (st.banned) warns.push(`<span class="chip warn">${st.banned} banned in ${esc(st.formatLabel)}</span>`);
       if (st.notLegal) warns.push(`<span class="chip warn">${st.notLegal} not legal in ${esc(st.formatLabel)}</span>`);
@@ -1266,7 +1311,7 @@ function renderDeckEdit(keepScroll){
       if (st.main===size && !st.cmd.problem && !st.offColor && !st.overCopies && !st.banned && !st.notLegal && !st.gcOver && !st.unchecked) warns.push(`<span class="chip">Commander rules pass</span>`);
     }
     else if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
-    if (!st.format && st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
+    if (!st.format && st.main===size && !st.offColor && !st.overCopies && !st.notLegal && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
   }
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
@@ -1344,7 +1389,7 @@ $('deckMoreBtn').onclick = ()=>{
 };
 function deckText(d){
   return Object.entries(d.cards).map(([nv,q])=>({q,c:repOf(nv)})).filter(x=>x.c).sort((a,b)=>(a.c.co-b.c.co)||a.c.n.localeCompare(b.c.n))
-    .map(x=>LORCANA?`${x.q} ${x.c.n}${x.c.v?' - '+x.c.v:''}`:GAME_ID==='onepiece'?`${x.q}x${x.c.v}`:`${x.q} ${x.c.n}`).join('\n');
+    .map(x=>LORCANA?`${x.q} ${x.c.n}${x.c.v?' - '+x.c.v:''}`:GAME_ID==='onepiece'?`${x.q}x${x.c.v}`:GAME_ID==='pokemon'?`${x.q} ${x.c.n} ${x.c.s} ${x.c.c}`:`${x.q} ${x.c.n}`).join('\n');
 }
 $('sheetBody').addEventListener('click', async e=>{
   const b = e.target.closest('[data-dm]'); if(!b) return;
@@ -1389,12 +1434,15 @@ function parseDeckImport(text){
     for(const raw of text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
       // Headings such as "Commander", "### Commander (1)" or "// Commander" open a section; any other heading closes it.
       const heading=raw.replace(/^(?:\/\/|#+)\s*/,'').replace(/\s*\(\d+\)\s*$/,'');
-      if(/^(\/\/|#|deck\b|sideboard\b|commanders?\b|main\b|leader\b)/i.test(raw)){ inCommander=/^commanders?$/i.test(heading); continue; }
+      if(/^(\/\/|#|deck\b|sideboard\b|commanders?\b|main\b|leader\b)/i.test(raw)||/^(pok[ée]mon|trainers?|energy|total cards)\s*:\s*\d*\s*$/i.test(raw)){ inCommander=/^commanders?$/i.test(heading); continue; }
       const parsed=G.deckLine(raw);
       if(!parsed){unresolved.push(raw);continue;}
       let nv=null;
       if(parsed.key&&byNV.has(parsed.key)) nv=parsed.key;
+      else if(parsed.ref&&bySetNum.has(norm(parsed.ref.set)+'|'+norm(parsed.ref.collector))) nv=bySetNum.get(norm(parsed.ref.set)+'|'+norm(parsed.ref.collector)).nv;
       else if(parsed.name&&byNV.has(norm(parsed.name)+'|')) nv=norm(parsed.name)+'|';
+      else if(parsed.name&&byNV.has(norm('Basic '+parsed.name)+'|')) nv=norm('Basic '+parsed.name)+'|';
+      else if(parsed.name){ const m=[...byNV.keys()].filter(k=>k.startsWith(norm(parsed.name)+'|')); if(m.length===1) nv=m[0]; }
       const line={raw,qty:parsed.qty,nv};lines.push(line);
       if(nv) cards[nv]=(cards[nv]||0)+line.qty; else unresolved.push(raw);
       if(nv && inCommander && G.deck?.commander && !commanders.includes(nv)) commanders.push(nv);
@@ -1417,7 +1465,7 @@ function parseDeckImport(text){
   return {cards,lines,unresolved};
 }
 $('importDeckBtn').onclick=()=>{
-  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>${!LORCANA?`<label for="impFile">Or import a deck file (many decks at once)</label><input type="file" id="impFile" accept=".json,application/json">`:''}`);
+  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':GAME_ID==='pokemon'?'4 Dreepy TWM 128':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>${!LORCANA?`<label for="impFile">Or import a deck file (many decks at once)</label><input type="file" id="impFile" accept=".json,application/json">`:''}`);
   let imported=false;
   if(!LORCANA) $('impFile').onchange=async e=>{ const f=e.target.files?.[0]; if(!f) return; try{ previewDeckFile(parseDeckFile(await f.text())); }catch(err){ $('impMsg').textContent=err.message; } e.target.value=''; };
   $('impGo').onclick=async()=>{
@@ -1439,9 +1487,9 @@ $('importDeckBtn').onclick=()=>{
 /* Deck files: {kind:'inkscan-decks', game, decks:[{name, commanders:[scryfallId], cards:[[qty, scryfallId, name]]}]}.
    Cards are matched by exact Scryfall ID, so double-faced cards and reprints never depend on name matching. */
 const SF_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-/* MTG files carry exact Scryfall IDs; bundled-catalog games (One Piece) carry the printed card code, like OP01-016 or P-093. */
-const FILE_ID=()=>G.live?SF_ID:/^[A-Z]{1,4}\d{0,2}-\d{3}$/;
-const fileCard=id=>G.live?byId.get('sf_'+id):repOf(G.nvKey?G.nvKey({n:'',v:id}):id);
+/* MTG files carry exact Scryfall IDs; bundled-catalog games carry the printed code: OP01-016 or P-093 (One Piece), TWM-130 or SVP-149 (Pokémon, set code and number). */
+const FILE_ID=()=>G.live?SF_ID:/^[A-Z0-9]{1,6}-[A-Za-z0-9]{1,7}$/;
+const fileCard=id=>{ if(G.live) return byId.get('sf_'+id); if(G.nvKey) return repOf(G.nvKey({n:'',v:id})); const i=id.lastIndexOf('-'); return bySetNum.get(norm(id.slice(0,i))+'|'+norm(id.slice(i+1)))||null; };
 function parseDeckFile(text){
   let j; try{ j=JSON.parse(text); }catch(e){ throw Error('That file is not an InkScan deck file.'); }
   if(!j||j.kind!=='inkscan-decks'||j.version!==1||!Array.isArray(j.decks)) throw Error('That file is not an InkScan deck file.');
@@ -1909,7 +1957,7 @@ function applyGameLabels(){
     else label.hidden=true; }
   const fill=(id,first,values,label)=>{ const el=$(id); if(el) el.innerHTML=`<option value="">${first}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(label?label(v):v)}</option>`).join(''); };
   fill('bType','All types',G.types); fill('bRar','Any rarity',G.rarities,G.rarityLabel);
-  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Each deck is checked against its format (pick it under the deck name): size, copy limits and the format ban list from Scryfall. Commander decks also check the commander, color identity and Game Changers for the bracket. Sideboards are not tracked yet.';
+  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='pokemon'?'Size, copy limits (Basic Energy unlimited) and Standard legality by regulation mark (H, I and J since the April 2026 rotation). ACE SPEC and per-name limits across different cards are not checked yet.':G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Each deck is checked against its format (pick it under the deck name): size, copy limits and the format ban list from Scryfall. Commander decks also check the commander, color identity and Game Changers for the bracket. Sideboards are not tracked yet.';
   const promoNotes=document.querySelectorAll('#vScan > p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
 }
 async function boot(){
