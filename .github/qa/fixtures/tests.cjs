@@ -8,11 +8,11 @@ function harness(seed={}){
  const elements=new Map(), events=[], timers=[], network=[], localStorage=storage(seed);
  function el(id){if(!elements.has(id))elements.set(id,{id,value:'',hidden:false,dataset:{},style:{},textContent:'',innerHTML:'',classList:{toggle(){},add(){},remove(){}},addEventListener(type,fn){events.push({id,type,fn});},setAttribute(){},getAttribute(){return 'false';},removeAttribute(){},querySelector(){return el('child');},querySelectorAll(){return[];},getContext(){return{};},appendChild(){},click(){},remove(){},insertAdjacentHTML(){},select(){}});return elements.get(id);}
  const doc={getElementById:el,querySelector:el,querySelectorAll:()=>[],createElement:el,addEventListener(type,fn){events.push({id:'document',type,fn});},body:el('body'),hidden:false};
- const context={InkSafety:S,InkCatalog:require('./catalog.js'),InkLegality:require('./legality.js'),document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:true},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
+ const context={InkSafety:S,InkCatalog:require('./catalog.js'),InkLegality:require('./legality.js'),InkGames:require('./games.js'),document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:true},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
  context.window=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(__dirname+'/app.js','utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={boot,totals,saveInv,saveDecks,saveWish,parseDeckImport,previewCollectionImport,previewRestore,collRows,renderCollCards,renderBrowse,resetBrowse,addQty,logAdd,openCard,cardDetailHTML,sync,guardedWrite,rest,reviewUpdate,renderSaveStatus,
+ source=source.replace('window.__inkscan =',`window.testAPI={boot,totals,saveInv,saveDecks,saveWish,parseDeckImport,previewCollectionImport,previewRestore,collRows,renderCollCards,renderBrowse,resetBrowse,addQty,logAdd,openCard,cardDetailHTML,sync,guardedWrite,rest,reviewUpdate,renderSaveStatus,deckAdd,deckStats,searchPrintings,persistState,
   setState(s){inv=S.clone(s.inv||{});wish=S.clone(s.wish||{});decks=S.clone(s.decks||[]);base=s.base||null;session=Object.hasOwn(s,'session')?s.session:{uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};savedState=savedState||${JSON.stringify(state())};},
   getState(){return {inv,wish,decks,base,session,storageError,localRevision,syncState};},
   setReview(fn){reviewUpdate=fn;},setRest(fn){rest=async(...args)=>{if(args[0]==='GET'&&args[1].includes('select=rainbow_foil'))return [];const value=await fn(...args);return args[0]==='GET'&&args[1].startsWith('collection')&&Array.isArray(value)?value.map(row=>({rainbow_foil:0,...row})):value;};},setDownload(fn){download=fn;},setRender(fn){renderAll=fn;},setCatalog(d){indexCards(d);},setInk(i){collInks.clear();if(i)collInks.add(i);},setChunk(fn){chunked=fn;}};\nwindow.__inkscan =`);
@@ -148,8 +148,8 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=11'));assert.ok(sw.includes(name+'.js?v=11'));}
- assert.match(sw,/const CACHE = 'inkscan-v11'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=12'));assert.ok(sw.includes(name+'.js?v=12'));}
+ assert.match(sw,/const CACHE = 'inkscan-v12'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.
@@ -187,3 +187,42 @@ test('save failure stays visible inside an open sheet across card rerenders and 
 test('cloud reads are scoped to Lorcana rows',async()=>{const h=harness();h.api.setState({inv:{card0:{q:1,f:0}}});const gets=[];h.api.setReview(async()=>false);h.api.setRest(async(method,path)=>{if(method==='GET')gets.push(path);return[];});await h.api.sync(true);const reads=gets.filter(p=>/^(collection|wishlist|decks)\?/.test(p)&&!p.includes('limit=0'));assert.equal(reads.length,3);for(const p of reads)assert.match(p,/&game=eq\.lorcana&/);});
 test('new cloud rows are tagged Lorcana in every section',async()=>{const h=harness();h.api.setState({});const rows=[];h.api.setRest(async(m,p,row)=>{rows.push(row);return[row];});await h.api.guardedWrite({section:'inv',id:'card0',value:{q:1,f:0}},null);await h.api.guardedWrite({section:'wish',id:'card1',value:2},null);await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'Deck',cards:{}}},null);assert.deepEqual(rows.map(r=>r.game),['lorcana','lorcana','lorcana']);});
 test('conditional updates only match Lorcana rows',async()=>{const h=harness();h.api.setState({});let path;h.api.setRest(async(m,p,row)=>{path=p;return[row];});await h.api.guardedWrite({section:'inv',id:'card0',value:{q:2,f:0}},{updated_at:'2026-10-01T00:00:00Z',q:1,f:0});assert.match(path,/game=eq\.lorcana/);});
+
+// ---- Multi-game: One Piece and MTG run in their own storage and rules ----
+const G=require('./games.js');
+const opCatalog=()=>({asof:new Date().toISOString().slice(0,10),sets:[{code:'OP01',name:'Romance Dawn'}],cards:[
+ {id:'OP01-001',n:'Roronoa Zoro',v:'OP01-001',s:'OP01',sn:'Romance Dawn',c:'001',r:'L',pv:'',i:'Red',co:null,ik:1,ty:'Leader',cl:'Straw Hat Crew',st:5000,wp:null,lo:5,tx:'',p:2,pf:null,img:''},
+ {id:'OP01-001_p1',n:'Roronoa Zoro',v:'OP01-001',s:'OP01',sn:'Romance Dawn',c:'001',r:'L',pv:'Parallel',i:'Red',co:null,ik:1,ty:'Leader',cl:'Straw Hat Crew',st:5000,wp:null,lo:5,tx:'',p:500,pf:null,img:''},
+ {id:'OP01-016',n:'Nami',v:'OP01-016',s:'OP01',sn:'Romance Dawn',c:'016',r:'R',pv:'',i:'Red',co:1,ik:1,ty:'Character',cl:'Straw Hat Crew',st:2000,wp:1000,lo:null,tx:'',p:4,pf:null,img:''},
+ {id:'OP01-060',n:'Donquixote Doflamingo',v:'OP01-060',s:'OP01',sn:'Romance Dawn',c:'060',r:'L',pv:'',i:'Blue',co:5,ik:1,ty:'Character',cl:'Seven Warlords',st:6000,wp:null,lo:null,tx:'',p:1,pf:null,img:''}]});
+const opHarness=(seed={})=>{const h=harness({'inkscan.game':JSON.stringify('onepiece'),...seed});h.api.setCatalog(opCatalog());return h;};
+test('the registry defaults to Lorcana and ignores unknown game ids',()=>{const st=storage({'inkscan.game':JSON.stringify('nope')});assert.equal(G.currentId(st),'lorcana');assert.equal(G.currentId(storage()),'lorcana');assert.equal(G.currentId(storage({'inkscan.game':'"mtg"'})),'mtg');});
+test('Lorcana keeps its original storage key; other games save under their own prefix',()=>{
+ const lor=harness();lor.api.setState({inv:{card0:{q:1,f:0}}});assert.ok(lor.api.persistState());assert.ok(lor.storage.values.has(S.KEY));assert.ok(![...lor.storage.values.keys()].some(k=>k.startsWith('inkscan.onepiece:')));
+ const op=opHarness();op.api.setState({inv:{'OP01-016':{q:2,f:0}}});assert.ok(op.api.persistState());assert.ok(op.storage.values.has('inkscan.onepiece:'+S.KEY));assert.ok(!op.storage.values.has(S.KEY));});
+test('One Piece card codes resolve exact printings and parallels stay ambiguous',()=>{const op=opHarness();
+ assert.equal(op.api.searchPrintings('OP01-016').card.id,'OP01-016');
+ assert.equal(op.api.searchPrintings('op01 - 016').status,'exact');
+ assert.equal(op.api.searchPrintings('OP01-001').status,'ambiguous');
+ assert.equal(op.api.searchPrintings('OP09-999').status,'missing');});
+test('One Piece deck rules: one Leader, four copies, and off-color cards flagged',()=>{const op=opHarness();const d={id:'d',name:'Zoro',cards:{},updated:0};op.api.setState({decks:[d]});
+ const deck=op.api.getState().decks[0];
+ assert.equal(op.api.deckAdd(deck,'op|op01001',1),true);
+ assert.match(String(op.api.deckAdd(deck,'op|op01001',1)),/exactly one Leader/);
+ for(let i=0;i<4;i++)assert.equal(op.api.deckAdd(deck,'op|op01016',1),true);
+ assert.match(String(op.api.deckAdd(deck,'op|op01016',1)),/at most 4/);
+ assert.equal(op.api.deckAdd(deck,'op|op01060',1),true);
+ const st=op.api.deckStats(deck);assert.equal(st.leaders,1);assert.equal(st.main,5);assert.equal(st.offColor,1);});
+test('One Piece decklists import by card code in either common format',()=>{const op=opHarness();const r=op.api.parseDeckImport('1xOP01-001\n4xOP01-016\n2 Doflamingo - OP01-060\n3xOP99-001');
+ assert.deepEqual(json(r.cards),{'op|op01001':1,'op|op01016':4,'op|op01060':2});assert.deepEqual(json(r.unresolved),['3xOP99-001']);});
+test('MTG decks are singleton except basic lands, and lines import by name',()=>{
+ const h=harness({'inkscan.game':JSON.stringify('mtg')});
+ h.api.setCatalog({asof:'2026-10-30',sets:[{code:'cmm',name:'Commander Masters'}],cards:[
+  {id:'sf_1',n:'Sol Ring',v:'',s:'cmm',sn:'Commander Masters',c:'410',r:'uncommon',pv:'',i:'Colorless',co:1,ik:1,ty:'Artifact',tx:'',p:1,pf:2},
+  {id:'sf_2',n:'Forest',v:'',s:'cmm',sn:'Commander Masters',c:'450',r:'common',pv:'',i:'Colorless',co:0,ik:1,ty:'Basic Land — Forest',tx:'',p:0.1,pf:null}]});
+ const d={id:'d',name:'EDH',cards:{},updated:0};h.api.setState({decks:[d]});const deck=h.api.getState().decks[0];
+ assert.equal(h.api.deckAdd(deck,'solring|',1),true);assert.match(String(h.api.deckAdd(deck,'solring|',1)),/singleton/);
+ for(let i=0;i<10;i++)assert.equal(h.api.deckAdd(deck,'forest|',1),true);
+ const r=h.api.parseDeckImport('1 Sol Ring (CMM) 410\n30 Forest\n1 Unknown Card');assert.deepEqual(json(r.cards),{'solring|':1,'forest|':30});assert.deepEqual(json(r.unresolved),['1 Unknown Card']);});
+test('MTG and One Piece sync stays inside its own game rows',async()=>{const op=opHarness();op.api.setState({});const rows=[];op.api.setRest(async(m,p,row)=>{rows.push({p,row});return[row];});
+ await op.api.guardedWrite({section:'inv',id:'OP01-016',value:{q:1,f:0}},null);assert.equal(rows[0].row.game,'onepiece');});

@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '../..');
 const fixture = path.join(__dirname, 'fixture');
 const manifest = require('./baseline-manifest.json');
 fs.mkdirSync(fixture, { recursive: true });
-const runtime = [...Object.keys(manifest.unchangedFiles), 'app.js', 'app.css', 'index.html', 'sw.js', 'safety.js', 'cards.json', 'finish-quotes.json','catalog.js','promo-catalog.json','legality.js','core-rules.json','no-image.svg'];
+const runtime = [...Object.keys(manifest.unchangedFiles), 'app.js', 'app.css', 'index.html', 'sw.js', 'safety.js', 'cards.json', 'finish-quotes.json','catalog.js','promo-catalog.json','legality.js','core-rules.json','games.js','onepiece-cards.json','no-image.svg'];
 for (const name of runtime) fs.copyFileSync(path.join(root,name), path.join(fixture,name));
 const actual = fs.readFileSync(path.join(root,'app.js'),'utf8');
 let sanitized = actual;

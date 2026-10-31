@@ -1,4 +1,4 @@
-/* InkScan v2 — Lorcana scanner, collection, decks. Everything is stored on this device. */
+/* InkScan — card scanner, collection and decks for Lorcana, MTG and One Piece. Everything is stored on this device. */
 (() => {
 'use strict';
 
@@ -11,15 +11,22 @@ const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[^a-z
 const money = n => n == null ? '—' : '$' + n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const money0 = n => '$' + Math.round(n || 0).toLocaleString('en-US');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const RARITY = ['Common','Uncommon','Rare','Super_rare','Legendary','Epic','Enchanted','Iconic','Promo'];
-const rarityLabel = r => (r || '').replace('_', ' ');
-const INKS = ['Amber','Amethyst','Emerald','Ruby','Sapphire','Steel'];
+/* ---- active game. Lorcana keeps its original storage key and behaviour exactly. ---- */
+const GAMES = typeof InkGames!=='undefined' ? InkGames : null;
+const GAME_ID = GAMES ? GAMES.currentId(localStorage) : 'lorcana';
+const G = GAMES ? GAMES.get(GAME_ID) : {id:'lorcana'};
+const LORCANA = GAME_ID==='lorcana';
+const STORE = LORCANA ? localStorage : GAMES.namespaced(localStorage, GAME_ID);
+const RARITY = LORCANA ? ['Common','Uncommon','Rare','Super_rare','Legendary','Epic','Enchanted','Iconic','Promo'] : G.rarities;
+const rarityLabel = LORCANA ? r => (r || '').replace('_', ' ') : G.rarityLabel;
+const INKS = LORCANA ? ['Amber','Amethyst','Emerald','Ruby','Sapphire','Steel'] : G.colors;
 const API = 'https://api.lorcast.com/v0';
 const IMG = 'https://cards.lorcast.io/card/digital/';
 const FINISHES = ['normal','foil','rainbow'];
 const finishKey = value => value==='rainbow'?'rainbow':value===true||value==='foil'?'foil':'normal';
 const finishField = value => ({normal:'q',foil:'f',rainbow:'rf'})[finishKey(value)];
-const finishLabel = value => ({normal:'Normal',foil:'Foil',rainbow:'Rainbow foil'})[finishKey(value)];
+const finishLabel = value => (LORCANA ? {normal:'Normal',foil:'Foil',rainbow:'Rainbow foil'} : G.finishes)[finishKey(value)] || ({normal:'Normal',foil:'Foil',rainbow:'Rainbow foil'})[finishKey(value)];
+const GAME_FINISHES = LORCANA ? ['normal','foil','rainbow'] : Object.keys(G.finishes);
 const inventoryCount = value => (value?.q||0)+(value?.f||0)+(value?.rf||0);
 // Lorcast's undifferentiated foil quote is ambiguous for these multi-finish products.
 // Preserve generic legacy foil quantities; never silently reclassify them as cold foil.
@@ -32,16 +39,19 @@ function promoFoilQuote(c){return c?promoFoilQuotes[c.id+'|provider:Holofoil']:n
 function promoFoilPrice(c){return typeof InkCatalog!=='undefined'&&typeof InkCatalog.validatedFoilQuote==='function'?InkCatalog.validatedFoilQuote(c,promoFoilQuote(c)):null;}
 function valuedCard(c){
   if(!c)return {};
+  if(!LORCANA)return {...c,prf:c.pe??null};
   if(c.supplemental)return {...c,p:null,pf:promoFoilPrice(c),prf:null};
   return {...c,pf:ambiguousFoil(c)?null:c.pf,prf:InkSafety.validatedRainbowQuote(c,rainbowQuote(c))};
 }
 function finishPriceNote(){
+  if(!LORCANA)return '';
   if(!finishQuoteLoaded)return 'Rainbow and supplemental promo foil prices unavailable: the separate exact-finish quote file could not be loaded. They are counted as unpriced.';
   const available=typeof byId!=='undefined'&&byId?Object.values(finishQuotes).filter(q=>InkSafety.validatedRainbowQuote(byId.get(q.printingId),q)!==null).length:0;
   const promoAvailable=typeof byId!=='undefined'&&byId?[...byId.values()].filter(c=>c.supplemental&&promoFoilPrice(c)!==null).length:0;
   return `Rainbow source: TCGplayer via TCGCSV, built ${finishQuoteBuild||'unknown'}. ${available} verified printing/finish quotes currently usable. Quotes older than 7 days, mismatched or missing stay unpriced; this date is separate from the Lorcast catalog date. Supplemental promo foil: ${promoAvailable} exact Holofoil (provider label) quotes usable for generic Foil only, never Normal or Rainbow.`;
 }
 async function loadFinishQuotes(){
+  if(!LORCANA){finishQuoteLoaded=true;return;}
   finishQuotes={};promoFoilQuotes={};productMappings=new Map();finishQuoteBuild=null;finishQuoteLoaded=false;
   try{
     const r=await fetch('finish-quotes.json',{cache:'no-cache'});if(!r.ok)return;
@@ -52,6 +62,7 @@ async function loadFinishQuotes(){
 }
 let promoSupplement=null,promoLoadError=null,promoCatalogWarnings=[];
 async function loadPromoCatalog(){
+  if(!LORCANA)return;
   promoSupplement=null;promoLoadError=null;
   try{
     const response=await fetch('promo-catalog.json',{cache:'no-cache'});
@@ -65,6 +76,7 @@ function renderPromoCatalogStatus(){
 }
 let coreRules=null,coreRulesLoadError=null,legalityIndex=null,legalityIndexDay=null;
 async function loadCoreRules(){
+  if(!LORCANA)return;
   coreRules=null;coreRulesLoadError=null;legalityIndex=null;
   try{const response=await fetch('core-rules.json',{cache:'no-cache'});if(!response.ok)throw Error('Rules unavailable');coreRules=await response.json();}
   catch(e){coreRulesLoadError='Verified Core Constructed rules could not be loaded. Eligibility is unknown, not assumed legal.';}
@@ -78,7 +90,7 @@ function currentLegalityIndex(){
   }
   return legalityIndex;
 }
-function legalityOf(card){return currentLegalityIndex().status(card);}
+function legalityOf(card){return LORCANA?currentLegalityIndex().status(card):{status:'unknown',reason:'rules-missing',anchor:null};}
 function legalityMatches(card,filter){return !filter||filter==='all'||legalityOf(card).status===filter;}
 const legalityLabel=status=>({legal:'Standard legal',not_legal:'Not legal for Standard',unknown:'Eligibility unknown'})[status]||'Eligibility unknown';
 function legalityReason(reason){return ({
@@ -100,7 +112,7 @@ function legalityInfoHTML(){
   const source=typeof info.source==='string'&&/^https:\/\/(?:files\.|www\.)?disneylorcana\.com\//.test(info.source)?info.source:'https://www.disneylorcana.com/en-US/resources/';
   return `<strong>Core Constructed (Standard)</strong> · verified ${esc(info.verifiedAt||'not available')}${info.reviewDue?' · review due '+esc(info.reviewDue):''}. <a class="link" href="${esc(source)}" target="_blank" rel="noopener">Official rules ↗</a> ${info.valid?'English card-pool eligibility only; check event-specific rules.':esc(coreRulesLoadError||legalityReason(info.reason))}`;
 }
-function renderLegalityInfo(){for(const id of ['cLegalityInfo','bLegalityInfo']){const element=$(id);if(element)element.innerHTML=legalityInfoHTML();}}
+function renderLegalityInfo(){if(!LORCANA)return;for(const id of ['cLegalityInfo','bLegalityInfo']){const element=$(id);if(element)element.innerHTML=legalityInfoHTML();}}
 function cardLegalityHTML(card){
   const result=legalityOf(card),anchor=result.anchor;
   return `${esc(legalityLabel(result.status))}. ${esc(legalityReason(result.reason))}${anchor?' Eligible reference: '+esc(anchor.setCode)+' #'+esc(anchor.collectorNumber)+'.':''}<br>${legalityInfoHTML()}`;
@@ -113,19 +125,19 @@ function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clea
 function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
 let savedState=null, storageError=null, localRevision=0, knownStoredRaw=null;
-try { savedState=InkSafety.load(localStorage); localRevision=savedState.revision||0;knownStoredRaw=localStorage.getItem(InkSafety.KEY); }
+try { savedState=InkSafety.load(STORE); localRevision=savedState.revision||0;knownStoredRaw=STORE.getItem(InkSafety.KEY); }
 catch(e){ storageError='Saved data could not be read. Nothing was reset. Back up this browser before recovery: '+e.message; }
-if(savedState){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;}}
+if(savedState&&LORCANA){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;}}
 function snapshotState(){ return {v:6,inv,decks,wish,base,last:syncState.last,imports:savedState?.imports||{},recovery:savedState?.recovery||[],revision:localRevision,legacyCheckpoint:savedState?.legacyCheckpoint}; }
 function recoveryPoints(reason){return [...(savedState.recovery||[]),{reason,at:new Date().toISOString(),inv:InkSafety.clone(inv),decks:InkSafety.clone(decks),wish:InkSafety.clone(wish),imports:InkSafety.clone(savedState.imports||{})}].slice(-3);}
 function persistState(){
-  try { if(!savedState) throw Error('Saved data needs recovery.'); InkSafety.save(localStorage,snapshotState(),knownStoredRaw);knownStoredRaw=localStorage.getItem(InkSafety.KEY); storageError=null; renderSaveStatus(); return true; }
+  try { if(!savedState) throw Error('Saved data needs recovery.'); InkSafety.save(STORE,snapshotState(),knownStoredRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY); storageError=null; renderSaveStatus(); return true; }
   catch(e){ storageError='Save could not be confirmed on this device. Keep this tab open and download a backup. '+e.message; renderSaveStatus(); return false; }
 }
 function edited(){ localRevision++; persistState(); renderSyncBox(); }
 window.addEventListener('storage',event=>{
-  if(event.key===InkSafety.KEY && event.newValue!==knownStoredRaw){storageError='Another tab saved changes. Keep this tab open and back up both tabs before reconciling. Cloud updates are stopped until local saving is safe.';renderSaveStatus();}
-  if(savedState && (event.key===null || InkSafety.isLegacyKey(event.key))){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;renderSaveStatus();}}
+  if(event.key===(LORCANA?InkSafety.KEY:STORE.keyOf(InkSafety.KEY)) && event.newValue!==knownStoredRaw){storageError='Another tab saved changes. Keep this tab open and back up both tabs before reconciling. Cloud updates are stopped until local saving is safe.';renderSaveStatus();}
+  if(savedState && LORCANA && (event.key===null || InkSafety.isLegacyKey(event.key))){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;renderSaveStatus();}}
 });
 function renderSaveStatus(){
   const el=$('saveStatus'); if(!el) return;
@@ -151,7 +163,7 @@ const today = () => new Date().toISOString().slice(0,10);
    Card data
    ========================================================= */
 let DB=null, byId, bySetNum, byPrinting, byNV, setIdx, setName, setCards, nvReps;
-function nvKeyOf(c){ return norm(c.n)+'|'+norm(c.v); }
+function nvKeyOf(c){ return LORCANA||!G.nvKey ? norm(c.n)+'|'+norm(c.v) : G.nvKey(c); }
 function indexCards(d){
   promoCatalogWarnings=[];
   if(promoSupplement){
@@ -166,13 +178,13 @@ function indexCards(d){
   for (const c of d.cards){
     const verifiedProduct=InkSafety.validatedProductMapping(c,productMappings.get(c.id));
     if(verifiedProduct!==null)c.t=verifiedProduct;
-    c.prf=c.supplemental?null:InkSafety.validatedRainbowQuote(c,rainbowQuote(c));
+    c.prf=!LORCANA?(c.pe??null):c.supplemental?null:InkSafety.validatedRainbowQuote(c,rainbowQuote(c));
     c.nv = nvKeyOf(c);
     c.inks = (c.i||'').split('/').filter(Boolean);
     c.num = parseInt(c.c,10) || 0;
     byId.set(c.id,c);
     bySetNum.set(norm(c.s)+'|'+norm(c.c), c);
-    const printingKey=printingToken(c.s)+'|'+printingToken(c.c);
+    const printingKey=printingToken(c.s)+'|'+(LORCANA?printingToken(c.c):collectorToken(c.c));
     (byPrinting.get(printingKey)||byPrinting.set(printingKey,[]).get(printingKey)).push(c);
     (byNV.get(c.nv) || byNV.set(c.nv,[]).get(c.nv)).push(c);
     setCards.get(c.s)?.push(c);
@@ -183,30 +195,127 @@ function indexCards(d){
 }
 function bySetOrder(a,b){ return (setIdx.get(a.s)-setIdx.get(b.s)) || (a.num-b.num) || a.c.localeCompare(b.c); }
 const SPECIAL = new Set(['Enchanted','Promo','Iconic','Epic']);
+const isSpecialCard = c => LORCANA ? SPECIAL.has(c.r) : G.special(c);
 /* the printing we show for a name+version: one you own, else the first regular printing */
 function repOf(nv){
   const list = byNV.get(nv); if(!list) return null;
   let best=null, bestN=0;
   for (const c of list){ const v=inv[c.id]; const n=inventoryCount(v); if(n>bestN){best=c;bestN=n;} }
-  return best || list.find(c=>!SPECIAL.has(c.r)) || list[0];
+  return best || list.find(c=>!isSpecialCard(c)) || list[0];
 }
 function priceOf(c, finish){ const value=valuedCard(c); return InkSafety.price(value[finishKey(finish)==='rainbow'?'prf':finishKey(finish)==='foil'?'pf':'p']); }
 function cheapest(nv){ let m=null; for (const c of byNV.get(nv)||[]){ const p=priceOf(c,false) ?? priceOf(c,true); if(p!=null && (m==null||p<m)) m=p; } return m; }
 function foilPriceOnly(c){ return c && priceOf(c,false)===null && priceOf(c,true)!==null; }
-function setLabel(c){ return /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
-function imgUrl(c, size){ return c.supplemental || c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
+function setLabel(c){ return !LORCANA&&G.setLabel ? G.setLabel(c) : /^\d+$/.test(c.s) ? 'Set '+c.s : c.s; }
+function imgUrl(c, size){ if(!LORCANA) return G.imgUrl(c,size); return c.supplemental || c.iv===null ? '' : `${IMG}${size}/${c.id}.avif${c.iv?'?'+c.iv:''}`; }
 function inkDot(c){
   if (c.inks.length > 1) return `<span class="ink dual" style="--c1:var(--${c.inks[0].toLowerCase()});--c2:var(--${c.inks[1].toLowerCase()})"></span>`;
   return `<span class="ink ${esc(c.inks[0]||'')}"></span>`;
 }
-function isType(c, t){ return c.ty.split('/').includes(t); }
+function isType(c, t){ return LORCANA ? c.ty.split('/').includes(t) : new RegExp('\\b'+t+'\\b').test(c.ty||''); }
 
 function catalogStamp(data){
   if(!data || !Array.isArray(data.cards) || !Array.isArray(data.sets) || typeof data.asof!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.asof))return null;
   const stamp=Date.parse(data.asof+'T00:00:00Z');
   return Number.isFinite(stamp) && new Date(stamp).toISOString().slice(0,10)===data.asof?stamp:null;
 }
+async function cacheGet(name){
+  try{ if(!('caches' in window)) return null; const hit=await (await caches.open('inkscan-data')).match(name); return hit?await hit.json():null; }catch(e){ return null; }
+}
+async function cachePut(name,value){
+  try{ if('caches' in window) await (await caches.open('inkscan-data')).put(name,new Response(JSON.stringify(value),{headers:{'content-type':'application/json'}})); }catch(e){}
+}
+async function loadBundledCards(file, fresh){
+  let bundled=null;
+  try{ const r=await fetch(file,fresh?{cache:'no-cache'}:undefined); if(r.ok){ const v=await r.json(); if(catalogStamp(v)!==null) bundled=v; } }catch(e){}
+  if(bundled){ cachePut(GAME_ID+'-cards.json',bundled); return bundled; }
+  const cached=await cacheGet(GAME_ID+'-cards.json'); if(catalogStamp(cached)!==null) return cached;
+  throw Error('No valid card catalog is available.');
+}
+/* ---- MTG: live Scryfall lookups. Only cards you look at, own, want or deck are kept on this phone. ---- */
+const SCRYFALL='https://api.scryfall.com';
+let sfLast=0; const liveQueries=new Set();
+async function scryfall(path, opts){
+  const wait=sfLast+120-Date.now(); if(wait>0) await sleep(wait); sfLast=Date.now();
+  const r=await fetch(SCRYFALL+path,{headers:{Accept:'application/json',...(opts?.body?{'Content-Type':'application/json'}:{})},...(opts||{})});
+  if(r.status===404) return null;
+  if(!r.ok) throw Error(`Scryfall answered ${r.status}`);
+  return r.json();
+}
+async function loadLiveCards(){
+  const cached=await cacheGet(GAME_ID+'-cards.json');
+  let sets=await cacheGet(GAME_ID+'-sets.json');
+  const stale=!sets || (Date.now()-Date.parse(sets.fetched||0))>7*86400000;
+  if(stale && navigator.onLine){
+    try{
+      const j=await scryfall('/sets');
+      const list=(j?.data||[]).filter(x=>!x.digital && x.card_count>0).sort((a,b)=>(b.released_at||'').localeCompare(a.released_at||''))
+        .map(x=>({code:x.code,name:x.name,rel:x.released_at,count:x.card_count}));
+      if(list.length){ sets={fetched:new Date().toISOString(),sets:list}; cachePut(GAME_ID+'-sets.json',sets); }
+    }catch(e){/* Offline: the cached set list still works. */}
+  }
+  const known=new Map((sets?.sets||[]).map(x=>[x.code,x]));
+  for(const c of cached?.cards||[]) if(!known.has(c.s)) known.set(c.s,{code:c.s,name:c.sn,count:0});
+  return {asof:cached?.asof||today(), sets:[...known.values()], cards:cached?.cards||[]};
+}
+function persistLiveCards(){
+  if(!G.live||!DB) return;
+  const keep=new Set([...Object.keys(inv),...Object.keys(wish)]);
+  const nvs=new Set(decks.flatMap(d=>Object.keys(d.cards)));
+  const cards=DB.cards.filter(c=>keep.has(c.id)||nvs.has(c.nv)).concat(DB.cards.filter(c=>!keep.has(c.id)&&!nvs.has(c.nv)).slice(-1500));
+  cachePut(GAME_ID+'-cards.json',{asof:DB.asof,cards:cards.map(({nv,inks,num,prf,...c})=>c)});
+}
+function addLiveCards(cards){
+  if(!cards?.length||!DB) return 0;
+  const map=new Map(DB.cards.map(c=>[c.id,c])); let added=0;
+  for(const c of cards){ if(!map.has(c.id)) added++; map.set(c.id,c); }
+  const sets=new Map(DB.sets.map(x=>[x.code,x]));
+  for(const c of cards) if(!sets.has(c.s)) sets.set(c.s,{code:c.s,name:c.sn,count:0});
+  indexCards({...DB,sets:[...sets.values()],cards:[...map.values()]});
+  persistLiveCards();
+  return added;
+}
+async function liveSearch(query, unique){
+  if(!G.live||!navigator.onLine) return false;
+  const q=String(query||'').trim(); if(q.length<3) return false;
+  const key=(unique||'cards')+'|'+q.toLowerCase(); if(liveQueries.has(key)) return false; liveQueries.add(key);
+  try{
+    const j=await scryfall(`/cards/search?q=${encodeURIComponent(q+' game:paper')}&unique=${unique||'cards'}&order=name`);
+    return addLiveCards((j?.data||[]).map(G.fromScryfall))>0;
+  }catch(e){ liveQueries.delete(key); return false; }
+}
+async function livePrinting(ref){
+  if(!G.live||!ref?.set||!ref.collector||!navigator.onLine) return null;
+  try{ const card=await scryfall(`/cards/${encodeURIComponent(ref.set.toLowerCase())}/${encodeURIComponent(ref.collector.toLowerCase())}`); if(!card) return null; const c=G.fromScryfall(card); addLiveCards([c]); return byId.get(c.id)||null; }
+  catch(e){ return null; }
+}
+async function livePrints(card){
+  if(!G.live||!card?.oid) return false;
+  return liveSearch('oracleid:'+card.oid,'prints');
+}
+async function liveNames(names){
+  if(!G.live) return 0;
+  const missing=[...new Set(names)].filter(n=>!byNV.has(norm(n)+'|')); let added=0;
+  for(let i=0;i<missing.length;i+=75){
+    try{ const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:missing.slice(i,i+75).map(name=>({name}))})}); added+=addLiveCards((j?.data||[]).map(G.fromScryfall)); }catch(e){}
+  }
+  return added;
+}
+async function refreshLivePrices(btn){
+  const ids=[...new Set([...Object.keys(inv),...Object.keys(wish)])].filter(id=>id.startsWith('sf_')).map(id=>id.slice(3));
+  if(btn) btn.disabled=true; let n=0;
+  try{
+    for(let i=0;i<ids.length;i+=75){
+      if(btn) btn.textContent=`Updating ${Math.min(i+75,ids.length)}/${ids.length}`;
+      const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:ids.slice(i,i+75).map(id=>({id}))})});
+      const cards=(j?.data||[]).map(G.fromScryfall); n+=cards.length; addLiveCards(cards);
+    }
+    DB.asof=today(); persistLiveCards(); renderAll(); toast(`Prices updated for ${n} cards`);
+  }catch(e){ toast('Couldn’t reach Scryfall. Check your connection and try again.'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Update prices'; } }
+}
 async function loadCards(){
+  if(!LORCANA) return G.live ? loadLiveCards() : loadBundledCards(G.catalog);
   let cached=null,bundled=null;
   try{
     if ('caches' in window){
@@ -377,23 +486,27 @@ function openCard(id){
   const c = byId.get(id); if(!c) return;
   sheetCard = c.id;
   openSheet(c.n, cardDetailHTML(c), ()=>{ sheetCard=null; renderAfterEdit(); });
+  if (G.live) livePrints(c).then(added=>{ if(added && sheetCard===c.id) $('sheetBody').innerHTML=cardDetailHTML(byId.get(c.id)||c); });
 }
 function cardDetailHTML(c){
   const v = inv[c.id] || {q:0,f:0}; const w = wish[c.id]||0;
   const stats = [];
+  if (!LORCANA) for (const [label,val] of G.stats(c)) { if (val!=null && val!=='') stats.push(`<span class="stat">${esc(label)}<b>${esc(val)}</b></span>`); }
+  else {
   if (c.co!=null) stats.push(`<span class="stat">Cost<b>${c.co}</b></span>`);
   stats.push(`<span class="stat">${c.ik?'Inkable':'Not inkable'}</span>`);
   if (c.st!=null) stats.push(`<span class="stat">Strength<b>${c.st}</b></span>`);
   if (c.wp!=null) stats.push(`<span class="stat">Willpower<b>${c.wp}</b></span>`);
   if (c.lo!=null) stats.push(`<span class="stat">Lore<b>${c.lo}</b></span>`);
   if (c.mv!=null) stats.push(`<span class="stat">Move<b>${c.mv}</b></span>`);
+  }
   const others = (byNV.get(c.nv)||[]).filter(x=>x.id!==c.id);
   const inDecks = decks.filter(d=>d.cards[c.nv]).map(d=>`${esc(d.name)} (${d.cards[c.nv]})`);
   const deckOpts = decks.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
   return `<div class="detail">
     <div class="big">${detailArtHTML(c)}</div>
     <div class="facts">
-      ${c.v?`<div class="ver">${esc(c.v)}</div>`:''}
+      ${(LORCANA?c.v:G.displayVersion(c))?`<div class="ver">${esc(LORCANA?c.v:G.displayVersion(c))}</div>`:''}${!LORCANA&&c.mc?`<div class="note">${esc(c.mc)}</div>`:''}
       <div class="row">${inkDot(c)}<span class="note">${esc(c.i)} · ${esc(c.ty.replace('/',' · '))}${c.cl?' · '+esc(c.cl.replaceAll('/',' · ')):''}</span></div>
       <div class="stats">${stats.join('')}</div>
       ${c.tx?`<div class="rules">${rulesHTML(c.tx)}</div>`:''}
@@ -402,19 +515,19 @@ function cardDetailHTML(c){
         <dt>Set</dt><dd>${esc(c.sn)} · #${esc(c.c)}</dd>
         <dt>Rarity</dt><dd>${esc(rarityLabel(c.r))}</dd>
         ${supplementalDetails(c)}
-        <dt>Price</dt><dd>${FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced. ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
+        <dt>Price</dt><dd>${GAME_FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced. ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
         ${c.il?`<dt>Artist</dt><dd>${esc(c.il)}</dd>`:''}
-        <dt>Core Constructed</dt><dd data-legality-status="${esc(legalityOf(c).status)}">${cardLegalityHTML(c)}</dd>
+        ${LORCANA?`<dt>Core Constructed</dt><dd data-legality-status="${esc(legalityOf(c).status)}">${cardLegalityHTML(c)}</dd>`:''}
       </dl>
       <div class="own" id="ownBox">
-        <div class="step"><label>Normal</label><button data-own="q" data-d="-1" aria-label="One fewer normal">−</button><output>${v.q||0}</output><button data-own="q" data-d="1" aria-label="One more normal">+</button></div>
+        <div class="step"><label>${esc(finishLabel('normal'))}</label><button data-own="q" data-d="-1" aria-label="One fewer normal">−</button><output>${v.q||0}</output><button data-own="q" data-d="1" aria-label="One more normal">+</button></div>
         <div class="step"><label>Foil</label><button data-own="f" data-d="-1" aria-label="One fewer foil">−</button><output>${v.f||0}</output><button data-own="f" data-d="1" aria-label="One more foil">+</button></div>
-        <div class="step"><label>Rainbow foil</label><button data-own="rf" data-d="-1" aria-label="One fewer rainbow foil">−</button><output>${v.rf||0}</output><button data-own="rf" data-d="1" aria-label="One more rainbow foil">+</button></div>
+        ${GAME_FINISHES.includes('rainbow')?`<div class="step"><label>${esc(finishLabel('rainbow'))}</label><button data-own="rf" data-d="-1" aria-label="One fewer ${esc(finishLabel('rainbow').toLowerCase())}">−</button><output>${v.rf||0}</output><button data-own="rf" data-d="1" aria-label="One more ${esc(finishLabel('rainbow').toLowerCase())}">+</button></div>`:''}
         <div class="step"><label>Wishlist</label><button data-want="-1" aria-label="Want one fewer">−</button><output>${w}</output><button data-want="1" aria-label="Want one more">+</button></div>
       </div>
       ${decks.length?`<div class="row"><select id="deckPick" class="slim" aria-label="Deck">${deckOpts}</select><button class="btn" id="deckAddOne">Add to deck</button></div>`:''}
       ${inDecks.length?`<div class="note">In ${inDecks.join(', ')}</div>`:''}
-      ${others.length?`<div class="note">Other printings: ${others.map(o=>`<a href="#" class="link" data-card="${o.id}">${esc(setLabel(o))} #${esc(o.c)}${SPECIAL.has(o.r)?' '+esc(rarityLabel(o.r)):''}</a>`).join(' · ')}</div>`:''}
+      ${others.length?`<div class="note">Other printings: ${others.map(o=>`<a href="#" class="link" data-card="${o.id}">${esc(setLabel(o))} #${esc(o.c)}${isSpecialCard(o)?' '+esc(LORCANA?rarityLabel(o.r):o.pv||rarityLabel(o.r)):''}</a>`).join(' · ')}</div>`:''}
       ${c.t?`<a class="link" href="https://www.tcgplayer.com/product/${c.t}" target="_blank" rel="noopener">View on TCGplayer ↗</a>`:''}
     </div></div>`;
 }
@@ -514,6 +627,12 @@ function exactPrinting(set,collector,scope='all'){
   return {status:'exact',card:candidates[0],candidates,reference,message:`${label} identified. Confirm the physical finish separately.`};
 }
 function resolveNumberLine(text,scope='all'){
+  if(!LORCANA){
+    const refs=[...new Map(G.parseCode(text).map(r=>[printingToken(r.set)+'|'+collectorToken(r.collector),r])).values()];
+    if(!refs.length)return {status:'unrecognized',card:null,candidates:[],reference:null,message:'The card code could not be read. Nothing was added. Search by its printed code or card name.'};
+    if(refs.length>1){const candidates=[...new Map(refs.flatMap(r=>exactPrinting(r.set,r.collector,scope).candidates).map(c=>[c.id,c])).values()];return {status:'ambiguous',card:null,candidates,reference:null,message:'More than one card code was read. Nothing was added. Choose the exact printing.'};}
+    return exactPrinting(refs[0].set,refs[0].collector,scope);
+  }
   const source=String(text||'').replace(/\n/g,' '),references=[];
   // Full alphanumeric tokens are retained. A promo denominator is authoritative;
   // the trailing release number must never turn 11/PD1 EN14 into set14/#11.
@@ -534,6 +653,12 @@ function parseLine(text){const result=resolveNumberLine(text,scanPrintingScope);
 function searchPrintings(query,scope=scanPrintingScope){
   const q=String(query||'').trim();
   if(!DB)return {candidates:[],reference:null,message:''};
+  if(!LORCANA&&q){
+    const refs=G.parseCode(q);
+    if(refs.length===1)return exactPrinting(refs[0].set,refs[0].collector,scope);
+    const pair=/^([A-Za-z0-9]{2,6})\s*[#\s]\s*#?([0-9]{1,4}[A-Za-z★]?)$/.exec(q);
+    if(G.live&&pair&&/[A-Za-z]/.test(pair[1]))return exactPrinting(pair[1],pair[2],scope);
+  }
   if(q.includes('/') && /\b(?:EN|FR|DE|IT|JA|ZH|ES)\s*[0-9A-Za-z]*/i.test(q))return resolveNumberLine(q,scope);
   const pair=q.match(/^#?([A-Za-z0-9]+)\s*(?:\/|[#· -]|\s)\s*#?([A-Za-z0-9]+)$/);
   if(pair){
@@ -556,6 +681,11 @@ function quickSearch(q,limit=30,scope=scanPrintingScope){return searchPrintings(
 let qT,quickVisible=30;
 $('q').addEventListener('input',()=>{quickVisible=30;clearTimeout(qT);qT=setTimeout(renderQuick,120);});
 function renderQuick(){
+  if(G.live){
+    const q=$('q').value.trim(), pre=searchPrintings(q);
+    if(pre.status==='missing'&&pre.reference) livePrinting(pre.reference).then(card=>{ if(card) renderQuick(); });
+    else liveSearch(q).then(added=>{ if(added) renderQuick(); });
+  }
   const result=searchPrintings($('q').value),res=result.candidates.slice(0,quickVisible),el=$('qres');
   el.hidden=!$('q').value.trim() && scanPrintingScope!=='promo';
   const hint=result.message && result.status!=='exact'?`<p class="note printing-search-note" role="status">${esc(result.message)}</p>`:'';
@@ -653,7 +783,9 @@ async function loop(){
     if (document.hidden || !worker){ await sleep(400); continue; }
     const frame = grabStrip(); if(!frame){ await sleep(200); continue; }
     let card=null,resolution=null;
-    try{const {data}=await worker.recognize(frame);resolution=reviewNumberLine(data.text);card=resolution.card;}catch(e){}
+    try{const {data}=await worker.recognize(frame);resolution=reviewNumberLine(data.text);card=resolution.card;
+      if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ if(await livePrinting(resolution.reference)){resolution=reviewNumberLine(data.text);card=resolution.card;} }
+    }catch(e){}
     if (!scanning) break;
     if (!card){
       streak=0; lastKey=null; blankFrames++;
@@ -719,6 +851,7 @@ function valueSummary(rows,finish){
   return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies${result.unpriced?` · ${result.unpriced} copies unpriced`:''}`;
 }
 function valueNote(){
+  if(!LORCANA) return `${G.priceSource}; ${G.live?'prices as of the last lookup or Update prices':'catalog as of '+(DB?.asof||'unknown')}. — means unpriced.`;
   return `TCGplayer market prices via Lorcast; catalog as of ${DB?.asof||'unknown'}. ${finishPriceNote()} Ambiguous generic foil quotes are excluded.`;
 }
 
@@ -775,15 +908,16 @@ function renderSets(){
   const rows = DB.sets.map(s=>{
     const cs = setCards.get(s.code)||[]; let own=0, val=0, miss=0, unpriced=0, missingUnpriced=0;
     for (const c of cs){ const n=ownedOf(c.id); if(n){own++;const estimate=InkSafety.valuation([inventoryRows(c,inv[c.id])]);val+=estimate.value;unpriced+=estimate.unpriced;}else{const price=priceOf(c,false)??priceOf(c,true);if(price===null)missingUnpriced++;else miss+=price;} }
-    return {s, total:cs.length, own, val, miss, unpriced, missingUnpriced};
-  }).filter(r=>r.total);
+    return {s, total:G.live?Math.max(s.count||0,cs.length):cs.length, own, val, miss:G.live?null:miss, unpriced, missingUnpriced};
+  }).filter(r=>r.total&&(!G.live||r.own));
   const started = rows.filter(r=>r.own), rest = rows.filter(r=>!r.own);
-  const row = r => `<div class="item"><button class="item-main" data-set="${esc(r.s.code)}"><div class="who"><div class="n">${esc(r.s.name)}</div><div class="m">${/^\d+$/.test(r.s.code)?'Set '+esc(r.s.code)+' · ':''}${r.own}/${r.total} cards · ${money0(r.val)} owned${r.unpriced?` (${r.unpriced} copies unpriced)`:''} · ${money0(r.miss)} to finish${r.missingUnpriced?' (partial estimate)':''}</div><div class="bar"><i style="width:${(100*r.own/r.total).toFixed(1)}%"></i></div></div><span class="note">${Math.round(100*r.own/r.total)}%</span></button></div>`;
+  const row = r => `<div class="item"><button class="item-main" data-set="${esc(r.s.code)}"><div class="who"><div class="n">${esc(r.s.name)}</div><div class="m">${/^\d+$/.test(r.s.code)?'Set '+esc(r.s.code)+' · ':''}${r.own}/${r.total} cards · ${money0(r.val)} owned${r.unpriced?` (${r.unpriced} copies unpriced)`:''} ${r.miss===null?'':` · ${money0(r.miss)} to finish`}${r.missingUnpriced?' (partial estimate)':''}</div><div class="bar"><i style="width:${(100*r.own/r.total).toFixed(1)}%"></i></div></div><span class="note">${Math.round(100*r.own/r.total)}%</span></button></div>`;
   $('setList').innerHTML = (started.length?`<div class="group">Started<span>${started.length} sets</span></div>`+started.map(row).join(''):'') + (rest.length?`<div class="group">Not started<span>${rest.length} sets</span></div>`+rest.map(row).join(''):'');
 }
 $('setList').addEventListener('click', e=>{
   const b=e.target.closest('[data-set]'); if(!b) return;
   resetBrowse(); $('bSet').value=b.dataset.set; $('bOwn').value='miss'; $('bSort').value='price'; showTab('browse');
+  if(G.live) liveSearch('e:'+b.dataset.set,'prints').then(added=>{ if(added&&tab==='browse') renderBrowse(); });
   toast(`Missing cards from ${setName.get(b.dataset.set)}, most expensive first`);
 });
 function renderWish(){
@@ -803,8 +937,8 @@ $('wishList').addEventListener('click', e=>{
 
 /* ---- TCGplayer Mass Entry: prefilled cart link ---- */
 function massEntryUrl(items){ // items: [{q, c}]
-  const lines = items.filter(x=>x.q>0 && x.c).map(x=>`${x.q} ${x.c.n}${x.c.v?' - '+x.c.v:''}`);
-  return 'https://www.tcgplayer.com/massentry?productline=' + encodeURIComponent('Lorcana TCG') + '&c=' + lines.map(encodeURIComponent).join('||');
+  const lines = items.filter(x=>x.q>0 && x.c).map(x=>`${x.q} ${x.c.n}${LORCANA&&x.c.v?' - '+x.c.v:''}`);
+  return 'https://www.tcgplayer.com/massentry?productline=' + encodeURIComponent(LORCANA?'Lorcana TCG':G.tcgLine) + '&c=' + lines.map(encodeURIComponent).join('||');
 }
 function openTcg(items, what){
   if (!items.some(x=>x.q>0)){ toast(`Nothing to buy${what?' '+what:''}`); return; }
@@ -826,6 +960,7 @@ let bT; $('bq').addEventListener('input',()=>{ clearTimeout(bT); bT=setTimeout(r
 ['bSet','bType','bCost','bRar','bOwn','bSort','bFinish','bLegality'].forEach(id=>$(id).onchange=renderBrowse);
 function renderBrowse(){
   if (!DB) return;
+  if (G.live) liveSearch($('bq').value).then(added=>{ if(added&&tab==='browse') renderBrowse(); });
   renderLegalityInfo();
   const q = norm($('bq').value), set=$('bSet').value, type=$('bType').value, cost=$('bCost').value, rar=$('bRar').value, own=$('bOwn').value;
   const finish=$('bFinish').value||'all';
@@ -870,6 +1005,7 @@ const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).sli
 function deckCount(d){ return Object.values(d.cards).reduce((a,b)=>a+b,0); }
 function deckInks(d){ const s=new Set(); for (const nv of Object.keys(d.cards)) for (const i of (repOf(nv)?.inks||[])) s.add(i); return [...s].sort((a,b)=>INKS.indexOf(a)-INKS.indexOf(b)); }
 function deckStats(d){
+  let leaders=0, offColor=0, overCopies=0;
   let total=0, inkable=0, missing=0, missCost=0, missingUnpriced=0, value=0; const curve=Array(8).fill(0); const types={};
   for (const [nv,q] of Object.entries(d.cards)){
     const c = repOf(nv); if(!c) continue;
@@ -877,16 +1013,29 @@ function deckStats(d){
     curve[Math.min(7, Math.max(0,c.co||0))]+=q;
     const t = c.ty.split('/')[0]; types[t]=(types[t]||0)+q;
     const m=Math.max(0,q-ownedNV(nv)),price=cheapest(nv);missing+=m;if(price===null)missingUnpriced+=m;else missCost+=m*price;
+    if (!LORCANA && G.deck.leaderType && c.ty===G.deck.leaderType) leaders+=q;
+    if (!LORCANA && q>G.deck.maxCopies && !(G.deck.singletonExempt&&G.deck.singletonExempt(c))) overCopies++;
   }
-  return {total, inkable, missing, missCost, missingUnpriced, curve, types, inks: deckInks(d)};
+  if (!LORCANA && G.deck.leaderType){
+    const leader=Object.keys(d.cards).map(repOf).find(c=>c&&c.ty===G.deck.leaderType);
+    if (leader) for (const [nv,q] of Object.entries(d.cards)){ const c=repOf(nv); if(c&&c!==leader&&!c.inks.some(i=>leader.inks.includes(i))) offColor+=q; }
+  }
+  const main = total - leaders;
+  return {total, main, leaders, offColor, overCopies, inkable, missing, missCost, missingUnpriced, curve, types, inks: deckInks(d)};
 }
 /* returns true or a message explaining why it couldn't add */
 function deckAdd(d, nv, n){
   const cur = d.cards[nv]||0, next = cur+n;
-  if (n>0){
+  if (n>0 && LORCANA){
     if (next>4) return 'A deck can have at most 4 copies of a card';
     const c = repOf(nv), inks = new Set(deckInks(d)); c.inks.forEach(i=>inks.add(i));
     if (!d.cards[nv] && inks.size>2) return 'A deck can only use 2 inks';
+  }
+  if (n>0 && !LORCANA){
+    const c = repOf(nv);
+    if (G.deck.leaderType && c?.ty===G.deck.leaderType && next>1) return 'A deck has exactly one Leader';
+    if (G.deck.leaderType && c?.ty===G.deck.leaderType && !d.cards[nv] && Object.keys(d.cards).some(k=>repOf(k)?.ty===G.deck.leaderType)) return 'This deck already has a Leader. Remove it first.';
+    if (next>G.deck.maxCopies && !(G.deck.singletonExempt&&G.deck.singletonExempt(c))) return G.deck.maxCopies===1?'Commander decks are singleton: one copy of each card except basic lands':`A deck can have at most ${G.deck.maxCopies} copies of a card`;
   }
   if (next<=0) delete d.cards[nv]; else d.cards[nv]=next;
   d.updated = Date.now(); saveDecks(); return true;
@@ -899,7 +1048,7 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML = sorted.length ? sorted.map(d=>{
     const st = deckStats(d); const lead = Object.entries(d.cards).sort((a,b)=>(repOf(b[0])?.co||0)-(repOf(a[0])?.co||0))[0];
     const c = lead && repOf(lead[0]);
-    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.total}/60 cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
+    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
   }).join('') : `<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`;
 }
 $('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
@@ -919,11 +1068,21 @@ function renderDeckEdit(keepScroll){
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
   const st = deckStats(d); const max = Math.max(1,...st.curve);
   const warns = [];
+  if (LORCANA){
   if (st.total<60) warns.push(`<span class="chip warn">${60-st.total} more cards needed</span>`);
   if (st.inks.length>2) warns.push(`<span class="chip warn">More than 2 inks</span>`);
   if (st.total>=60 && st.inks.length<=2) warns.push(`<span class="chip">Size / ink check only</span>`);
+  } else {
+    const size=G.deck.size;
+    if (st.main<size) warns.push(`<span class="chip warn">${size-st.main} more cards needed</span>`);
+    if (st.main>size) warns.push(`<span class="chip warn">${st.main-size} cards over ${size}</span>`);
+    if (G.deck.leaderType && st.leaders!==1) warns.push(`<span class="chip warn">${st.leaders?'More than one Leader':'No Leader yet'}</span>`);
+    if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
+    if (st.overCopies) warns.push(`<span class="chip warn">${st.overCopies} cards over the copy limit</span>`);
+    if (st.main===size && !st.offColor && !st.overCopies && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
+  }
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
-  $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div><div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div><div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
+  $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
     <div class="warns">${warns.join('')}</div>`;
   $('deckListPane').hidden = dsub!=='list'; $('deckAddPane').hidden = dsub!=='add';
@@ -931,16 +1090,16 @@ function renderDeckEdit(keepScroll){
 }
 function deckRowHTML(nv, q, d){
   const c = repOf(nv); const own = ownedNV(nv); const short = Math.max(0,q-own);
-  return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${c.co} cost · ${c.ik?'inkable':'not inkable'} · ${short?`<span style="color:var(--warn)">own ${own} of ${q}</span>`:`own ${own}`}</div></div>
-    <div class="acts"><button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=4?'disabled':''}>+</button></div></div></div>`;
+  return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:esc(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">own ${own} of ${q}</span>`:`own ${own}`}</div></div>
+    <div class="acts"><button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:G.deck.maxCopies))?'disabled':''}>+</button></div></div></div>`;
 }
 function renderDeckList(d){
   const entries = Object.entries(d.cards).map(([nv,q])=>({nv,q,c:repOf(nv)})).filter(x=>x.c);
   if (!entries.length){ $('deckListPane').innerHTML = `<div class="list"><div class="empty"><strong>Empty deck</strong>Switch to Add cards to start building.</div></div>`; return; }
-  const groups = [['Characters',x=>isType(x.c,'Character')],['Actions & songs',x=>isType(x.c,'Action')],['Items',x=>isType(x.c,'Item')],['Locations',x=>isType(x.c,'Location')]];
-  let html='';
+  const groups = LORCANA ? [['Characters',x=>isType(x.c,'Character')],['Actions & songs',x=>isType(x.c,'Action')],['Items',x=>isType(x.c,'Item')],['Locations',x=>isType(x.c,'Location')]] : G.deckGroups.map(([label,fn])=>[label,x=>fn(x.c)]);
+  let html=''; const placed=new Set();
   for (const [label,fn] of groups){
-    const g = entries.filter(fn).sort((a,b)=>(a.c.co-b.c.co)||a.c.n.localeCompare(b.c.n)); if(!g.length) continue;
+    const g = entries.filter(x=>!placed.has(x.nv)&&fn(x)).sort((a,b)=>(a.c.co-b.c.co)||a.c.n.localeCompare(b.c.n)); g.forEach(x=>placed.add(x.nv)); if(!g.length) continue;
     html += `<div class="group">${label}<span>${g.reduce((a,x)=>a+x.q,0)}</span></div>` + g.map(x=>deckRowHTML(x.nv,x.q,d)).join('');
   }
   $('deckListPane').innerHTML = `<div class="list">${html}</div>`;
@@ -957,10 +1116,12 @@ let dqT; $('dq').addEventListener('input',()=>{ clearTimeout(dqT); dqT=setTimeou
 $('dOwned').onchange = ()=>renderDeckEdit();
 function renderDeckAdd(d, keepScroll){
   const inks = deckInks(d); const q = norm($('dq').value); const ownedOnly = $('dOwned').checked;
-  $('dInkNote').textContent = inks.length>=2 ? `Showing ${inks.join(' and ')} cards` : inks.length===1 ? `${inks[0]} plus any second ink` : 'Any ink';
-  let list = nvReps.map(ps=>ps.find(c=>!SPECIAL.has(c.r))||ps[0]).filter(c=>{
-    if (inks.length>=2 && !c.inks.every(i=>inks.includes(i))) return false;
-    if (inks.length===1){ const s=new Set([...inks,...c.inks]); if (s.size>2) return false; }
+  if (LORCANA) $('dInkNote').textContent = inks.length>=2 ? `Showing ${inks.join(' and ')} cards` : inks.length===1 ? `${inks[0]} plus any second ink` : 'Any ink';
+  else $('dInkNote').textContent = G.live && !ownedOnly ? 'Searching Scryfall as you type' : '';
+  if (G.live && !ownedOnly) liveSearch($('dq').value).then(added=>{ if(added&&getDeck()===d) renderDeckAdd(d,true); });
+  let list = nvReps.map(ps=>ps.find(c=>!isSpecialCard(c))||ps[0]).filter(c=>{
+    if (LORCANA && inks.length>=2 && !c.inks.every(i=>inks.includes(i))) return false;
+    if (LORCANA && inks.length===1){ const s=new Set([...inks,...c.inks]); if (s.size>2) return false; }
     if (ownedOnly && !ownedNV(c.nv) && !d.cards[c.nv]) return false;
     if (q && !norm(c.n+c.v+c.cl+c.tx).includes(q)) return false;
     return true;
@@ -985,12 +1146,12 @@ $('deckMoreBtn').onclick = ()=>{
       <button class="btn" data-dm="newcards">Add list as new physical cards</button>
       ${d.importLines||d.unresolved?'<button class="btn" data-dm="source">Review imported source</button>':''}
     </div>
-    <p class="note">Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.</p>
+    <p class="note">${esc(LORCANA?'Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.':G.deckFormatNote)}</p>
     <div class="confirm row" id="delRow"><button class="btn danger" data-dm="del">Delete deck</button></div>`);
 };
 function deckText(d){
   return Object.entries(d.cards).map(([nv,q])=>({q,c:repOf(nv)})).filter(x=>x.c).sort((a,b)=>(a.c.co-b.c.co)||a.c.n.localeCompare(b.c.n))
-    .map(x=>`${x.q} ${x.c.n}${x.c.v?' - '+x.c.v:''}`).join('\n');
+    .map(x=>LORCANA?`${x.q} ${x.c.n}${x.c.v?' - '+x.c.v:''}`:GAME_ID==='onepiece'?`${x.q}x${x.c.v}`:`${x.q} ${x.c.n}`).join('\n');
 }
 $('sheetBody').addEventListener('click', async e=>{
   const b = e.target.closest('[data-dm]'); if(!b) return;
@@ -1030,6 +1191,19 @@ $('deckHandBtn').onclick = ()=>{
 /* Deck import does not change ownership. Source lines survive unresolved matches. */
 function parseDeckImport(text){
   const cards={}, lines=[], unresolved=[];
+  if(!LORCANA){
+    for(const raw of text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
+      if(/^(\/\/|#|deck\b|sideboard\b|commander\b|main\b|leader\b)/i.test(raw)) continue;
+      const parsed=G.deckLine(raw);
+      if(!parsed){unresolved.push(raw);continue;}
+      let nv=null;
+      if(parsed.key&&byNV.has(parsed.key)) nv=parsed.key;
+      else if(parsed.name&&byNV.has(norm(parsed.name)+'|')) nv=norm(parsed.name)+'|';
+      const line={raw,qty:parsed.qty,nv};lines.push(line);
+      if(nv) cards[nv]=(cards[nv]||0)+line.qty; else unresolved.push(raw);
+    }
+    return {cards,lines,unresolved};
+  }
   for(const raw of text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
     if(/^(\/\/|#|deck\b|sideboard\b)/i.test(raw)) continue;
     const m=raw.match(/^(\d+)\s*x?\s+(.+?)\s*$/i);
@@ -1140,7 +1314,7 @@ async function rest(method, path, body, extra){
 // Full owner-scoped reads avoid timestamp-only pagination and detect missing rows.
 const TABLES={inv:'collection',wish:'wishlist',decks:'decks'};
 // Every cloud row carries its game. This build reads and writes Lorcana rows only, so rows for other games can never enter this collection.
-const GAME='lorcana';
+const GAME=GAME_ID;
 let cloudRainbow=false;
 async function probeRainbowCloud(){
   // Called only from explicit Update, never at startup or sign-in.
@@ -1293,10 +1467,10 @@ $('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${s
 function backupPayload(){
   const keys=[InkSafety.KEY,...InkSafety.LEGACY_KEYS];
   const raw=()=>Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]));
-  return savedState?{app:InkSafety.BACKUP_APP,...snapshotState(),saved:new Date().toISOString(),...(storageError?{recoveryRaw:raw()}: {})}:{app:'inkscan-raw-recovery',raw:raw()};
+  return savedState?{app:InkSafety.BACKUP_APP,game:GAME_ID,...snapshotState(),saved:new Date().toISOString(),...(storageError?{recoveryRaw:raw()}: {})}:{app:'inkscan-raw-recovery',raw:raw()};
 }
 function downloadBackup(){
-  try{download(`inkscan-${storageError?'recovery':'backup'}-${today()}.json`,JSON.stringify(backupPayload()),'application/json');}
+  try{download(`inkscan-${LORCANA?'':GAME_ID+'-'}${storageError?'recovery':'backup'}-${today()}.json`,JSON.stringify(backupPayload()),'application/json');}
   catch(e){toast('Backup could not read saved data. Keep this tab open for recovery.');}
 }
 $('safetyBackup').onclick=downloadBackup;
@@ -1312,17 +1486,17 @@ $('toolsBtn').onclick = ()=>{
       <button class="btn" data-tool="restore">Restore a file</button>
       <button class="btn" data-tool="prices">Update prices</button>
     </div>
-    <p class="note">${DB?`${DB.cards.length.toLocaleString()} cards through ${esc(DB.sets[DB.sets.length-1].name)}. TCGplayer prices from ${new Date(DB.asof+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}.`:''}</p>
+    <p class="note">${DB&&G.live?`${DB.cards.length.toLocaleString()} cards saved on this phone; everything else is looked up on Scryfall.`:''}${DB&&!G.live?`${DB.cards.length.toLocaleString()} cards through ${esc(DB.sets[DB.sets.length-1].name)}. TCGplayer prices from ${new Date(DB.asof+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}.`:''}</p>
     <p class="note">"Back up everything" saves your collection, decks and wishlist in one file; Restore takes that file or a collection CSV.</p>
     <div class="row" id="wipeRow"><button class="btn danger tiny" data-tool="wipe">Clear collection</button></div>`);
 };
 $('sheetBody').addEventListener('click', e=>{
   const b = e.target.closest('[data-tool]'); if(!b) return;
   const a = b.dataset.tool;
-  if (a==='csv'){ if(!Object.keys(inv).length){ toast('Nothing to export yet'); return; } download(`lorcana-collection-${today()}.csv`, '﻿'+buildCsv(), 'text/csv'); toast('CSV downloaded'); }
+  if (a==='csv'){ if(!Object.keys(inv).length){ toast('Nothing to export yet'); return; } download(`${GAME_ID}-collection-${today()}.csv`, '﻿'+buildCsv(), 'text/csv'); toast('CSV downloaded'); }
   else if (a==='backup'){ downloadBackup(); }
   else if (a==='restore'){ $('fileIn').click(); }
-  else if (a==='prices'){ refreshFromLorcast(true, b); }
+  else if (a==='prices'){ if(LORCANA) refreshFromLorcast(true, b); else if(G.live) refreshLivePrices(b); else loadBundledCards(G.catalog,true).then(d=>{indexCards(d);renderAll();toast('Prices and cards updated');}).catch(()=>toast('Couldn’t load the card list. Check your connection.')); }
   else if (a==='wipe'){ $('wipeRow').innerHTML = `<span class="note">Remove every card from your collection? Decks and wishlist stay.</span><button class="btn danger tiny" data-tool="wipeyes">Remove all</button><button class="btn ghost tiny" data-tool="wipeno">Keep</button>`; }
   else if (a==='wipeyes'){ inv={}; log=[]; saveInv(); renderAll(); closeSheet(); toast('Collection cleared'); }
   else if (a==='wipeno'){ $('wipeRow').innerHTML = `<button class="btn danger tiny" data-tool="wipe">Clear collection</button>`; }
@@ -1377,7 +1551,9 @@ $('fileIn').onchange = async e=>{
   const text = (await f.text()).replace(/^﻿/,'');
   if (/^\s*\{/.test(text)){
     try{
-      const backup=JSON.parse(text), restored=InkSafety.restoreSnapshot(backup,inv);
+      const backup=JSON.parse(text);
+      if((backup.game||'lorcana')!==GAME_ID){ toast(`That backup is for ${GAMES?GAMES.get(backup.game||'lorcana').name:'another game'}. Switch to that game first. Nothing was replaced.`); return; }
+      const restored=InkSafety.restoreSnapshot(backup,inv);
       previewRestore(restored, backup.app==='inkscan'?'This legacy backup (existing rainbow foil quantities are preserved)':'This complete v6 backup');
     }catch(err){ toast(err.message||'That file isn’t a complete InkScan backup. Nothing was replaced.'); }
     return;
@@ -1414,6 +1590,26 @@ $('fileIn').onchange = async e=>{
 /* =========================================================
    Boot
    ========================================================= */
+function applyGameLabels(){
+  const sel=$('gameSel');
+  if(sel && GAMES){
+    sel.innerHTML=GAMES.ORDER.map(id=>`<option value="${id}"${id===GAME_ID?' selected':''}>${esc(GAMES.get(id).name)}</option>`).join('');
+    sel.onchange=()=>{ if(!persistState()){ sel.value=GAME_ID; toast('Save this game first: download a backup, then switch.'); return; } lsSet(GAMES.GAME_KEY, sel.value); location.reload(); };
+  }
+  if(LORCANA) return;
+  document.body.dataset.game=GAME_ID;
+  const setText=(id,prop,val)=>{ const el=$(id); if(el) el[prop]=val; };
+  setText('bq','placeholder',G.searchPlaceholder); setText('q','placeholder',G.scanPlaceholder);
+  const hint=$('camstart')?.querySelector('.note'); if(hint) hint.textContent=G.scanHint;
+  if(G.guide==='bottom-right') $('guide')?.firstElementChild?.classList?.add('right');
+  for(const id of ['cFinish','bFinish','scanFinish']){ const el=$(id); if(!el?.options) continue;
+    for(const o of [...el.options]){ const k=o.value; if(!['normal','foil','rainbow'].includes(k)) continue; if(!G.finishes[k]) o.remove(); else o.textContent=id==='scanFinish'?G.finishes[k]:`${G.finishes[k]} only`; } }
+  for(const id of ['cLegality','bLegality','scanPrintingScope']){ const el=$(id); const label=el?.closest?.('label'); if(label) label.hidden=true; }
+  const fill=(id,first,values,label)=>{ const el=$(id); if(el) el.innerHTML=`<option value="">${first}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(label?label(v):v)}</option>`).join(''); };
+  fill('bType','All types',G.types); fill('bRar','Any rarity',G.rarities,G.rarityLabel);
+  const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Size and singleton badges are structural checks only. Color identity, the commander and the ban list are not checked yet.';
+  const promoNotes=document.querySelectorAll('#vScan > p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
+}
 async function boot(){
   if(!savedState){ $('loadBanner').textContent=storageError; $('loadBanner').classList.add('bad'); renderSaveStatus(); return; }
   inv=InkSafety.clone(savedState.inv); decks=InkSafety.clone(savedState.decks); wish=InkSafety.clone(savedState.wish);
@@ -1423,6 +1619,7 @@ async function boot(){
   try{ [d] = await Promise.all([loadCards(),loadFinishQuotes(),loadPromoCatalog(),loadCoreRules()]); }
   catch(e){ $('loadBanner').textContent='The card list didn’t load. Check your connection and reload.'; $('loadBanner').classList.add('bad'); return; }
   indexCards(d); $('loadBanner').hidden = true;
+  applyGameLabels();
   // Legacy catalog/localStorage keys remain intact for recovery.
   // Unknown printing IDs are retained, including while a catalog is stale or incomplete.
   renderSaveStatus();
@@ -1433,7 +1630,7 @@ async function boot(){
   navigator.storage?.persist?.().catch(()=>{});
   showTab(lsGet('inkscan.tab','scan'));
   const age = (Date.now() - new Date(DB.asof+'T00:00:00').getTime())/86400000;
-  if (age > 3 && navigator.onLine) refreshFromLorcast(false);
+  if (LORCANA && age > 3 && navigator.onLine) refreshFromLorcast(false);
   getWorker().catch(()=>{});
   // Cloud reads and writes require an explicit Update confirmation.
 }
