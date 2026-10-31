@@ -385,3 +385,16 @@ test('deck panel lists a sideboard when the guide carries one, escaped',()=>{
  h.api.renderDeckGuide(d);const html=h.el('deckGuideBody').innerHTML;
  assert.match(html,/Sideboard \(7\)/);assert.match(html,/<li>4 Pyroblast<\/li>/);assert.doesNotMatch(html,/<b>x<\/b>/);
 });
+
+test('a deck read back from the cloud with reordered guide keys is not a conflict (jsonb key order)',()=>{
+ const g={overview:'O',early:'E',middle:'M',late:'L',win:['W'],keys:['K'],tip:'T',themes:['X'],source:'S'};
+ const reordered={tip:'T',late:'L',win:['W'],keys:['K'],early:'E',middle:'M',source:'S',themes:['X'],overview:'O'};
+ const base={inv:{},wish:{},decks:{v:{name:'Voja',cards:{a:1},commanders:['a'],guide:g}}};
+ const local={inv:{},wish:{},decks:{v:{name:'Voja',cards:{a:1},commanders:['a'],guide:g,favorite:true}}};
+ const remote={inv:{},wish:{},decks:{v:{name:'Voja',cards:{a:1},commanders:['a'],guide:reordered}}};
+ const plan=S.plan(local,remote,base);
+ assert.equal(plan.conflicts.length,0);assert.equal(plan.writes.length,1);assert.equal(plan.writes[0].value.favorite,true);
+ assert.equal(S.plan(base,remote,base).pulls.length,0,'an unchanged deck must not be re-pulled just for key order');
+ assert.equal(S.same({a:1,b:{c:2,d:[1,{e:1,f:2}]}},{b:{d:[1,{f:2,e:1}],c:2},a:1}),true);
+ assert.equal(S.same({a:[1,2]},{a:[2,1]}),false);
+});

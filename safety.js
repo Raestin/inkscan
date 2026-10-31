@@ -2,7 +2,10 @@
   'use strict';
   const clone = value => JSON.parse(JSON.stringify(value));
   const sorted = value => Object.fromEntries(Object.keys(value || {}).sort().map(k=>[k,value[k]]));
-  const same = (a,b) => JSON.stringify(a) === JSON.stringify(b);
+  // Key-order-independent comparison: the cloud (Postgres jsonb) stores object keys in its own order,
+  // so a deck read back from the cloud must still compare equal to the same deck saved on the phone.
+  const canon = v => Array.isArray(v) ? v.map(canon) : v && typeof v==='object' ? Object.fromEntries(Object.keys(v).sort().map(k=>[k,canon(v[k])])) : v;
+  const same = (a,b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
   const record = v => !!v && typeof v==='object' && !Array.isArray(v);
   const quantity = n => Number.isSafeInteger(n) && n>=0;
   const validInvQuantities = v => quantity(v.q??0) && quantity(v.f??0) && (!Object.hasOwn(v,'rf') || quantity(v.rf));
