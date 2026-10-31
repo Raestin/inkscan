@@ -1088,7 +1088,7 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML = sorted.length ? sorted.map(d=>{
     const st = deckStats(d); const lead = Object.entries(d.cards).sort((a,b)=>(repOf(b[0])?.co||0)-(repOf(a[0])?.co||0))[0];
     const c = lead && repOf(lead[0]);
-    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
+    return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${LORCANA?st.total:st.main}/${LORCANA?60:G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${st.cmd?(st.main===G.deck.size&&!st.cmd.problem&&!st.offColor&&!st.overCopies&&!st.banned&&!st.notLegal&&!st.unchecked?'<span class="chip ok">Rules pass</span>':st.cmd.problem||st.offColor||st.overCopies||st.banned||st.notLegal||st.main!==G.deck.size?'<span class="chip warn">Fix rules</span>':''):LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button></div>`;
   }).join('') : `<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`;
 }
 $('deckList').addEventListener('click', e=>{ const b=e.target.closest('[data-deck]'); if(b){ curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
@@ -1287,8 +1287,9 @@ function parseDeckImport(text){
   return {cards,lines,unresolved};
 }
 $('importDeckBtn').onclick=()=>{
-  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>`);
+  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>${G.live?`<label for="impFile">Or import a deck file (many decks at once)</label><input type="file" id="impFile" accept=".json,application/json">`:''}`);
   let imported=false;
+  if(G.live) $('impFile').onchange=async e=>{ const f=e.target.files?.[0]; if(!f) return; try{ previewDeckFile(parseDeckFile(await f.text())); }catch(err){ $('impMsg').textContent=err.message; } e.target.value=''; };
   $('impGo').onclick=async()=>{
     if(imported)return;
     if(G.live){
@@ -1305,6 +1306,53 @@ $('importDeckBtn').onclick=()=>{
     $('importDone').onclick=()=>closeSheet();
   };
 };
+/* Deck files: {kind:'inkscan-decks', game, decks:[{name, commanders:[scryfallId], cards:[[qty, scryfallId, name]]}]}.
+   Cards are matched by exact Scryfall ID, so double-faced cards and reprints never depend on name matching. */
+const SF_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+function parseDeckFile(text){
+  let j; try{ j=JSON.parse(text); }catch(e){ throw Error('That file is not an InkScan deck file.'); }
+  if(!j||j.kind!=='inkscan-decks'||j.version!==1||!Array.isArray(j.decks)) throw Error('That file is not an InkScan deck file.');
+  if(j.game!==GAME_ID) throw Error(`That deck file is for ${GAMES?.get(j.game)?.name||"another game"}. Switch games first.`);
+  if(j.decks.length>1000) throw Error('A deck file can hold at most 1,000 decks.');
+  return j.decks.map((d,i)=>{
+    if(!d||typeof d.name!=='string'||!d.name.trim()||d.name.length>200||!Array.isArray(d.cards)||d.cards.length>500) throw Error(`Deck ${i+1} in the file is invalid. Nothing was imported.`);
+    const cards=d.cards.map(c=>{ if(!Array.isArray(c)||!Number.isSafeInteger(c[0])||c[0]<1||c[0]>250||!SF_ID.test(c[1])) throw Error(`A card in "${d.name}" is invalid. Nothing was imported.`); return {qty:c[0],id:c[1],name:typeof c[2]==='string'?c[2].slice(0,200):c[1]}; });
+    const commanders=(Array.isArray(d.commanders)?d.commanders:[]).filter(id=>SF_ID.test(id)).slice(0,2);
+    return {name:d.name.trim(),cards,commanders};
+  });
+}
+function previewDeckFile(list){
+  const have=new Set(decks.map(d=>d.name)), fresh=list.filter(d=>!have.has(d.name)), ids=new Set(fresh.flatMap(d=>d.cards.map(c=>c.id)));
+  const need=[...ids].filter(id=>!byId.get('sf_'+id)?.lg);
+  openSheet('Import deck file',`<p><b>${fresh.length} deck(s)</b> to add${list.length>fresh.length?`; ${list.length-fresh.length} skipped because a deck with that name is already here`:''}. ${ids.size.toLocaleString()} different cards.</p><p class="note">${need.length?`${need.length.toLocaleString()} cards will be looked up on Scryfall first (needs signal, about ${Math.ceil(need.length/75)} lookups).`:'Every card is already on this phone.'} Decks only: your collection does not change.</p><button class="btn primary" id="deckFileGo" ${fresh.length?'':'disabled'}>Import ${fresh.length} decks</button><button class="btn" id="deckFileCancel">Cancel</button><p id="deckFileMsg" role="status"></p>`);
+  $('deckFileCancel').onclick=()=>closeSheet();
+  $('deckFileGo').onclick=()=>importDeckFile(fresh, need);
+}
+async function importDeckFile(list, need){
+  const go=$('deckFileGo'), msg=$('deckFileMsg'); go.disabled=true;
+  if(need.length){
+    if(!navigator.onLine){ msg.textContent='Offline. Connect and try again; nothing was imported.'; go.disabled=false; return; }
+    const got=[];
+    try{
+      for(let i=0;i<need.length;i+=75){
+        msg.textContent=`Looking up cards ${Math.min(i+75,need.length).toLocaleString()} of ${need.length.toLocaleString()}…`;
+        const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:need.slice(i,i+75).map(id=>({id}))})});
+        got.push(...(j?.data||[]).map(G.fromScryfall));
+      }
+    }catch(e){ msg.textContent='Couldn’t reach Scryfall. Nothing was imported; try again with a better signal.'; go.disabled=false; return; }
+    addLiveCards(got);
+  }
+  const now=Date.now(); let unresolved=0;
+  list.forEach((d,i)=>{
+    const cards={}, lines=[], miss=[];
+    for(const c of d.cards){ const card=byId.get('sf_'+c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
+    unresolved+=miss.length;
+    const commanders=d.commanders.map(id=>byId.get('sf_'+id)?.nv).filter(nv=>nv&&cards[nv]);
+    decks.push({id:uid(),name:d.name,cards,...(commanders.length?{commanders}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i});
+  });
+  saveDecks(); persistLiveCards(); curDeck=null; closeSheet(); showTab('decks'); renderDecks();
+  toast(`Imported ${list.length} decks${unresolved?`; ${unresolved} card line(s) could not be matched and were kept for review`:''}`);
+}
 function previewCollectionImport(deck){
   // The purchase list follows the deck as it exists now, not its original import.
   // Keep unresolved original lines visible, without guessing identities or quantities.

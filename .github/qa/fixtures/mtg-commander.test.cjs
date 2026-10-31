@@ -32,7 +32,7 @@ function harness(){
  context.window=context;context.self=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(path.join(runtime,'app.js'),'utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
- source=source.replace('window.__inkscan =',`window.testAPI={deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
+ source=source.replace('window.__inkscan =',`window.testAPI={parseDeckFile,importDeckFile,setScryfall(fn){scryfall=fn;},setOnline(v){navigator.onLine=v;},deckStats,deckAdd,toggleCommander,commanderCheck,parseDeckImport,deckRowHTML,guardedWrite,
   setState(s){inv=InkSafety.clone(s.inv||{});wish=InkSafety.clone(s.wish||{});decks=InkSafety.clone(s.decks||[]);base=null;session={uid:'synthetic-owner',access:'synthetic',exp:Date.now()+3600000};},
   getDecks(){return decks;},setRest(fn){rest=fn;},setCatalog(d){indexCards(d);},saveDecks(){}};\nwindow.__inkscan =`);
  vm.runInNewContext(source,context);
@@ -127,4 +127,40 @@ test('Scryfall conversion keeps Commander legality',()=>{
  const c=MTG.fromScryfall({id:'abc',name:'Mana Crypt',set:'2xm',set_name:'X',collector_number:'270',rarity:'mythic',color_identity:[],type_line:'Artifact',legalities:{commander:'banned'}});
  assert.equal(c.lg,'banned');
  assert.equal(MTG.fromScryfall({id:'abd',name:'X',set:'x',collector_number:'1',type_line:'Artifact'}).lg,'');
+});
+
+const ID=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+const sf=(n,name,type,ci,lg='legal',faces)=>({id:ID(n),name,set:'tst',set_name:'Synthetic',collector_number:String(n),rarity:'rare',color_identity:ci,type_line:type,oracle_text:'',legalities:{commander:lg},...(faces?{card_faces:faces}:{})});
+const DECKFILE=()=>JSON.stringify({kind:'inkscan-decks',version:1,game:'mtg',decks:[
+ {name:'B4 · Atraxa',commanders:[ID(101)],cards:[[1,ID(101),'Atraxa'],[1,ID(102),'Fable of the Mirror-Breaker'],[30,ID(103),'Forest']]},
+ {name:'B5 · Thrasios + Tymna',commanders:[ID(104),ID(105)],cards:[[1,ID(104),'Thrasios'],[1,ID(105),'Tymna'],[1,ID(106),'Mana Crypt']]}]});
+const SFCARDS={[ID(101)]:sf(101,'Atraxa, Grand Unifier','Legendary Creature — Phyrexian Angel',['W','U','B','G']),
+ [ID(102)]:sf(102,'Fable of the Mirror-Breaker // Reflection of Kiki-Jiki','Enchantment — Saga // Enchantment Creature — Goblin Shaman',['R']),
+ [ID(103)]:sf(103,'Forest','Basic Land — Forest',[]),
+ [ID(104)]:{...sf(104,'Thrasios, Triton Hero','Legendary Creature — Merfolk Wizard',['G','U']),oracle_text:'Partner (x)'},
+ [ID(105)]:{...sf(105,'Tymna the Weaver','Legendary Creature — Human Cleric',['W','B']),oracle_text:'Partner (x)'},
+ [ID(106)]:sf(106,'Mana Crypt','Artifact',[],'banned')};
+test('deck file rejects wrong kind, other games and malformed cards before importing anything',()=>{
+ const h=harness();
+ assert.throws(()=>h.api.parseDeckFile('{'),/not an InkScan deck file/);
+ assert.throws(()=>h.api.parseDeckFile(JSON.stringify({kind:'inkscan-decks',version:1,game:'lorcana',decks:[]})),/Switch games/);
+ assert.throws(()=>h.api.parseDeckFile(JSON.stringify({kind:'inkscan-decks',version:1,game:'mtg',decks:[{name:'X',cards:[[1,'not-an-id']]}]})),/invalid/);
+ assert.equal(h.api.parseDeckFile(DECKFILE()).length,2);
+});
+test('deck file import fetches by Scryfall ID, keeps double-faced cards, sets commanders and partners',async()=>{
+ const h=harness();h.api.setState({});h.api.setOnline(true);const calls=[];
+ h.api.setScryfall(async(path,opts)=>{calls.push(path);const ids=JSON.parse(opts.body).identifiers.map(x=>x.id);return {data:ids.map(id=>SFCARDS[id])};});
+ const list=h.api.parseDeckFile(DECKFILE());
+ await h.api.importDeckFile(list,[...new Set(list.flatMap(d=>d.cards.map(c=>c.id)))]);
+ const ds=h.api.getDecks();assert.equal(ds.length,2);assert.equal(calls.length,1);assert.equal(calls[0],'/cards/collection');
+ const a=ds.find(d=>d.name==='B4 · Atraxa');assert.equal(Object.values(a.cards).reduce((x,y)=>x+y,0),32);
+ assert.ok(a.cards[NV('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki')]);assert.equal(a.unresolved,undefined);
+ assert.deepEqual([...a.commanders],[NV('Atraxa, Grand Unifier')]);
+ const b=ds.find(d=>d.name==='B5 · Thrasios + Tymna');const st=h.api.deckStats(b);
+ assert.equal(st.cmd.problem,'');assert.equal(st.banned,1);assert.deepEqual([...st.cmd.identity],['White','Blue','Black','Green']);
+});
+test('deck file import offline or failing changes nothing',async()=>{
+ const h=harness();h.api.setState({});h.api.setOnline(false);
+ const list=h.api.parseDeckFile(DECKFILE());await h.api.importDeckFile(list,[ID(101)]);assert.equal(h.api.getDecks().length,0);
+ h.api.setOnline(true);h.api.setScryfall(async()=>{throw Error('down');});await h.api.importDeckFile(list,[ID(101)]);assert.equal(h.api.getDecks().length,0);
 });
