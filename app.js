@@ -1229,10 +1229,15 @@ function parseDeckImport(text){
   return {cards,lines,unresolved};
 }
 $('importDeckBtn').onclick=()=>{
-  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as 4 Elsa - Snow Queen</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>`);
+  openSheet('Import a decklist',`<label for="impName">Deck name</label><input type="text" id="impName" placeholder="My new deck"><label for="impText">One card per line, such as ${LORCANA?'4 Elsa - Snow Queen':GAME_ID==='onepiece'?'4xOP01-016':'1 Sol Ring'}</label><textarea id="impText"></textarea><p class="note">Import saves a deck only. You can separately add these as new physical cards after reviewing printings and finishes. Unrecognized lines are retained for review.</p><button class="btn primary" id="impGo">Import deck only</button><p id="impMsg" role="status"></p>`);
   let imported=false;
-  $('impGo').onclick=()=>{
+  $('impGo').onclick=async()=>{
     if(imported)return;
+    if(G.live){
+      const names=$('impText').value.split(/\r?\n/).map(line=>G.deckLine(line.trim())?.name).filter(Boolean);
+      if(names.length){ $('impMsg').textContent='Looking up cards on Scryfall…'; $('impGo').disabled=true; await liveNames(names); $('impGo').disabled=false; $('impMsg').textContent=''; }
+      if(imported)return;
+    }
     const parsed=parseDeckImport($('impText').value);
     if(!parsed.lines.length&&!parsed.unresolved.length){$('impMsg').textContent='Paste a decklist first.';return;}
     const d={id:uid(),name:$('impName').value.trim()||`Imported deck ${decks.length+1}`,cards:parsed.cards,importLines:parsed.lines,unresolved:parsed.unresolved,updated:Date.now()};
