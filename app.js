@@ -997,7 +997,7 @@ $('sheetBody').addEventListener('click', async e=>{
   const d = getDeck(); if(!d) return;
   const a = b.dataset.dm;
   if (a==='copy'){ toast(await copyText(deckText(d)) ? 'Decklist copied' : 'Couldn’t copy. Use Download instead.'); }
-  else if (a==='txt'){ download(deckFileName(d), deckText(d)+'\n', 'text/plain'); }
+  else if (a==='txt'){ download(`${d.name.replace(/[^\w\- ]+/g,'').trim()||'deck'}.txt`, deckText(d), 'text/plain'); }
   else if (a==='newcards'){previewCollectionImport(d);}
   else if (a==='source'){openSheet('Imported source retained locally',`<p class="note">This source and unresolved lines are included in your device backup. The existing cloud schema stores the recognized deck contents only.</p><pre>${esc((d.importLines||[]).map(l=>l.raw).join('\n'))}</pre><p>Unresolved:</p><pre>${esc((d.unresolved||[]).join('\n'))}</pre>`);}
   else if (a==='buy'){ openTcg(Object.entries(d.cards).map(([nv,q])=>({q:Math.max(0,q-ownedNV(nv)), c:repOf(nv)})), '. You own every card in this deck'); }
@@ -1009,20 +1009,6 @@ $('sheetBody').addEventListener('click', async e=>{
   else if (a==='del'){ $('delRow').innerHTML = `<span>Delete "${esc(d.name)}"? This can’t be undone.</span><button class="btn danger" data-dm="delyes">Delete</button><button class="btn ghost" data-dm="delno">Keep</button>`; }
   else if (a==='delyes'){ decks = decks.filter(x=>x!==d); saveDecks(); curDeck=null; closeSheet(); renderDecks(); toast('Deck deleted'); }
   else if (a==='delno'){ $('delRow').innerHTML = `<button class="btn danger" data-dm="del">Delete deck</button>`; }
-});
-
-/* one-tap export: same "4 Name - Version" .txt the importer reads */
-function deckFileName(d){ return `${d.name.replace(/[^\w\- ]+/g,'').replace(/\s+/g,' ').trim()||'deck'}.txt`; }
-$('exportDeckBtn').onclick = ()=>{
-  const live=decks.filter(d=>Object.keys(d.cards||{}).length);
-  if(!live.length){ toast('No decks with cards to export yet'); return; }
-  openSheet('Export a decklist', `<p class="note">Saves a .txt in the "4 Name - Version" format that Import, Dreamborn and Inktable read.</p>
-    <div class="list">${live.map(d=>{const n=Object.values(d.cards).reduce((x,y)=>x+y,0);return `<div class="item"><button class="item-main" data-export="${esc(d.id)}"><div class="who"><div class="n">${esc(d.name)}</div><div class="m">${n} card${n===1?"":"s"}</div></div></button></div>`;}).join('')}</div>`);
-};
-$('sheetBody').addEventListener('click', e=>{
-  const b=e.target.closest('[data-export]'); if(!b) return;
-  const d=decks.find(x=>x.id===b.dataset.export); if(!d) return;
-  download(deckFileName(d), deckText(d)+'\n', 'text/plain'); toast(`Saved ${deckFileName(d)}`);
 });
 
 /* sample hand */
