@@ -785,10 +785,38 @@ $('qres').addEventListener('click',e=>{
   const card=byId.get(b.dataset.id);if(!card || !printingAllowed(card,scanPrintingScope))return;
   if(logAdd(card,foilMode)){clearScanResolution();toast(`Added ${card.n} · ${card.s} #${card.c}`);}
 });
-function clearScanResolution(){lastScanResolution=null;$('scanResolution').hidden=true;$('scanResolution').textContent='';$('scanManual').hidden=true;}
+let pickShown='';
+function clearScanResolution(){lastScanResolution=null;$('scanResolution').hidden=true;$('scanResolution').textContent='';$('scanManual').hidden=true;showScanPick(null);}
 function showScanResolution(result){
-  lastScanResolution=result;$('scanResolution').textContent=result.message;$('scanResolution').hidden=false;$('scanManual').hidden=false;
+  lastScanResolution=result;$('scanResolution').textContent=result.message;$('scanResolution').hidden=false;
+  const pick=result.status==='ambiguous'&&result.candidates.length>0&&result.candidates.length<=8;
+  $('scanManual').hidden=pick;showScanPick(pick?result:null);
 }
+/* When a scan fits several printings, they're listed right under the message to tap. Redrawn only
+   when the list changes, so the camera loop doesn't wipe a row out from under your finger. */
+function showScanPick(result){
+  const el=$('scanPick'), list=result?.candidates||[], key=list.map(c=>c.id).join(',');
+  if(key===pickShown)return; pickShown=key; el.hidden=!list.length;
+  el.innerHTML=list.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.sn||'')}</div><div class="m">${metaLine(c,foilMode)}</div></div><div class="acts"><button data-pick="${c.id}" aria-label="Add ${esc(c.n)} from ${esc(c.sn||c.s)}">Add</button></div></div></div>`).join('');
+}
+let pickedQuery=null, pickedMiss=0;
+$('scanPick').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-pick]');if(!b)return;
+  const card=byId.get(b.dataset.pick);if(!card||!printingAllowed(card,scanPrintingScope))return;
+  const query=lastScanResolution?.query||null;
+  if(logAdd(card,foilMode)){pickedQuery=query;pickedMiss=0;cooldownKey=card.id;clearScanResolution();toast(`Added ${card.n} · ${setLabel(card)} #${card.c}`);if(scanning)camMsg('Got it. Swap in the next card.');}
+});
+/* Picks among a handful of candidates by the title the camera read. The names are known, so a rough
+   read is enough: score each by how many of its letter pairs appear, and take a clear winner only. */
+function matchTitle(text,cards){
+  const t=norm(text); if(t.length<4||!cards.length)return null;
+  const pairs=s=>{const m=new Map();for(let i=0;i<s.length-1;i++){const k=s.slice(i,i+2);m.set(k,(m.get(k)||0)+1);}return m;};
+  const tp=pairs(t);
+  const scored=cards.map(c=>{const np=pairs(norm(String(c.n).split('//')[0]));let hit=0,all=0;for(const [k,n] of np){all+=n;hit+=Math.min(n,tp.get(k)||0);}return {c,score:all?hit/all:0};}).sort((a,b)=>b.score-a.score);
+  const [best,next]=scored;
+  return best.score>=0.6&&best.score-(next?.score||0)>=0.25?best.c:null;
+}
+const MTG_TITLE={x:0.04,y:0.025,w:0.72,h:0.085};
 function reviewNumberLine(text){
   const result=resolveNumberLine(text,scanPrintingScope);
   if(result.status==='exact')clearScanResolution();
@@ -843,8 +871,10 @@ function stopCam(){
   $('startBtn').disabled=!DB; $('startBtn').textContent='Start scanning';
   $('torchBtn').setAttribute('aria-pressed','false');
 }
-function stripRectInVideo(){
-  const box = $('cam').getBoundingClientRect(), strip = $('guide').firstElementChild.getBoundingClientRect();
+// part: null for the gold box, or {x,y,w,h} as fractions of the card frame (e.g. the MTG title bar).
+function stripRectInVideo(part){
+  const box = $('cam').getBoundingClientRect(), g = $('guide').getBoundingClientRect();
+  const strip = part ? {left:g.left+g.width*part.x, top:g.top+g.height*part.y, width:g.width*part.w, height:g.height*part.h} : $('guide').firstElementChild.getBoundingClientRect();
   const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
   const sc = Math.max(box.width/vw, box.height/vh);
   const ox = (vw*sc - box.width)/2, oy = (vh*sc - box.height)/2;
@@ -853,8 +883,8 @@ function stripRectInVideo(){
   x=Math.max(0,x); y=Math.max(0,y); w=Math.min(vw-x,w); h=Math.min(vh-y,h);
   return {x,y,w,h};
 }
-function grabStrip(){
-  const r = stripRectInVideo(); if(!r) return null;
+function grabStrip(part){
+  const r = stripRectInVideo(part); if(!r) return null;
   const s = 1300 / r.w;
   cv.width = Math.round(r.w*s); cv.height = Math.round(r.h*s);
   ctx.filter = 'grayscale(1)'; ctx.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height); ctx.filter = 'none';
@@ -870,14 +900,22 @@ async function loop(){
     if (document.hidden || !worker){ await sleep(400); continue; }
     const frame = grabStrip(); if(!frame){ await sleep(200); continue; }
     let card=null,resolution=null;
-    try{const {data}=await worker.recognize(frame);resolution=reviewNumberLine(data.text);card=resolution.card;
-      if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ const refs=resolution.references||[resolution.reference], found=await Promise.all(refs.map(livePrinting)); if(found.some(Boolean)||(resolution.references&&refs.every(r=>sfAbsent.has(r.set+'|'+r.collector)))){resolution=reviewNumberLine(data.text);card=resolution.card;} }
+    try{const {data}=await worker.recognize(frame);resolution=resolveNumberLine(data.text,scanPrintingScope);card=resolution.card;
+      if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ const refs=resolution.references||[resolution.reference], found=await Promise.all(refs.map(livePrinting)); if(found.some(Boolean)||(resolution.references&&refs.every(r=>sfAbsent.has(r.set+'|'+r.collector)))){resolution=resolveNumberLine(data.text,scanPrintingScope);card=resolution.card;} }
+      // Already picked from the list for this card: wait for the next one instead of asking again.
+      if(pickedQuery&&resolution.query===pickedQuery){pickedMiss=0;if(scanning)camMsg('Got it. Swap in the next card.');await sleep(250);continue;}
+      if(pickedQuery&&++pickedMiss>=2)pickedQuery=null;
+      // Old MTG cards whose number fits several sets: read the title bar to tell them apart.
+      if(!card&&G.id==='mtg'&&resolution.status==='ambiguous'&&resolution.query){
+        const title=grabStrip(MTG_TITLE);
+        if(title){const t=(await worker.recognize(title)).data.text, m=matchTitle(t,resolution.candidates); if(m){card=m;resolution={...resolution,status:'exact',card:m};}}
+      }
     }catch(e){}
     if (!scanning) break;
     if (!card){
       streak=0; lastKey=null; blankFrames++;
       if (blankFrames>=2) cooldownKey=null;
-      if(resolution && ['missing','ambiguous','blocked'].includes(resolution.status)){showScanResolution(resolution);camMsg('Printing needs manual review. Nothing added.');}
+      if(resolution && ['missing','ambiguous','blocked'].includes(resolution.status)){showScanResolution(resolution);camMsg(resolution.status==='ambiguous'&&resolution.query?'Keep the card name in the frame, or tap your card below.':'Printing needs manual review. Nothing added.');}
       else if(Date.now()-lastHitAt>2500)camMsg('Line the number line up in the gold box');
     } else {
       clearScanResolution();blankFrames=0;
