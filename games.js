@@ -163,8 +163,8 @@
       return `${a.n} and ${b.n} can't be commanders together`;
     },
     searchPlaceholder: 'Search Scryfall (needs signal)',
-    scanPlaceholder: 'Card name, or set and number like MH3 123',
-    scanHint: 'Line the card up in the frame. The set code and number at the bottom left go in the gold box.',
+    scanPlaceholder: 'Card name, MH3 123, or an older card\'s 109/175 2011',
+    scanHint: 'Line the card up in the frame. The set code and number at the bottom left go in the gold box. On cards from before 2014, that\'s the © line with the number.',
     guide: 'bottom-left',
     deckFormatNote: 'Decklists use one card per line, like "1 Sol Ring". Set and number in parentheses are ignored when importing. Cards under a "Commander" heading become the commander.',
     nvKey: c => norm(c.n) + '|',
@@ -185,6 +185,16 @@
       const num = /\b0*(\d{1,4}[A-Z★]?)\s*(?:\/\s*\d{1,4})?\s+[CURMSLTP]\b/.exec(t) || /\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/.exec(t) || /\b[CURMSLTP]\s+0*(\d{1,4}[A-Z★]?)\b/.exec(t);
       if (set && num && /[A-Z]/.test(set[1])) refs.push({set: set[1], collector: num[1]});
       return refs;
+    },
+    // Frames before Magic 2015 print no set code, only "™ & © 1993-2011 Wizards of the Coast LLC 109/175".
+    // The copyright year and the set size ("/175") narrow it to a set; app.js matches them against Scryfall's set list.
+    parseOldCode(text){
+      const t = String(text || '').replace(/[–—~]/g, '-').replace(/[Oo](?=\d)|(?<=\d)[Oo]/g, '0');
+      const y = /\b(?:19|20)\d\d\s*-\s*((?:19|20)\d\d)\b/.exec(t) || /©\s*((?:19|20)\d\d)\b/.exec(t);
+      const n = /\b0*(\d{1,3})\s*\/\s*(\d{2,3})\b/.exec(t);
+      if (!y || !n || +n[1] < 1 || +n[1] > +n[2]) return null;
+      const year = +y[1];
+      return year >= 1999 && year <= 2015 ? {collector: n[1], total: +n[2], year} : null;
     },
     deckLine(text){
       const m = /^\s*(\d+)\s*x?\s+(.+?)\s*(?:\([A-Za-z0-9]{2,6}\)\s*[\w★-]*)?\s*(?:\*[A-Z]+\*)?\s*$/.exec(text);
