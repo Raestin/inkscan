@@ -256,13 +256,13 @@ async function scryfall(path, opts){
 async function loadLiveCards(){
   const cached=await cacheGet(GAME_ID+'-cards.json');
   let sets=await cacheGet(GAME_ID+'-sets.json');
-  const stale=!sets || (Date.now()-Date.parse(sets.fetched||0))>7*86400000;
+  const stale=!sets || sets.ver!==2 || (Date.now()-Date.parse(sets.fetched||0))>7*86400000;
   if(stale && navigator.onLine){
     try{
       const j=await scryfall('/sets');
       const list=(j?.data||[]).filter(x=>!x.digital && x.card_count>0).sort((a,b)=>(b.released_at||'').localeCompare(a.released_at||''))
-        .map(x=>({code:x.code,name:x.name,rel:x.released_at,count:x.card_count}));
-      if(list.length){ sets={fetched:new Date().toISOString(),sets:list}; cachePut(GAME_ID+'-sets.json',sets); }
+        .map(x=>({code:x.code,name:x.name,rel:x.released_at,count:x.card_count,size:x.printed_size||null,type:x.set_type}));
+      if(list.length){ sets={ver:2,fetched:new Date().toISOString(),sets:list}; cachePut(GAME_ID+'-sets.json',sets); }
     }catch(e){/* Offline: the cached set list still works. */}
   }
   const known=new Map((sets?.sets||[]).map(x=>[x.code,x]));
@@ -295,9 +295,11 @@ async function liveSearch(query, unique){
     return addLiveCards((j?.data||[]).map(G.fromScryfall))>0;
   }catch(e){ liveQueries.delete(key); return false; }
 }
+const sfAbsent=new Set();
 async function livePrinting(ref){
   if(!G.live||!ref?.set||!ref.collector||!navigator.onLine) return null;
-  try{ const card=await scryfall(`/cards/${encodeURIComponent(ref.set.toLowerCase())}/${encodeURIComponent(ref.collector.toLowerCase())}`); if(!card) return null; const c=G.fromScryfall(card); addLiveCards([c]); return byId.get(c.id)||null; }
+  const absentKey=printingToken(ref.set)+'|'+collectorToken(ref.collector); if(sfAbsent.has(absentKey)) return null;
+  try{ const card=await scryfall(`/cards/${encodeURIComponent(ref.set.toLowerCase())}/${encodeURIComponent(ref.collector.toLowerCase())}`); if(!card){ sfAbsent.add(absentKey); return null; } const c=G.fromScryfall(card); addLiveCards([c]); return byId.get(c.id)||null; }
   catch(e){ return null; }
 }
 async function livePrints(card){
@@ -690,9 +692,28 @@ function regularPrinting(result){
   const label=`${result.reference.set} #${result.reference.collector}`;
   return {...result,status:'exact',card:regular[0],message:`${label} identified as the regular printing. If yours is a parallel or alternate art, choose it from the list.`};
 }
+/* MTG frames before Magic 2015 print "© 1993-2011 ... 109/175" and no set code. Sets of that printed
+   size released that year (or early the next) are the candidates; each is checked for that number. */
+const OLD_FRAME_SKIP=new Set(['promo','token','memorabilia','art_series','minigame','alchemy','treasure_chest','masterpiece']);
+function resolveOldFrame(ref,scope='all'){
+  const query=`${ref.collector}/${ref.total} ${ref.year}`, label=`#${ref.collector}/${ref.total} (© ${ref.year})`;
+  const year=s=>+String(s.rel||'').slice(0,4);
+  const sized=(DB?.sets||[]).filter(s=>!OLD_FRAME_SKIP.has(s.type)&&(s.size||s.count)===ref.total);
+  const same=sized.filter(s=>year(s)===ref.year), sets=same.length?same:sized.filter(s=>year(s)===ref.year+1);
+  const results=sets.map(s=>exactPrinting(s.code,ref.collector,scope));
+  const candidates=[...new Map(results.flatMap(r=>r.candidates).map(c=>[c.id,c])).values()];
+  const references=results.filter(r=>r.status==='missing'&&!sfAbsent.has(r.reference.set+'|'+r.reference.collector)).map(r=>r.reference);
+  if(references.length&&G.live&&navigator.onLine)return {status:'missing',card:null,candidates,reference:references[0],references,query,message:`${label} is being looked up. Nothing was added yet.`};
+  if(candidates.length===1)return {status:'exact',card:candidates[0],candidates,reference:null,query,message:`${label} identified as ${candidates[0].sn||setLabel(candidates[0])}. Confirm the physical finish separately.`};
+  if(candidates.length>1)return {status:'ambiguous',card:null,candidates,reference:null,query,message:`${label} fits ${candidates.length} sets. Nothing was added. Choose your card from the list.`};
+  if(results.some(r=>r.status==='blocked'))return {status:'blocked',card:null,candidates:[],reference:null,query,message:`${label} is a regular-set printing. Promo / special only is selected, so nothing was added.`};
+  return {status:'missing',card:null,candidates:[],reference:null,query,message:sets.length?`${label} was not found in ${sets.map(s=>s.code.toUpperCase()).join(' or ')}. Nothing was added. Search by card name.`:`No ${ref.total}-card set from ${ref.year} is known${navigator.onLine?'':' offline'}. Nothing was added. Search by card name.`};
+}
 function resolveNumberLine(text,scope='all'){
   if(!LORCANA){
     const refs=[...new Map(G.parseCode(text).map(r=>[printingToken(r.set)+'|'+collectorToken(r.collector),r])).values()];
+    const old=!refs.length&&G.parseOldCode?.(text);
+    if(old)return resolveOldFrame(old,scope);
     if(!refs.length)return {status:'unrecognized',card:null,candidates:[],reference:null,message:'The card code could not be read. Nothing was added. Search by its printed code or card name.'};
     if(refs.length>1){const candidates=[...new Map(refs.flatMap(r=>exactPrinting(r.set,r.collector,scope).candidates).map(c=>[c.id,c])).values()];return {status:'ambiguous',card:null,candidates,reference:null,message:'More than one card code was read. Nothing was added. Choose the exact printing.'};}
     return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope));
@@ -718,6 +739,8 @@ function searchPrintings(query,scope=scanPrintingScope){
   const q=String(query||'').trim();
   if(!DB)return {candidates:[],reference:null,message:''};
   if(!LORCANA&&q){
+    const typedOld=/^\s*\d{1,3}\s*\/\s*\d{2,3}\s+(?:©\s*)?(?:19|20)\d\d\s*$/.test(q)&&G.parseOldCode?.(q.replace(/(\d{4})\s*$/,'© $1'));
+    if(typedOld)return resolveOldFrame(typedOld,scope);
     const refs=G.parseCode(q);
     if(refs.length===1)return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope));
     const pair=/^([A-Za-z0-9]{2,6})\s*[#\s]\s*#?([0-9]{1,4}[A-Za-z★]?)$/.exec(q);
@@ -747,7 +770,7 @@ $('q').addEventListener('input',()=>{quickVisible=30;clearTimeout(qT);qT=setTime
 function renderQuick(){
   if(G.live){
     const q=$('q').value.trim(), pre=searchPrintings(q);
-    if(pre.status==='missing'&&pre.reference) livePrinting(pre.reference).then(card=>{ if(card) renderQuick(); });
+    if(pre.status==='missing'&&pre.reference) Promise.all((pre.references||[pre.reference]).map(livePrinting)).then(found=>{ if(found.some(Boolean)||(pre.references||[]).every(r=>sfAbsent.has(r.set+'|'+r.collector))) renderQuick(); });
     else liveSearch(q).then(added=>{ if(added) renderQuick(); });
   }
   const result=searchPrintings($('q').value),res=result.candidates.slice(0,quickVisible),el=$('qres');
@@ -778,7 +801,7 @@ function setScanPrintingScope(scope){
   if(scanning)camMsg(scope==='promo'?'Promo / special only: read the full printed code, or choose the exact printing below.':'Line the number line up in the gold box');
 }
 $('scanPrintingScope').onchange=()=>setScanPrintingScope($('scanPrintingScope').value);
-$('scanManual').onclick=()=>{quickVisible=30;if(lastScanResolution?.reference){const r=lastScanResolution.reference;$('q').value=r.set+' '+r.collector;}else $('q').value='';renderQuick();$('q').focus?.();$('q').scrollIntoView?.({block:'center',behavior:'smooth'});};
+$('scanManual').onclick=()=>{quickVisible=30;if(lastScanResolution?.query){$('q').value=lastScanResolution.query;}else if(lastScanResolution?.reference){const r=lastScanResolution.reference;$('q').value=r.set+' '+r.collector;}else $('q').value='';renderQuick();$('q').focus?.();$('q').scrollIntoView?.({block:'center',behavior:'smooth'});};
 
 /* ---- camera + OCR loop ---- */
 let stream=null, worker=null, workerReady=null, scanning=false;
@@ -848,7 +871,7 @@ async function loop(){
     const frame = grabStrip(); if(!frame){ await sleep(200); continue; }
     let card=null,resolution=null;
     try{const {data}=await worker.recognize(frame);resolution=reviewNumberLine(data.text);card=resolution.card;
-      if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ if(await livePrinting(resolution.reference)){resolution=reviewNumberLine(data.text);card=resolution.card;} }
+      if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ const refs=resolution.references||[resolution.reference], found=await Promise.all(refs.map(livePrinting)); if(found.some(Boolean)||(resolution.references&&refs.every(r=>sfAbsent.has(r.set+'|'+r.collector)))){resolution=reviewNumberLine(data.text);card=resolution.card;} }
     }catch(e){}
     if (!scanning) break;
     if (!card){
