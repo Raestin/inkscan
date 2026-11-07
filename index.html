@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=31">
+<link rel="stylesheet" href="app.css?v=32">
 </head>
 <body>
 <header class="top">
@@ -191,28 +191,33 @@
       <button data-mine="own" aria-pressed="false">My cards only</button>
     </div>
     <input type="search" id="bq" placeholder="Search all Lorcana cards" autocomplete="off">
-    <div class="chips" id="bInks"></div>
-    <div class="filters">
-      <select id="bSet" aria-label="Set"></select>
-      <select id="bType" aria-label="Type">
-        <option value="">All types</option><option>Character</option><option>Action</option><option>Song</option><option>Item</option><option>Location</option>
-      </select>
-      <select id="bCost" aria-label="Cost">
-        <option value="">Any cost</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option value="7">7+</option>
-      </select>
-      <select id="bRar" aria-label="Rarity">
-        <option value="">Any rarity</option><option>Common</option><option>Uncommon</option><option>Rare</option><option value="Super_rare">Super rare</option><option>Legendary</option><option>Epic</option><option>Enchanted</option><option>Iconic</option><option>Promo</option>
-      </select>
-      <select id="bOwn" aria-label="Ownership">
-        <option value="">Owned + missing</option><option value="own">Owned</option><option value="miss">Missing</option>
-      </select>
-      <select id="bSort" aria-label="Sort">
-        <option value="set">Set &amp; number</option><option value="name">Name</option><option value="cost">Cost</option><option value="price">Price</option>
-      </select>
-    </div>
+    <details class="filterbox" id="bFilters">
+      <summary>Filters <span class="note" id="bFilterCount"></span></summary>
+      <div class="stack">
+        <div class="chips" id="bInks"></div>
+        <div class="filters">
+          <select id="bSet" aria-label="Set"></select>
+          <select id="bType" aria-label="Type">
+            <option value="">All types</option><option>Character</option><option>Action</option><option>Song</option><option>Item</option><option>Location</option>
+          </select>
+          <select id="bCost" aria-label="Cost">
+            <option value="">Any cost</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option value="7">7+</option>
+          </select>
+          <select id="bRar" aria-label="Rarity">
+            <option value="">Any rarity</option><option>Common</option><option>Uncommon</option><option>Rare</option><option value="Super_rare">Super rare</option><option>Legendary</option><option>Epic</option><option>Enchanted</option><option>Iconic</option><option>Promo</option>
+          </select>
+          <select id="bOwn" aria-label="Ownership">
+            <option value="">Owned + missing</option><option value="own">Owned</option><option value="miss">Missing</option>
+          </select>
+          <select id="bSort" aria-label="Sort">
+            <option value="set">Set &amp; number</option><option value="name">Name</option><option value="cost">Cost</option><option value="price">Price</option>
+          </select>
+        </div>
+        <label>Value / ownership finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
+        <label>Card-pool eligibility <select id="bLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+      </div>
+    </details>
     <div class="row between"><span class="note" id="bCount"></span><button class="btn ghost tiny" id="bReset">Reset filters</button></div>
-    <label>Value / ownership finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
-    <label>Card-pool eligibility <select id="bLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
     <p class="summary" id="bValue" role="status"></p>
     <div class="grid" id="bGrid"></div>
     <div id="bSentinel" class="sentinel"></div>
@@ -254,10 +259,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=31"></script>
-<script src="catalog.js?v=31"></script>
-<script src="legality.js?v=31"></script>
-<script src="games.js?v=31"></script>
-<script src="app.js?v=31"></script>
+<script src="safety.js?v=32"></script>
+<script src="catalog.js?v=32"></script>
+<script src="legality.js?v=32"></script>
+<script src="games.js?v=32"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>
