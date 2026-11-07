@@ -244,3 +244,9 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .tabbar button span{white-space:nowrap}
 .famcode{font-family:ui-monospace,monospace;letter-spacing:.15em;font-size:1.15em}
 .btn.tiny{padding:2px 8px;font-size:12px;min-height:0}
+/* Long URLs (help sources) must wrap: one unbroken line made the page wider than the phone, which zoomed it out and pushed the tab bar off screen. */
+.helpdoc{overflow-wrap:anywhere}
+.update-bar{position:fixed;left:12px;right:12px;bottom:calc(var(--tabh) + 12px + env(safe-area-inset-bottom,0px));z-index:31;display:flex;align-items:center;gap:10px;background:var(--fg);color:var(--bg);padding:10px 12px;border-radius:12px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.update-bar span{flex:1}
+.update-bar .btn{padding:7px 12px}
+.update-bar .btn.ghost{color:var(--bg);opacity:.85}
