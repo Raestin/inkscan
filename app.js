@@ -1113,6 +1113,9 @@ function renderBrowse(){
   renderLegalityInfo();
   const q = norm($('bq').value), set=$('bSet').value, type=$('bType').value, cost=$('bCost').value, rar=$('bRar').value, own=$('bOwn').value;
   $('bMine').querySelectorAll('[data-mine]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mine===own));
+  // Filters fold away; the count on the header shows how many are on while it's closed. "My cards only" has its own switch.
+  const nOn=bInks.size+[set,type,cost,rar].filter(Boolean).length+(own==='miss')+(($('bFinish').value||'all')!=='all')+($('bLegality').value!=='all');
+  $('bFilterCount').textContent=nOn?`(${nOn} on)`:'';
   if(own!=='miss') lsSet(MINE_KEY,own==='own');
   const bq=$('bq'); bq.dataset.ph??=bq.placeholder; bq.placeholder=own==='own'?'Search my cards':bq.dataset.ph;
   const finish=$('bFinish').value||'all';
