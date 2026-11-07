@@ -1096,17 +1096,25 @@ function fillSetSelect(){
   $('bSet').innerHTML = `<option value="">All sets</option>` + DB.sets.map(s=>`<option value="${esc(s.code)}">${/^\d+$/.test(s.code)?esc(s.code)+' · ':''}${esc(s.name)}</option>`).join('');
 }
 function resetBrowse(){
-  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); $('bSort').value='set';$('bFinish').value='all';$('bLegality').value='all';
+  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); if(lsGet(MINE_KEY,false)) $('bOwn').value='own'; $('bSort').value='set';$('bFinish').value='all';$('bLegality').value='all';
   inkChips($('bInks'), bInks, renderBrowse);
 }
 $('bReset').onclick = ()=>{ resetBrowse(); renderBrowse(); };
 let bT; $('bq').addEventListener('input',()=>{ clearTimeout(bT); bT=setTimeout(renderBrowse,150); });
 ['bSet','bType','bCost','bRar','bOwn','bSort','bFinish','bLegality'].forEach(id=>$(id).onchange=renderBrowse);
+/* "My cards only" is the Owned choice of the ownership filter, as a toggle at the top. It's remembered
+   per game, and every other Browse filter still applies on top of it. */
+const MINE_KEY='inkscan.'+GAME_ID+'.browseMine';
+$('bMine').addEventListener('click',e=>{ const b=e.target.closest('[data-mine]'); if(!b) return; $('bOwn').value=b.dataset.mine; renderBrowse(); });
+if(lsGet(MINE_KEY,false)) $('bOwn').value='own';
 function renderBrowse(){
   if (!DB) return;
   if (G.live) liveSearch($('bq').value).then(added=>{ if(added&&tab==='browse') renderBrowse(); });
   renderLegalityInfo();
   const q = norm($('bq').value), set=$('bSet').value, type=$('bType').value, cost=$('bCost').value, rar=$('bRar').value, own=$('bOwn').value;
+  $('bMine').querySelectorAll('[data-mine]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mine===own));
+  if(own!=='miss') lsSet(MINE_KEY,own==='own');
+  const bq=$('bq'); bq.dataset.ph??=bq.placeholder; bq.placeholder=own==='own'?'Search my cards':bq.dataset.ph;
   const finish=$('bFinish').value||'all';
   let list = DB.cards.filter(c=>{
     if (set && c.s!==set) return false;
