@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=30">
+<link rel="stylesheet" href="app.css?v=31">
 </head>
 <body>
 <header class="top">
@@ -229,6 +229,7 @@
   </section>
 </main>
 
+<div class="update-bar" id="updateBar" role="status" hidden><span>A new version of InkScan is ready.</span><button class="btn primary" id="updateGo">Update now</button><button class="btn ghost" id="updateLater" aria-label="Later">Later</button></div>
 <nav class="tabbar" aria-label="Main">
   <button data-tab="scan" aria-current="page">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Scan</span></button>
@@ -253,10 +254,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=30"></script>
-<script src="catalog.js?v=30"></script>
-<script src="legality.js?v=30"></script>
-<script src="games.js?v=30"></script>
-<script src="app.js?v=30"></script>
+<script src="safety.js?v=31"></script>
+<script src="catalog.js?v=31"></script>
+<script src="legality.js?v=31"></script>
+<script src="games.js?v=31"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

@@ -2133,5 +2133,22 @@ async function boot(){
 }
 boot();
 if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+/* Phones often resume an "closed" app from memory instead of reloading it, so a new release can sit
+   unseen for days. On start and whenever the app comes back to the screen, compare this page's version
+   with the live one and offer a reload. Never automatic: a reload mid-scan would lose the camera. */
+const APP_VERSION=+((/app\.js\?v=(\d+)/.exec([...document.scripts].map(s=>s.src).join(' '))||[])[1]||0);
+let updateDismissed=0;
+async function checkForUpdate(){
+  if(!APP_VERSION||!navigator.onLine||document.hidden) return;
+  try{
+    const r=await fetch('index.html',{cache:'no-store'}); if(!r.ok) return;
+    const live=+((/app\.js\?v=(\d+)/.exec(await r.text())||[])[1]||0);
+    if(live>APP_VERSION&&live!==updateDismissed) $('updateBar').hidden=false;
+  }catch(e){}
+}
+$('updateGo').onclick=()=>{ if(stream) stopCam(); location.reload(); };
+$('updateLater').onclick=()=>{ $('updateBar').hidden=true; fetch('index.html',{cache:'no-store'}).then(r=>r.text()).then(t=>{updateDismissed=+((/app\.js\?v=(\d+)/.exec(t)||[])[1]||0);}).catch(()=>{}); };
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkForUpdate(); });
+setTimeout(checkForUpdate,3000);
 window.__inkscan = {parseLine:t=>parseLine(t),resolveNumberLine:(text,scope)=>resolveNumberLine(text,scope),reviewNumberLine:text=>reviewNumberLine(text), get log(){return log}, get decks(){return decks}, get inv(){return inv}};
 })();
