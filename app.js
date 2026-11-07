@@ -970,7 +970,21 @@ let cfT; $('cf').addEventListener('input',()=>{ clearTimeout(cfT); cfT=setTimeou
 $('sortSel').onchange = renderColl;
 $('cFinish').onchange=renderColl;
 $('cLegality').onchange=renderColl;
-$('cReset').onclick=()=>{$('cf').value='';collInks.clear();$('cFinish').value='all';$('cLegality').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
+const COLL_PICKS=['cSet','cType','cCost','cRar'];
+COLL_PICKS.forEach(id=>$(id).onchange=renderColl);
+/* Type, cost and rarity use the same choices as Browse (already set up for the active game).
+   Sets list only the ones you own cards from, so MTG doesn't show hundreds of empty sets. */
+let collSetKey=null;
+function syncCollPicks(){
+  for(const [c,b] of [['cType','bType'],['cCost','bCost'],['cRar','bRar']]) if(!$(c).options.length) $(c).innerHTML=$(b).innerHTML;
+  const codes=new Set(); for(const id of Object.keys(inv)){ const c=byId.get(id); if(c&&inventoryCount(inv[id])) codes.add(c.s); }
+  const sets=(DB?.sets||[]).filter(s=>codes.has(s.code)), key=sets.map(s=>s.code).join(',');
+  if(key===collSetKey) return; collSetKey=key;
+  const keep=$('cSet').value;
+  $('cSet').innerHTML=`<option value="">All sets</option>`+sets.map(s=>`<option value="${esc(s.code)}">${esc(/^\d+$/.test(s.code)?s.code+' · '+s.name:s.name+(G.live?' ('+s.code.toUpperCase()+')':''))}</option>`).join('');
+  $('cSet').value=codes.has(keep)?keep:'';
+}
+$('cReset').onclick=()=>{$('cf').value='';collInks.clear();COLL_PICKS.forEach(id=>$(id).value='');$('cFinish').value='all';$('cLegality').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
 function valueSummary(rows,finish){
   const result=InkSafety.valuation(rows,finish);
   return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies${result.unpriced?` · ${result.unpriced} copies unpriced`:''}`;
@@ -982,16 +996,17 @@ function valueNote(){
 
 function renderFilterCount(){
   const el=$('cFilterCount'); if(!el) return;
-  const n=collInks.size+($('cFinish').value!=='all')+($('cLegality').value!=='all');
+  const n=collInks.size+COLL_PICKS.filter(id=>$(id).value).length+($('cFinish').value!=='all')+($('cLegality').value!=='all');
   el.textContent=n?`(${n} on)`:'';
 }
 function renderColl(){
+  if(DB) syncCollPicks();
   renderFilterCount();
   $('collCards').hidden = csub!=='cards'; $('collSets').hidden = csub!=='sets'; $('collWish').hidden = csub!=='wish';
   if (csub==='cards') renderCollCards(); else if (csub==='sets') renderSets(); else renderWish();
 }
 function collRows(){
-  const f = norm($('cf').value); const rows = [];
+  const f = norm($('cf').value), set=$('cSet').value, type=$('cType').value, cost=$('cCost').value, rar=$('cRar').value; const rows = [];
   for (const [id,v] of Object.entries(inv)){
     const c = byId.get(id); if(!c || !inventoryCount(v)) continue;
     const finish=$('cFinish').value||'all';
@@ -999,7 +1014,11 @@ function collRows(){
     if(!q&&!foil&&!rf)continue;
     if (!inkMatch(c, collInks)) continue;
     if (!legalityMatches(c,$('cLegality').value))continue;
-    if (f && !norm(c.n+c.v+c.sn+c.i+c.r+c.cl).includes(f) && !(norm(setLabel(c))+norm(c.c)).includes(f)) continue;
+    if (set && c.s!==set) continue;
+    if (type && !isType(c,type)) continue;
+    if (cost && (cost==='7' ? (c.co??0)<7 : c.co!=+cost)) continue;
+    if (rar && c.r!==rar) continue;
+    if (f && !norm(c.n+c.v+c.sn+c.i+c.r+c.cl+(LORCANA?'':c.ty||'')).includes(f) && !(norm(setLabel(c))+norm(c.c)).includes(f)) continue;
     const estimate=InkSafety.valuation([{c:valuedCard(c),q,f:foil,rf}]);
     rows.push({c:valuedCard(c),q,f:foil,rf,val:estimate.value,unpriced:estimate.unpriced});
   }
