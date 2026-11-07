@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=29">
+<link rel="stylesheet" href="app.css?v=30">
 </head>
 <body>
 <header class="top">
@@ -186,6 +186,10 @@
 
   <!-- ============ BROWSE ============ -->
   <section class="view" id="vBrowse" hidden>
+    <div class="seg" role="group" aria-label="Which cards" id="bMine">
+      <button data-mine="" aria-pressed="true">All cards</button>
+      <button data-mine="own" aria-pressed="false">My cards only</button>
+    </div>
     <input type="search" id="bq" placeholder="Search all Lorcana cards" autocomplete="off">
     <div class="chips" id="bInks"></div>
     <div class="filters">
@@ -249,10 +253,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=29"></script>
-<script src="catalog.js?v=29"></script>
-<script src="legality.js?v=29"></script>
-<script src="games.js?v=29"></script>
-<script src="app.js?v=29"></script>
+<script src="safety.js?v=30"></script>
+<script src="catalog.js?v=30"></script>
+<script src="legality.js?v=30"></script>
+<script src="games.js?v=30"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
