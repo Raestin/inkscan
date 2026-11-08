@@ -311,6 +311,25 @@ async function prefetchSet(code){
     }
   }catch(e){ setsFetched.delete(code); }
 }
+/* Owned or wished-for cards this phone has never looked up (scanned on a family member's phone and
+   brought in by Update, or dropped from the local card cache) show as "missing from the catalog" and
+   carry no name, picture or price. Look them up from Scryfall by ID, 75 at a time. */
+let fillingUnknown=false;
+async function fillUnknownCards(){
+  if(!G.live||!DB||fillingUnknown||!navigator.onLine) return 0;
+  const ids=[...new Set([...Object.keys(inv),...Object.keys(wish)])].filter(id=>id.startsWith('sf_')&&!byId.has(id)).map(id=>id.slice(3));
+  if(!ids.length) return 0;
+  fillingUnknown=true; let added=0;
+  try{
+    for(let i=0;i<ids.length;i+=75){
+      const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:ids.slice(i,i+75).map(id=>({id}))})});
+      added+=addLiveCards((j?.data||[]).map(G.fromScryfall));
+    }
+  }catch(e){}
+  finally{ fillingUnknown=false; }
+  if(added){ renderAll(); renderSaveStatus(); }
+  return added;
+}
 async function livePrinting(ref){
   if(!G.live||!ref?.set||!ref.collector||!navigator.onLine) return null;
   const absentKey=printingToken(ref.set)+'|'+collectorToken(ref.collector); if(sfAbsent.has(absentKey)) return null;
@@ -1903,7 +1922,7 @@ async function sync(manual){
     const confirmed=Date.now(), previousLast=syncState.last; syncState.last=confirmed;
     if(!persistState()){syncState.last=previousLast;throw Error('Update completed on the server but local receipt saving failed. Keep this tab open and back up.');}
     syncState.receipt=`Update confirmed: ${acknowledged} item(s) sent, ${plan.pulls.length} item(s) received. New edits remain pending.`;
-    renderAll();toast('Update confirmed.');
+    renderAll();toast('Update confirmed.');fillUnknownCards();
   }catch(e){
     syncState.err=`${e.message||'Update failed.'}${acknowledged?` ${acknowledged} item(s) already accepted; remaining changes are kept for retry.`:''}`;
     toast(syncState.err);
@@ -2156,6 +2175,8 @@ async function boot(){
   const age = (Date.now() - new Date(DB.asof+'T00:00:00').getTime())/86400000;
   if (LORCANA && age > 3 && navigator.onLine) refreshFromLorcast(false);
   getWorker().catch(()=>{});
+  fillUnknownCards();
+  window.addEventListener('online',()=>fillUnknownCards());
   // Cloud reads and writes require an explicit Update confirmation.
 }
 boot();
