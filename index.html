@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=39">
 </head>
 <body>
 <header class="top">
@@ -142,7 +142,7 @@
           <label id="dFormatWrap" hidden>Format <select id="dFormat"><option value="all">All formats</option></select></label>
           <label id="dStatusWrap">Rules <select id="dStatus"><option value="all">All decks</option><option value="pass">Rules pass</option><option value="fix">Fix rules</option><option value="short">Not finished (under size)</option></select></label>
           <label id="dBracketWrap" hidden>Bracket <select id="dBracket"><option value="all">All brackets</option></select></label>
-          <label>Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option></select></label>
+          <label>Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option><option value="built">Built decks</option><option value="unbuilt">Not built</option></select></label>
           <label>Contains card <input type="search" id="dCard" placeholder="Card name, like Sol Ring" autocomplete="off"></label>
           <label>Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option></select></label>
           <label class="note"><input type="checkbox" id="dFavFirst" checked> ♥ Favorites first</label>
@@ -157,6 +157,7 @@
       <div class="row between">
         <button class="btn ghost" id="deckBack">‹ Decks</button>
         <div class="row">
+          <button class="btn builtbtn" id="deckBuiltBtn" aria-pressed="false" title="Built: this deck's cards are committed, so other decks can't count them">Built</button>
           <button class="btn favbtn" id="deckFavBtn" aria-pressed="false" aria-label="Favorite">♡</button>
           <button class="btn" id="deckHandBtn">Sample hand</button>
           <button class="btn" id="deckMoreBtn">More</button>
@@ -190,6 +191,7 @@
     <div class="seg" role="group" aria-label="Which cards" id="bMine">
       <button data-mine="" aria-pressed="true">All cards</button>
       <button data-mine="own" aria-pressed="false">My cards only</button>
+      <button data-mine="free" aria-pressed="false">Free cards</button>
     </div>
     <input type="search" id="bq" placeholder="Search all Lorcana cards" autocomplete="off">
     <details class="filterbox" id="bFilters">
@@ -208,7 +210,7 @@
             <option value="">Any rarity</option><option>Common</option><option>Uncommon</option><option>Rare</option><option value="Super_rare">Super rare</option><option>Legendary</option><option>Epic</option><option>Enchanted</option><option>Iconic</option><option>Promo</option>
           </select>
           <select id="bOwn" aria-label="Ownership">
-            <option value="">Owned + missing</option><option value="own">Owned</option><option value="miss">Missing</option>
+            <option value="">Owned + missing</option><option value="own">Owned</option><option value="free">Owned, not in a built deck</option><option value="miss">Missing</option>
           </select>
           <select id="bSort" aria-label="Sort">
             <option value="set">Set &amp; number</option><option value="name">Name</option><option value="cost">Cost</option><option value="price">Price</option>
@@ -260,10 +262,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=38"></script>
-<script src="catalog.js?v=38"></script>
-<script src="legality.js?v=38"></script>
-<script src="games.js?v=38"></script>
-<script src="app.js?v=38"></script>
+<script src="safety.js?v=39"></script>
+<script src="catalog.js?v=39"></script>
+<script src="legality.js?v=39"></script>
+<script src="games.js?v=39"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
