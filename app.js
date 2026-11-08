@@ -419,6 +419,11 @@ function saveDecks(){ edited(); }
 function saveWish(){ edited(); }
 function ownedOf(id){ return inventoryCount(inv[id]); }
 function ownedNV(nv){ let n=0; for (const c of byNV.get(nv)||[]) n+=ownedOf(c.id); return n; }
+/* Built decks commit copies from the collection by card name (any printing or finish). A copy committed
+   to one built deck isn't free for any other deck; the collection itself never changes. */
+function committedNV(nv, exceptId){ let n=0; for (const d of decks) if (d.built && d.id!==exceptId) n+=d.cards[nv]||0; return n; }
+function freeNV(nv, exceptId){ return Math.max(0, ownedNV(nv)-committedNV(nv, exceptId)); }
+function heldBy(nv, exceptId){ return decks.filter(d=>d.built && d.id!==exceptId && d.cards[nv]).map(d=>`${d.name} (${d.cards[nv]})`); }
 function addQty(id, foil, n){
   const v = inv[id] || (inv[id] = {q:0,f:0});
   const field=finishField(foil), next=Math.max(0,(v[field]||0)+n);
@@ -549,7 +554,7 @@ function cardDetailHTML(c){
   if (c.mv!=null) stats.push(`<span class="stat">Move<b>${c.mv}</b></span>`);
   }
   const others = (byNV.get(c.nv)||[]).filter(x=>x.id!==c.id);
-  const inDecks = decks.filter(d=>d.cards[c.nv]).map(d=>`${esc(d.name)} (${d.cards[c.nv]})`);
+  const inDecks = decks.filter(d=>d.cards[c.nv]).map(d=>`${esc(d.name)} (${d.cards[c.nv]}${d.built?', built':''})`), committed = committedNV(c.nv);
   const deckOpts = decks.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
   return `<div class="detail">
     <div class="big">${detailArtHTML(c)}</div>
@@ -574,7 +579,7 @@ function cardDetailHTML(c){
         <div class="step"><label>Wishlist</label><button data-want="-1" aria-label="Want one fewer">−</button><output>${w}</output><button data-want="1" aria-label="Want one more">+</button></div>
       </div>
       ${decks.length?`<div class="row"><select id="deckPick" class="slim" aria-label="Deck">${deckOpts}</select><button class="btn" id="deckAddOne">Add to deck</button></div>`:''}
-      ${inDecks.length?`<div class="note">In ${inDecks.join(', ')}</div>`:''}
+      ${inDecks.length?`<div class="note">In ${inDecks.join(', ')}</div>`:''}${committed?`<div class="note">You own ${ownedNV(c.nv)} of this card (any printing): ${committed} committed to built decks, ${freeNV(c.nv)} free.</div>`:''}
       ${others.length?`<div class="note">Other printings: ${others.map(o=>`<a href="#" class="link" data-card="${o.id}">${esc(setLabel(o))} #${esc(o.c)}${isSpecialCard(o)?' '+esc(LORCANA?rarityLabel(o.r):o.pv||rarityLabel(o.r)):''}</a>`).join(' · ')}</div>`:''}
       ${c.t?`<a class="link" href="https://www.tcgplayer.com/product/${c.t}" target="_blank" rel="noopener">View on TCGplayer ↗</a>`:''}
     </div></div>`;
@@ -1090,7 +1095,7 @@ function renderCollCards(){
     el.innerHTML = rows.map(r=>tileHTML(r.c,{q:r.q+r.f+r.rf,f:r.f,rf:r.rf,cap: `${money(r.val)}${r.unpriced?' (partial)':''}`})).join('');
   } else {
     el.className='list';
-    el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}</div></div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}${r.rf?` <span class="chip rainbow">Rainbow foil ×${r.rf}</span>`:''}</div><div class="p">${money(r.val)}${r.unpriced?' (partial)':''}</div></div></div></div>`).join('');
+    el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}${committedNV(r.c.nv)?` · ${freeNV(r.c.nv)} of ${ownedNV(r.c.nv)} free`:''}</div></div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}${r.rf?` <span class="chip rainbow">Rainbow foil ×${r.rf}</span>`:''}</div><div class="p">${money(r.val)}${r.unpriced?' (partial)':''}</div></div></div></div>`).join('');
   }
 }
 function renderSets(){
@@ -1141,7 +1146,7 @@ function fillSetSelect(){
   $('bSet').innerHTML = `<option value="">All sets</option>` + DB.sets.map(s=>`<option value="${esc(s.code)}">${/^\d+$/.test(s.code)?esc(s.code)+' · ':''}${esc(s.name)}</option>`).join('');
 }
 function resetBrowse(){
-  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); if(lsGet(MINE_KEY,false)) $('bOwn').value='own'; $('bSort').value='set';$('bFinish').value='all';$('bLegality').value='all';
+  $('bq').value=''; bInks.clear(); ['bSet','bType','bCost','bRar','bOwn'].forEach(id=>$(id).value=''); $('bOwn').value=mineSaved(); $('bSort').value='set';$('bFinish').value='all';$('bLegality').value='all';
   inkChips($('bInks'), bInks, renderBrowse);
 }
 $('bReset').onclick = ()=>{ resetBrowse(); renderBrowse(); };
@@ -1150,8 +1155,9 @@ let bT; $('bq').addEventListener('input',()=>{ clearTimeout(bT); bT=setTimeout(r
 /* "My cards only" is the Owned choice of the ownership filter, as a toggle at the top. It's remembered
    per game, and every other Browse filter still applies on top of it. */
 const MINE_KEY='inkscan.'+GAME_ID+'.browseMine';
+const mineSaved=()=>{ const m=lsGet(MINE_KEY,false); return m===true?'own':m==='free'?'free':''; };
 $('bMine').addEventListener('click',e=>{ const b=e.target.closest('[data-mine]'); if(!b) return; $('bOwn').value=b.dataset.mine; renderBrowse(); });
-if(lsGet(MINE_KEY,false)) $('bOwn').value='own';
+$('bOwn').value=mineSaved();
 function renderBrowse(){
   if (!DB) return;
   if (G.live) liveSearch($('bq').value).then(added=>{ if(added&&tab==='browse') renderBrowse(); });
@@ -1161,8 +1167,8 @@ function renderBrowse(){
   // Filters fold away; the count on the header shows how many are on while it's closed. "My cards only" has its own switch.
   const nOn=bInks.size+[set,type,cost,rar].filter(Boolean).length+(own==='miss')+(($('bFinish').value||'all')!=='all')+($('bLegality').value!=='all');
   $('bFilterCount').textContent=nOn?`(${nOn} on)`:'';
-  if(own!=='miss') lsSet(MINE_KEY,own==='own');
-  const bq=$('bq'); bq.dataset.ph??=bq.placeholder; bq.placeholder=own==='own'?'Search my cards':bq.dataset.ph;
+  if(own!=='miss') lsSet(MINE_KEY,own==='own'?true:own==='free'?'free':false);
+  const bq=$('bq'); bq.dataset.ph??=bq.placeholder; bq.placeholder=own==='own'?'Search my cards':own==='free'?'Search my free cards':bq.dataset.ph;
   const finish=$('bFinish').value||'all';
   let list = DB.cards.filter(c=>{
     if (set && c.s!==set) return false;
@@ -1174,6 +1180,7 @@ function renderBrowse(){
     const owned=finish==='normal'?(inv[c.id]?.q||0):finish==='foil'?(inv[c.id]?.f||0):finish==='rainbow'?(inv[c.id]?.rf||0):ownedOf(c.id);
     if (own==='own' && !owned) return false;
     if (own==='miss' && owned) return false;
+    if (own==='free' && (!owned || !freeNV(c.nv))) return false;
     if (q && !norm(c.n+c.v+c.cl+c.tx).includes(q)) return false;
     return true;
   });
@@ -1234,7 +1241,7 @@ function deckStats(d){
     total+=q; if (c.ik) inkable+=q;
     curve[Math.min(7, Math.max(0,c.co||0))]+=q;
     const t = c.ty.split('/')[0]; types[t]=(types[t]||0)+q;
-    const m=Math.max(0,q-ownedNV(nv)),price=cheapest(nv);missing+=m;if(price===null)missingUnpriced+=m;else missCost+=m*price;
+    const m=Math.max(0,q-freeNV(nv,d.id)),price=cheapest(nv);missing+=m;if(price===null)missingUnpriced+=m;else missCost+=m*price;
     if (!LORCANA && R.leaderType && c.ty===R.leaderType) leaders+=q;
     if (!LORCANA && q>(R.key&&legalIn(c,R.key)==='restricted'?1:R.maxCopies) && !(R.singletonExempt&&R.singletonExempt(c))) overCopies++;
     if (R.key){
@@ -1322,6 +1329,8 @@ function deckRows(){
     if(br!=='all' && deckBracket(d)!==br) continue;
     if(own==='complete' && (st.missing||!st.total)) continue;
     if(own==='missing' && !st.missing) continue;
+    if(own==='built' && !d.built) continue;
+    if(own==='unbuilt' && d.built) continue;
     if(cardQ && !Object.keys(d.cards).some(nv=>norm(repOf(nv)?.n||'').includes(cardQ))) continue;
     rows.push({d,st});
   }
@@ -1336,7 +1345,7 @@ function deckRows(){
 }
 function deckItemHTML({d,st}){
   const c=deckLead(d,st), rules=deckRulesState(st), cmdNames=(st.cmd?.cmds||[]).map(x=>x.n).join(' + ');
-  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.format&&st.format!=='commander'?`${esc(st.formatLabel)} · `:''}${LORCANA?st.total:st.main}/${LORCANA?60:st.size||G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}">${d.favorite?'♥':'♡'}</button></div>`;
+  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.format&&st.format!=='commander'?`${esc(st.formatLabel)} · `:''}${LORCANA?st.total:st.main}/${LORCANA?60:st.size||G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${d.built?'<span class="chip ok">Built</span>':''}${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}">${d.favorite?'♥':'♡'}</button></div>`;
 }
 function renderDecks(keepScroll){
   if (curDeck){ renderDeckEdit(keepScroll); return; }
@@ -1373,6 +1382,16 @@ $('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,dec
 $('deckName').addEventListener('change', ()=>{ const d=getDeck(); if(!d) return; d.name=$('deckName').value.trim()||'Untitled deck'; d.updated=Date.now(); saveDecks(); });
 document.querySelectorAll('[data-dsub]').forEach(b=>b.onclick=()=>{ dsub=b.dataset.dsub; renderDeckEdit(); });
 $('deckFavBtn').onclick=()=>{ toggleFavorite(getDeck()); renderDeckEdit(true); };
+/* Built: this deck's cards are sleeved up, so its copies are committed and no other deck can count them. */
+$('deckBuiltBtn').onclick=()=>{
+  const d=getDeck(); if(!d) return;
+  if(d.built){ delete d.built; saveDecks(); renderDeckEdit(true); toast(`${d.name} released its cards`); return; }
+  const short=Object.entries(d.cards).map(([nv,q])=>({c:repOf(nv),q,free:freeNV(nv,d.id),held:heldBy(nv,d.id)})).filter(x=>x.c&&x.free<x.q);
+  const commit=()=>{ d.built=true; saveDecks(); closeSheet(); renderDeckEdit(true); toast(`${d.name} is built: its cards are committed`); };
+  if(!short.length){ commit(); return; }
+  openSheet('Some cards are short',`<p>Marking this deck built commits its cards. You don't have enough free copies of ${short.length} card${short.length===1?'':'s'}:</p><ul>${short.map(x=>`<li>${esc(x.c.n)}: need ${x.q}, ${x.free} free${x.held.length?` (in ${esc(x.held.join(', '))})`:''}</li>`).join('')}</ul><p class="note">You can mark it built anyway; those cards stay listed as missing.</p><button class="btn primary" id="builtAnyway">Mark built anyway</button><button class="btn" id="builtCancel">Cancel</button>`);
+  $('builtAnyway').onclick=commit; $('builtCancel').onclick=()=>closeSheet();
+};
 $('deckFormatSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=$('deckFormatSel').value; if(v==='commander') delete d.format; else d.format=v; d.updated=Date.now(); saveDecks(); legalityFilled.delete(d.id); renderDeckEdit(true); toast(`Format set to ${FORMATS[deckFormat(d)].label}`); };
 $('deckBracketSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=+$('deckBracketSel').value; if(v>=1&&v<=5) d.bracket=v; else delete d.bracket; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); };
 function getDeck(){ return decks.find(d=>d.id===curDeck); }
@@ -1417,6 +1436,7 @@ function renderDeckEdit(keepScroll){
   $('deckFormatWrap').hidden=!FORMATS; if(FORMATS) $('deckFormatSel').value=deckFormat(d);
   $('deckBracketWrap').hidden=!R.commander; if(R.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
   renderDeckGuide(d);
+  $('deckBuiltBtn').setAttribute('aria-pressed',!!d.built); $('deckBuiltBtn').textContent=d.built?'✓ Built':'Built';
   $('deckFavBtn').setAttribute('aria-pressed',!!d.favorite); $('deckFavBtn').textContent=d.favorite?'♥':'♡'; $('deckFavBtn').setAttribute('aria-label',d.favorite?'Remove from favorites':'Add to favorites');
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
   const st = deckStats(d); const max = Math.max(1,...st.curve);
@@ -1457,8 +1477,8 @@ function renderDeckEdit(keepScroll){
   if (dsub==='list') renderDeckList(d); else renderDeckAdd(d, keepScroll);
 }
 function deckRowHTML(nv, q, d){
-  const c = repOf(nv); const own = ownedNV(nv); const short = Math.max(0,q-own);
-  return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:esc(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">own ${own} of ${q}</span>`:`own ${own}`}</div></div>
+  const c = repOf(nv); const own = freeNV(nv,d.id); const short = Math.max(0,q-own); const held = heldBy(nv,d.id);
+  return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:esc(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">${held.length?'free':'own'} ${own} of ${q}</span>`:`${held.length?'free':'own'} ${own}`}${held.length?` · in ${esc(held.join(', '))}`:''}</div></div>
     <div class="acts">${deckRules(d).commander&&G.canCommand(c)?(()=>{const on=deckCommanders(d).includes(nv);return `<button data-act="cmd" data-nv="${esc(nv)}" aria-pressed="${on}" aria-label="${on?'Remove as commander':'Make commander'}" title="${on?'Remove as commander':'Make commander'}">★</button>`;})():''}<button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:(deckRules(d).key&&legalIn(c,deckRules(d).key)==='restricted'?1:deckRules(d).maxCopies)))?'disabled':''}>+</button></div></div></div>`;
 }
 function renderDeckList(d){
@@ -1495,7 +1515,7 @@ function renderDeckAdd(d, keepScroll){
   let list = nvReps.map(ps=>ps.find(c=>!isSpecialCard(c))||ps[0]).filter(c=>{
     if (LORCANA && inks.length>=2 && !c.inks.every(i=>inks.includes(i))) return false;
     if (LORCANA && inks.length===1){ const s=new Set([...inks,...c.inks]); if (s.size>2) return false; }
-    if (ownedOnly && !ownedNV(c.nv) && !d.cards[c.nv]) return false;
+    if (ownedOnly && !freeNV(c.nv,d.id) && !d.cards[c.nv]) return false;
     if (fmt && !d.cards[c.nv] && ['banned','not_legal'].includes(legalIn(c,fmt))) return false;
     if (q && !norm(c.n+c.v+c.cl+c.tx).includes(q)) return false;
     return true;
@@ -1535,9 +1555,9 @@ $('sheetBody').addEventListener('click', async e=>{
   else if (a==='txt'){ download(`${d.name.replace(/[^\w\- ]+/g,'').trim()||'deck'}.txt`, deckText(d), 'text/plain'); }
   else if (a==='newcards'){previewCollectionImport(d);}
   else if (a==='source'){openSheet('Imported source retained locally',`<p class="note">This source and unresolved lines are included in your device backup. The existing cloud schema stores the recognized deck contents only.</p><pre>${esc((d.importLines||[]).map(l=>l.raw).join('\n'))}</pre><p>Unresolved:</p><pre>${esc((d.unresolved||[]).join('\n'))}</pre>`);}
-  else if (a==='buy'){ openTcg(Object.entries(d.cards).map(([nv,q])=>({q:Math.max(0,q-ownedNV(nv)), c:repOf(nv)})), '. You own every card in this deck'); }
+  else if (a==='buy'){ openTcg(Object.entries(d.cards).map(([nv,q])=>({q:Math.max(0,q-freeNV(nv,d.id)), c:repOf(nv)})), '. You own every card in this deck'); }
   else if (a==='wish'){
-    let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-ownedNV(nv)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
+    let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-freeNV(nv,d.id)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
     saveWish(); toast(n?`Added ${n} cards to your wishlist`:'You already own or want every card in this deck');
   }
   else if (a==='dup'){ const c={id:uid(), name:d.name+' (copy)', cards:{...d.cards}, ...(d.commanders?.length?{commanders:[...d.commanders]}:{}), updated:Date.now()}; decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
@@ -1828,7 +1848,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,built:r.meta?.built===true?true:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1847,7 +1867,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.format)o.format=d.format;else delete o.format;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.built)o.built=true;else delete o.built;if(d.format)o.format=d.format;else delete o.format;return o;});
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
@@ -1856,6 +1876,7 @@ function deckMeta(value,previous){
   if(value?.bracket) meta.bracket=value.bracket; else delete meta.bracket;
   if(value?.guide) meta.guide=value.guide; else delete meta.guide;
   if(value?.favorite) meta.fav=true; else delete meta.fav;
+  if(value?.built) meta.built=true; else delete meta.built;
   if(value?.format) meta.format=value.format; else delete meta.format;
   return meta;
 }
