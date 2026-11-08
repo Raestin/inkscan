@@ -254,3 +254,7 @@ textarea{min-height:180px;font-family:ui-monospace,Consolas,monospace;font-size:
 .update-bar span{flex:1}
 .update-bar .btn{padding:7px 12px}
 .update-bar .btn.ghost{color:var(--bg);opacity:.85}
+/* The clear (X) button in search boxes, twice the browser's default size. Drawn in the text color so it shows in light and dark. */
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:26px;height:26px;margin-left:8px;cursor:pointer;background-color:var(--muted);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 1a11 11 0 1 1 0 22a11 11 0 1 1 0-22zM8.5 6.8L6.8 8.5L10.3 12L6.8 15.5L8.5 17.2L12 13.7L15.5 17.2L17.2 15.5L13.7 12L17.2 8.5L15.5 6.8L12 10.3z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 1a11 11 0 1 1 0 22a11 11 0 1 1 0-22zM8.5 6.8L6.8 8.5L10.3 12L6.8 15.5L8.5 17.2L12 13.7L15.5 17.2L17.2 15.5L13.7 12L17.2 8.5L15.5 6.8L12 10.3z'/%3E%3C/svg%3E") center/contain no-repeat}
