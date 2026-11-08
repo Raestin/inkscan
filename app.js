@@ -296,6 +296,21 @@ async function liveSearch(query, unique){
   }catch(e){ liveQueries.delete(key); return false; }
 }
 const sfAbsent=new Set();
+/* The first card scanned from a set loads the whole set in the background, so the rest of a stack
+   from that set is found on the phone instantly instead of waiting on one Scryfall lookup per card. */
+const setsFetched=new Set();
+async function prefetchSet(code){
+  code=String(code||'').toLowerCase(); if(!G.live||!code||setsFetched.has(code)||!navigator.onLine) return;
+  setsFetched.add(code);
+  try{
+    let path=`/cards/search?q=${encodeURIComponent('e:'+code+' game:paper')}&unique=prints&order=set`;
+    for(let page=0;path&&page<6;page++){
+      const j=await scryfall(path); if(!j) break;
+      addLiveCards((j.data||[]).map(G.fromScryfall));
+      path=j.has_more&&j.next_page?j.next_page.replace(SCRYFALL,''):null;
+    }
+  }catch(e){ setsFetched.delete(code); }
+}
 async function livePrinting(ref){
   if(!G.live||!ref?.set||!ref.collector||!navigator.onLine) return null;
   const absentKey=printingToken(ref.set)+'|'+collectorToken(ref.collector); if(sfAbsent.has(absentKey)) return null;
@@ -885,20 +900,25 @@ function stripRectInVideo(){
   const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
   const sc = Math.max(box.width/vw, box.height/vh);
   const ox = (vw*sc - box.width)/2, oy = (vh*sc - box.height)/2;
-  const padX = strip.width*0.06, padY = strip.height*0.35;
+  const padX = strip.width*0.06, padY = strip.height*0.2;
   let x=(strip.left-box.left-padX+ox)/sc, y=(strip.top-box.top-padY+oy)/sc, w=(strip.width+2*padX)/sc, h=(strip.height+2*padY)/sc;
   x=Math.max(0,x); y=Math.max(0,y); w=Math.min(vw-x,w); h=Math.min(vh-y,h);
   return {x,y,w,h};
 }
+/* 800 px wide is plenty now the corner guide makes the text big (about 30 px tall), and reads about
+   twice as fast as 1300. Light-on-dark lines (MTG and Lorcana borders) are flipped to dark-on-light:
+   otherwise the reader tries both ways itself, which costs another pass. */
+const OCR_WIDTH=800;
 function grabStrip(){
   const r = stripRectInVideo(); if(!r) return null;
-  const s = 1300 / r.w;
+  const s = OCR_WIDTH / r.w;
   cv.width = Math.round(r.w*s); cv.height = Math.round(r.h*s);
   ctx.filter = 'grayscale(1)'; ctx.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height); ctx.filter = 'none';
   const img = ctx.getImageData(0,0,cv.width,cv.height), d=img.data; let lo=255, hi=0;
-  for (let i=0;i<d.length;i+=16){ const v=d[i]; if(v<lo) lo=v; if(v>hi) hi=v; }
-  const k = hi>lo ? 255/(hi-lo) : 1;
-  for (let i=0;i<d.length;i+=4){ const v=(d[i]-lo)*k; d[i]=d[i+1]=d[i+2]=v; }
+  let sum=0, n=0;
+  for (let i=0;i<d.length;i+=16){ const v=d[i]; if(v<lo) lo=v; if(v>hi) hi=v; sum+=v; n++; }
+  const k = hi>lo ? 255/(hi-lo) : 1, invert = (sum/n-lo)*k < 110;
+  for (let i=0;i<d.length;i+=4){ const v=invert?255-(d[i]-lo)*k:(d[i]-lo)*k; d[i]=d[i+1]=d[i+2]=v; }
   ctx.putImageData(img,0,0);
   return cv;
 }
@@ -908,6 +928,8 @@ async function loop(){
     const frame = grabStrip(); if(!frame){ await sleep(200); continue; }
     let card=null,resolution=null;
     try{const {data}=await worker.recognize(frame);resolution=resolveNumberLine(data.text,scanPrintingScope);card=resolution.card;
+      if(G.live&&resolution.reference?.set&&!resolution.references) prefetchSet(resolution.reference.set);
+      else if(G.live&&card) prefetchSet(card.s);
       if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ const refs=resolution.references||[resolution.reference], found=await Promise.all(refs.map(livePrinting)); if(found.some(Boolean)||(resolution.references&&refs.every(r=>sfAbsent.has(r.set+'|'+r.collector)))){resolution=resolveNumberLine(data.text,scanPrintingScope);card=resolution.card;} }
       // Already picked from the list for this card: wait for the next one instead of asking again.
       if(pickedQuery&&resolution.query===pickedQuery){pickedMiss=0;if(scanning)camMsg('Got it. Swap in the next card.');await sleep(250);continue;}
@@ -925,7 +947,7 @@ async function loop(){
       if (streak>=2 && card.id!==cooldownKey){ hit(card); cooldownKey = card.id; }
       else if (card.id===cooldownKey && Date.now()-lastHitAt > 1800) camMsg('Got it. Swap in the next card.');
     }
-    await sleep(120);
+    await sleep(40);
   }
 }
 function beep(){

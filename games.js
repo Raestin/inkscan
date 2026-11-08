@@ -179,10 +179,11 @@
       ['Lands', c => /Land/.test(c.ty) && !/Creature/.test(c.ty)], ['Other', () => true]],
     // Bottom-left collector line, e.g. "0123/0280 R" over "MH3 • EN", or "123 R MH3 EN".
     parseCode(text){
-      const t = String(text || '').toUpperCase().replace(/[•·]/g, ' ');
+      // "BBD • EN": the dot (★ on foils) comes back as *, %, +, «, "+*" and the like, and "MH1" sometimes as "MH 1".
+      const t = String(text || '').toUpperCase().replace(/[•·]/g, ' ')
+        .replace(/\b([A-Z]{2,3}) (\d)(?=[^A-Z0-9\n]{0,3}EN\b)/g, '$1$2');
       const refs = [];
-      // "BBD • EN": the dot (★ on foils) is often read as *, %, ., » or a stray letter, so allow one separator mark.
-      const set = /\b([A-Z0-9]{3,5})\s*[*★☆.,:;%»«°+x-]?\s*EN\b/.exec(t) || /\b([A-Z0-9]{3,5})\s*[★☆*]/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
+      const set = /\b([A-Z0-9]{3,5})[^A-Z0-9\n]{1,4}EN\b/.exec(t) || /\b([A-Z0-9]{3,5})\s*[★☆*]/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
       const num = /\b0*(\d{1,4}[A-Z★]?)\s*(?:\/\s*\d{1,4})?\s+[CURMSLTP]\b/.exec(t) || /\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/.exec(t) || /\b[CURMSLTP]\s+0*(\d{1,4}[A-Z★]?)\b/.exec(t);
       if (set && num && /[A-Z]/.test(set[1])) refs.push({set: set[1], collector: num[1]});
       return refs;
