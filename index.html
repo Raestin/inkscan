@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=32">
+<link rel="stylesheet" href="app.css?v=33">
 </head>
 <body>
 <header class="top">
@@ -40,13 +40,14 @@
       <div class="flash" id="flash"></div>
       <div class="camtools" id="camtools" hidden>
         <button id="foilBtn" aria-pressed="false">Foil</button>
+        <button id="zoomBtn" hidden aria-label="Zoom">2×</button>
         <button id="torchBtn" aria-pressed="false" hidden>Light</button>
         <button id="stopBtn">Stop</button>
       </div>
       <div class="camstate" id="camstate" hidden></div>
       <div class="camstart" id="camstart">
         <button class="btn primary" id="startBtn" disabled>Start scanning</button>
-        <span class="note" style="color:#B9B4D3">Line the card up in the frame. The number line at the bottom left goes in the gold box.</span>
+        <span class="note" style="color:#B9B4D3">Fit the card's bottom-left corner into the corner guide. The number line goes in the gold box.</span>
       </div>
     </div>
     <p id="scanResolution" class="note printing-resolution" role="status" aria-live="polite" hidden></p>
@@ -259,10 +260,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=32"></script>
-<script src="catalog.js?v=32"></script>
-<script src="legality.js?v=32"></script>
-<script src="games.js?v=32"></script>
-<script src="app.js?v=32"></script>
+<script src="safety.js?v=33"></script>
+<script src="catalog.js?v=33"></script>
+<script src="legality.js?v=33"></script>
+<script src="games.js?v=33"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>
