@@ -806,17 +806,6 @@ $('scanPick').addEventListener('click',e=>{
   const query=lastScanResolution?.query||null;
   if(logAdd(card,foilMode)){pickedQuery=query;pickedMiss=0;cooldownKey=card.id;clearScanResolution();toast(`Added ${card.n} · ${setLabel(card)} #${card.c}`);if(scanning)camMsg('Got it. Swap in the next card.');}
 });
-/* Picks among a handful of candidates by the title the camera read. The names are known, so a rough
-   read is enough: score each by how many of its letter pairs appear, and take a clear winner only. */
-function matchTitle(text,cards){
-  const t=norm(text); if(t.length<4||!cards.length)return null;
-  const pairs=s=>{const m=new Map();for(let i=0;i<s.length-1;i++){const k=s.slice(i,i+2);m.set(k,(m.get(k)||0)+1);}return m;};
-  const tp=pairs(t);
-  const scored=cards.map(c=>{const np=pairs(norm(String(c.n).split('//')[0]));let hit=0,all=0;for(const [k,n] of np){all+=n;hit+=Math.min(n,tp.get(k)||0);}return {c,score:all?hit/all:0};}).sort((a,b)=>b.score-a.score);
-  const [best,next]=scored;
-  return best.score>=0.6&&best.score-(next?.score||0)>=0.25?best.c:null;
-}
-const MTG_TITLE={x:0.04,y:0.025,w:0.72,h:0.085};
 function reviewNumberLine(text){
   const result=resolveNumberLine(text,scanPrintingScope);
   if(result.status==='exact')clearScanResolution();
@@ -848,7 +837,7 @@ function getWorker(){
 function camMsg(s){ const el=$('camstate'); el.textContent=s; el.hidden=!s; }
 async function startCam(){
   $('startBtn').disabled = true; $('startBtn').textContent = 'Starting…';
-  try{ stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:1920}}}); }
+  try{ stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:2560}, height:{ideal:1440}}}); }
   catch(e){
     $('startBtn').disabled=false; $('startBtn').textContent='Start scanning';
     toast(e && e.name==='NotAllowedError' ? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.' : 'Couldn’t open the camera.');
@@ -857,7 +846,8 @@ async function startCam(){
   video.srcObject = stream; await video.play().catch(()=>{});
   const track = stream.getVideoTracks()[0];
   try{ const caps = track.getCapabilities?.() || {}; $('torchBtn').hidden = !caps.torch;
-       if (caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{}); }catch(e){}
+       if (caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+       setupZoom(track, caps); }catch(e){}
   $('camstart').hidden = true; $('guide').hidden = false; $('camtools').hidden = false;
   camMsg('Loading the reader…');
   try{ await getWorker(); }catch(e){ camMsg('The card reader didn’t load. Reload the page and try again.'); return; }
@@ -865,16 +855,33 @@ async function startCam(){
   try{ await navigator.wakeLock?.request('screen'); }catch(e){}
   loop();
 }
+/* Zoom so the corner guide can be filled from a normal distance. Phones focus poorly closer than
+   about 10 cm; zooming keeps the phone back there while the number line still fills the gold box.
+   The camera's own zoom is used when the browser offers it (sharper); otherwise the preview is scaled. */
+let zoomNative=false, zoomSteps=[1], zoomLevel=1;
+function setupZoom(track, caps){
+  const z=caps?.zoom; zoomNative=!!(z&&z.max>1);
+  zoomSteps=zoomNative?[1,1.5,2,2.5,3].filter(v=>v>=(z.min||1)&&v<=z.max):[1,1.25,1.5,2];
+  if(zoomNative&&!zoomSteps.includes(z.max)&&z.max<3) zoomSteps.push(z.max);
+  const saved=lsGet('inkscan.zoom.'+(zoomNative?'n':'d'),null), def=zoomNative?2:1.5;
+  applyZoom(zoomSteps.includes(saved)?saved:zoomSteps.reduce((a,b)=>Math.abs(b-def)<Math.abs(a-def)?b:a), track);
+  $('zoomBtn').hidden=false;
+}
+function applyZoom(level, track=stream?.getVideoTracks()[0]){
+  zoomLevel=level; $('zoomBtn').textContent=(Math.round(level*100)/100)+'×';
+  if(zoomNative) track?.applyConstraints({advanced:[{zoom:level}]}).catch(()=>{});
+  else video.style.transform=level>1?`scale(${level})`:'';
+}
+$('zoomBtn').onclick=()=>{ const i=zoomSteps.indexOf(zoomLevel), next=zoomSteps[(i+1)%zoomSteps.length]; lsSet('inkscan.zoom.'+(zoomNative?'n':'d'),next); applyZoom(next); };
 function stopCam(){
   scanning=false; if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  video.srcObject=null; $('camstart').hidden=false; $('guide').hidden=true; $('camtools').hidden=true; camMsg('');
+  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('camtools').hidden=true; camMsg('');
   $('startBtn').disabled=!DB; $('startBtn').textContent='Start scanning';
   $('torchBtn').setAttribute('aria-pressed','false');
 }
-// part: null for the gold box, or {x,y,w,h} as fractions of the card frame (e.g. the MTG title bar).
-function stripRectInVideo(part){
-  const box = $('cam').getBoundingClientRect(), g = $('guide').getBoundingClientRect();
-  const strip = part ? {left:g.left+g.width*part.x, top:g.top+g.height*part.y, width:g.width*part.w, height:g.height*part.h} : $('guide').firstElementChild.getBoundingClientRect();
+// The video's own box, so a CSS zoom (scale) on the preview is accounted for.
+function stripRectInVideo(){
+  const box = video.getBoundingClientRect(), strip = $('guide').firstElementChild.getBoundingClientRect();
   const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
   const sc = Math.max(box.width/vw, box.height/vh);
   const ox = (vw*sc - box.width)/2, oy = (vh*sc - box.height)/2;
@@ -883,8 +890,8 @@ function stripRectInVideo(part){
   x=Math.max(0,x); y=Math.max(0,y); w=Math.min(vw-x,w); h=Math.min(vh-y,h);
   return {x,y,w,h};
 }
-function grabStrip(part){
-  const r = stripRectInVideo(part); if(!r) return null;
+function grabStrip(){
+  const r = stripRectInVideo(); if(!r) return null;
   const s = 1300 / r.w;
   cv.width = Math.round(r.w*s); cv.height = Math.round(r.h*s);
   ctx.filter = 'grayscale(1)'; ctx.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height); ctx.filter = 'none';
@@ -905,17 +912,12 @@ async function loop(){
       // Already picked from the list for this card: wait for the next one instead of asking again.
       if(pickedQuery&&resolution.query===pickedQuery){pickedMiss=0;if(scanning)camMsg('Got it. Swap in the next card.');await sleep(250);continue;}
       if(pickedQuery&&++pickedMiss>=2)pickedQuery=null;
-      // Old MTG cards whose number fits several sets: read the title bar to tell them apart.
-      if(!card&&G.id==='mtg'&&resolution.status==='ambiguous'&&resolution.query){
-        const title=grabStrip(MTG_TITLE);
-        if(title){const t=(await worker.recognize(title)).data.text, m=matchTitle(t,resolution.candidates); if(m){card=m;resolution={...resolution,status:'exact',card:m};}}
-      }
     }catch(e){}
     if (!scanning) break;
     if (!card){
       streak=0; lastKey=null; blankFrames++;
       if (blankFrames>=2) cooldownKey=null;
-      if(resolution && ['missing','ambiguous','blocked'].includes(resolution.status)){showScanResolution(resolution);camMsg(resolution.status==='ambiguous'&&resolution.query?'Keep the card name in the frame, or tap your card below.':'Printing needs manual review. Nothing added.');}
+      if(resolution && ['missing','ambiguous','blocked'].includes(resolution.status)){showScanResolution(resolution);camMsg(resolution.status==='ambiguous'&&resolution.query?'Tap your card below.':'Printing needs manual review. Nothing added.');}
       else if(Date.now()-lastHitAt>2500)camMsg('Line the number line up in the gold box');
     } else {
       clearScanResolution();blankFrames=0;
@@ -2090,7 +2092,7 @@ function applyGameLabels(){
   const setText=(id,prop,val)=>{ const el=$(id); if(el) el[prop]=val; };
   setText('bq','placeholder',G.searchPlaceholder); setText('q','placeholder',G.scanPlaceholder);
   const hint=$('camstart')?.querySelector('.note'); if(hint) hint.textContent=G.scanHint;
-  if(G.guide==='bottom-right') $('guide')?.firstElementChild?.classList?.add('right');
+  if(G.guide==='bottom-right'){ $('guide')?.classList?.add('right'); $('guide')?.firstElementChild?.classList?.add('right'); }
   for(const id of ['cFinish','bFinish','scanFinish']){ const el=$(id); if(!el?.options) continue;
     for(const o of [...el.options]){ const k=o.value; if(!['normal','foil','rainbow'].includes(k)) continue; if(!G.finishes[k]) o.remove(); else o.textContent=id==='scanFinish'?G.finishes[k]:`${G.finishes[k]} only`; } }
   for(const id of ['cLegality','bLegality','scanPrintingScope']){ const el=$(id); const label=el?.closest?.('label'); if(!label) continue;
