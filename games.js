@@ -181,7 +181,8 @@
     parseCode(text){
       const t = String(text || '').toUpperCase().replace(/[•·]/g, ' ');
       const refs = [];
-      const set = /\b([A-Z0-9]{3,5})\s*(?:EN|☆|\*)\b/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
+      // "BBD • EN": the dot (★ on foils) is often read as *, %, ., » or a stray letter, so allow one separator mark.
+      const set = /\b([A-Z0-9]{3,5})\s*[*★☆.,:;%»«°+x-]?\s*EN\b/.exec(t) || /\b([A-Z0-9]{3,5})\s*[★☆*]/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
       const num = /\b0*(\d{1,4}[A-Z★]?)\s*(?:\/\s*\d{1,4})?\s+[CURMSLTP]\b/.exec(t) || /\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/.exec(t) || /\b[CURMSLTP]\s+0*(\d{1,4}[A-Z★]?)\b/.exec(t);
       if (set && num && /[A-Z]/.test(set[1])) refs.push({set: set[1], collector: num[1]});
       return refs;
