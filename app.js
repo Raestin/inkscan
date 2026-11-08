@@ -980,6 +980,8 @@ function hit(card){
   if(!card || !byId.has(card.id) || !printingAllowed(card,scanPrintingScope))return;
   lastHitAt = Date.now();
   logAdd(card, foilMode);
+  // A camera hit replaces any manual search that was showing.
+  if($('q').value){ $('q').value=''; quickVisible=30; renderQuick(); }
   const f=$('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
   $('guide').classList.add('hit'); setTimeout(()=>$('guide').classList.remove('hit'),500);
   navigator.vibrate?.(60); beep();
