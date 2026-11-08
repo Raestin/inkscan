@@ -3,37 +3,55 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1D1A35">
+<meta name="theme-color" content="#0E0D16" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F4F9" media="(prefers-color-scheme: light)">
 <title>InkScan</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=39">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="app.css?v=40">
 </head>
 <body>
+<!-- Icon set: one sprite, used as <svg class="ic"><use href="#i-name"/></svg> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.4 9.2 4.4 4.4 0 0 0 7 18z"/><path d="M12 11v5m-2.2-2.2L12 16l2.2-2.2"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 7h10m4 0h2M4 17h4m4 0h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19h14"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><rect x="3.5" y="6" width="8" height="12" rx="1.5" transform="rotate(-12 7.5 12)"/><rect x="12.5" y="6" width="8" height="12" rx="1.5" transform="rotate(12 16.5 12)"/></symbol>
+  <symbol id="i-csv" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7"/><path d="M4 4v4.7h4.7"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+</svg>
+
 <header class="top">
-  <div class="wrap brand">
-    <div class="row brandrow"><h1>Ink<b>Scan</b></h1><select id="gameSel" class="gamesel" aria-label="Game"><option>Lorcana</option></select></div>
-    <div class="totals" aria-live="polite">
-      <span><strong id="tUnique">0</strong> cards</span>
-      <span><strong id="tCopies">0</strong> copies</span>
-      <span><strong id="tValue">$0</strong></span>
-    </div>
+  <div class="wrap appbar">
+    <h1 class="logo">Ink<b>Scan</b></h1>
+    <label class="gamepill"><span class="sr">Game</span><select id="gameSel" class="gamesel" aria-label="Game"><option>Lorcana</option></select></label>
+    <button class="iconbtn cloudbtn" id="manualUpdate" aria-label="Cloud update"><svg class="ic"><use href="#i-cloud"/></svg><span class="dot" id="pendingDot" hidden></span></button>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="row between syncbar"><p id="saveStatus" class="note" role="status"></p><button class="btn primary" id="manualUpdate">Update</button><button class="btn" id="safetyBackup">Back up</button></div>
+  <div class="savebar" id="saveBar" hidden><p id="saveStatus" role="status"></p><button class="btn small" id="safetyBackup">Back up</button></div>
   <div id="loadBanner" class="banner">Loading the card list…</div>
 
   <!-- ============ SCAN ============ -->
   <section class="view" id="vScan">
+    <div class="pagehead"><h2 class="title">Scan</h2><button class="iconbtn" id="scanSettingsBtn" aria-label="Scan settings"><svg class="ic"><use href="#i-gear"/></svg></button></div>
     <p id="promoCatalogStatus" class="note printing-resolution" role="status" hidden></p>
-    <label class="scan-finish">Printing scope <select id="scanPrintingScope"><option value="all">All printings</option><option value="promo">Promo / special only</option></select></label>
-    <label class="scan-finish">Finish for scans and search additions <select id="scanFinish"><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label>
     <div class="cam" id="cam">
       <video id="video" playsinline muted></video>
       <div class="guide" id="guide" hidden><div class="strip"></div></div>
@@ -46,39 +64,53 @@
       </div>
       <div class="camstate" id="camstate" hidden></div>
       <div class="camstart" id="camstart">
-        <button class="btn primary" id="startBtn" disabled>Start scanning</button>
-        <span class="note" style="color:#B9B4D3">Fit the card's bottom-left corner into the corner guide. The number line goes in the gold box.</span>
+        <button class="shutter" id="startBtn" disabled aria-label="Start scanning"><span></span></button>
+        <strong>Tap to scan</strong>
+        <span class="note">Fit the card's bottom-left corner into the corner guide. The number line goes in the gold box.</span>
       </div>
     </div>
-    <div>
-      <h2 class="h2" style="margin-bottom:8px">Add by search</h2>
-      <input type="search" id="q" placeholder="Card name, P3 43, PD1 11, or P2 24B" autocomplete="off" enterkeyhint="search">
-      <div class="list" id="qres" hidden style="margin-top:8px"></div>
+    <div class="searchwrap">
+      <input type="search" id="q" placeholder="Search to add a card" autocomplete="off" enterkeyhint="search">
+      <div class="list" id="qres" hidden></div>
     </div>
     <p id="scanResolution" class="note printing-resolution" role="status" aria-live="polite" hidden></p>
     <button id="scanManual" class="btn" hidden>Find the exact printing</button>
     <div class="list" id="scanPick" hidden></div>
-    <div class="row between"><h2 class="h2">This session <span class="note" id="logCount"></span></h2></div>
+    <div class="sectionhead"><h3>This session</h3><span class="note" id="logCount"></span></div>
     <div class="list" id="log"></div>
-    <p class="note">Promos and special printings are separate catalog cards, not foil settings. Match the full printed code; a stamp alone cannot identify a printing.</p>
-    <p class="note">Choose the physical finish yourself; scanning a card number does not identify its foil treatment.</p>
+    <div class="panel-src" id="scanSettings" hidden>
+      <div class="stack">
+        <label class="field">Printing scope <select id="scanPrintingScope"><option value="all">All printings</option><option value="promo">Promo / special only</option></select></label>
+        <label class="field">Finish for scans and search adds <select id="scanFinish"><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label>
+        <p class="note">Promos and special printings are separate cards, not foil settings. Scanning can't tell the finish, so set it here or with the Foil button.</p>
+      </div>
+    </div>
   </section>
 
   <!-- ============ COLLECTION ============ -->
   <section class="view" id="vColl" hidden>
-    <div class="row between">
-      <div class="seg" role="group" aria-label="Collection view">
-        <button data-csub="cards" aria-pressed="true">Cards</button>
-        <button data-csub="sets" aria-pressed="false">Sets</button>
-        <button data-csub="wish" aria-pressed="false">Wishlist</button>
-      </div>
-      <button class="btn" id="toolsBtn">Tools</button>
+    <div class="pagehead"><h2 class="title">Collection</h2><button class="iconbtn" id="toolsBtn" aria-label="Tools and backup"><svg class="ic"><use href="#i-more"/></svg></button></div>
+    <div class="hero" aria-live="polite">
+      <span class="hero-label">Collection value</span>
+      <strong id="tValue">$0</strong>
+      <span class="hero-sub"><b id="tUnique">0</b> cards · <b id="tCopies">0</b> copies</span>
+    </div>
+    <div class="seg full" role="group" aria-label="Collection view">
+      <button data-csub="cards" aria-pressed="true">Cards</button>
+      <button data-csub="sets" aria-pressed="false">Sets</button>
+      <button data-csub="wish" aria-pressed="false">Wishlist</button>
     </div>
 
     <div id="collCards" class="stack">
-      <input type="search" id="cf" placeholder="Filter your collection" autocomplete="off">
-      <details class="filterbox" id="cFilters">
-        <summary>Filters <span class="note" id="cFilterCount"></span></summary>
+      <div class="searchrow">
+        <input type="search" id="cf" placeholder="Search cards" autocomplete="off">
+        <button class="iconbtn tonal" id="cFilters" data-filters="cFilterPanel" aria-label="Filters and sort"><svg class="ic"><use href="#i-filter"/></svg><span class="count" id="cFilterCount"></span></button>
+        <div class="seg icons" role="group" aria-label="Layout">
+          <button data-lay="grid" aria-pressed="true" aria-label="Grid"><svg class="ic"><use href="#i-grid"/></svg></button>
+          <button data-lay="list" aria-pressed="false" aria-label="List"><svg class="ic"><use href="#i-list"/></svg></button>
+        </div>
+      </div>
+      <div class="panel-src" id="cFilterPanel" hidden>
         <div class="stack">
           <div class="chips" id="collInks"></div>
           <div class="filters">
@@ -87,31 +119,24 @@
             <select id="cCost" aria-label="Cost"></select>
             <select id="cRar" aria-label="Rarity"></select>
           </div>
-          <div class="row between">
-            <div class="row">
-              <label for="sortSel" class="note">Sort</label>
-              <select id="sortSel" class="slim">
-                <option value="set">Set &amp; number</option>
-                <option value="value">Value</option>
-                <option value="name">Name</option>
-                <option value="cost">Cost</option>
-                <option value="rarity">Rarity</option>
-              </select>
-            </div>
-            <div class="seg" role="group" aria-label="Layout">
-              <button data-lay="grid" aria-pressed="true">Grid</button>
-              <button data-lay="list" aria-pressed="false">List</button>
-            </div>
-          </div>
-          <label>Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
-          <label>Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
-          <button class="btn" id="cReset">Reset collection filters</button>
+          <label class="field">Sort
+            <select id="sortSel">
+              <option value="set">Set &amp; number</option>
+              <option value="value">Value</option>
+              <option value="name">Name</option>
+              <option value="cost">Cost</option>
+              <option value="rarity">Rarity</option>
+            </select>
+          </label>
+          <label class="field">Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
+          <label class="field">Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+          <button class="btn ghost" id="cReset">Reset filters</button>
         </div>
-      </details>
+      </div>
       <p class="summary" id="cValue" role="status"></p>
       <div id="coll"></div>
-      <p class="note" id="cValueNote"></p>
-      <p class="note legality-info" id="cLegalityInfo"></p>
+      <p class="footnote" id="cValueNote"></p>
+      <p class="footnote legality-info" id="cLegalityInfo"></p>
     </div>
 
     <div id="collSets" class="stack" hidden><div class="list" id="setList"></div></div>
@@ -125,50 +150,53 @@
   <!-- ============ DECKS ============ -->
   <section class="view" id="vDecks" hidden>
     <div id="deckHome" class="stack">
-      <div class="row between">
-        <h2 class="h2">Decks</h2>
-        <div class="row">
-          <button class="btn" id="importDeckBtn">Import</button>
-          <button class="btn primary" id="newDeckBtn">New deck</button>
+      <div class="pagehead"><h2 class="title">Decks</h2>
+        <div class="row tight">
+          <button class="iconbtn tonal" id="importDeckBtn" aria-label="Import a deck"><svg class="ic"><use href="#i-import"/></svg></button>
+          <button class="btn primary pill" id="newDeckBtn"><svg class="ic"><use href="#i-plus"/></svg>New</button>
         </div>
       </div>
-      <input type="search" id="df" placeholder="Search decks or commanders" autocomplete="off">
-      <details class="filterbox" id="dFilters">
-        <summary>Filters <span class="note" id="dFilterCount"></span></summary>
+      <div class="searchrow">
+        <input type="search" id="df" placeholder="Search decks or commanders" autocomplete="off">
+        <button class="iconbtn tonal" id="dFilters" data-filters="dFilterPanel" aria-label="Filters and sort"><svg class="ic"><use href="#i-filter"/></svg><span class="count" id="dFilterCount"></span></button>
+      </div>
+      <div class="panel-src" id="dFilterPanel" hidden>
         <div class="stack">
           <div class="chips" id="deckInks"></div>
-          <label class="note"><input type="checkbox" id="dFav"> ♥ Favorites only</label>
-          <label class="note"><input type="checkbox" id="dExact"> Exactly these colors</label>
-          <label id="dFormatWrap" hidden>Format <select id="dFormat"><option value="all">All formats</option></select></label>
-          <label id="dStatusWrap">Rules <select id="dStatus"><option value="all">All decks</option><option value="pass">Rules pass</option><option value="fix">Fix rules</option><option value="short">Not finished (under size)</option></select></label>
-          <label id="dBracketWrap" hidden>Bracket <select id="dBracket"><option value="all">All brackets</option></select></label>
-          <label>Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option><option value="built">Built decks</option><option value="unbuilt">Not built</option></select></label>
-          <label>Contains card <input type="search" id="dCard" placeholder="Card name, like Sol Ring" autocomplete="off"></label>
-          <label>Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option></select></label>
-          <label class="note"><input type="checkbox" id="dFavFirst" checked> ♥ Favorites first</label>
-          <button class="btn" id="dReset">Reset deck filters</button>
+          <label class="switch"><input type="checkbox" id="dExact"> Exactly these colors</label>
+          <label class="switch"><input type="checkbox" id="dFav"> Favorites only</label>
+          <label class="switch"><input type="checkbox" id="dFavFirst" checked> Favorites first</label>
+          <label class="field" id="dFormatWrap" hidden>Format <select id="dFormat"><option value="all">All formats</option></select></label>
+          <label class="field" id="dStatusWrap">Rules <select id="dStatus"><option value="all">All decks</option><option value="pass">Rules pass</option><option value="fix">Fix rules</option><option value="short">Not finished (under size)</option></select></label>
+          <label class="field" id="dBracketWrap" hidden>Bracket <select id="dBracket"><option value="all">All brackets</option></select></label>
+          <label class="field">Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option><option value="built">Built decks</option><option value="unbuilt">Not built</option></select></label>
+          <label class="field">Contains card <input type="search" id="dCard" placeholder="Card name, like Sol Ring" autocomplete="off"></label>
+          <label class="field">Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option></select></label>
+          <button class="btn ghost" id="dReset">Reset filters</button>
         </div>
-      </details>
-      <p class="summary" id="dCount" role="status"></p>
-      <div class="list" id="deckList"></div>
+      </div>
+      <p class="countline" id="dCount" role="status"></p>
+      <div class="list decklist" id="deckList"></div>
     </div>
 
     <div id="deckEdit" class="stack" hidden>
-      <div class="row between">
-        <button class="btn ghost" id="deckBack">‹ Decks</button>
-        <div class="row">
-          <button class="btn builtbtn" id="deckBuiltBtn" aria-pressed="false" title="Built: this deck's cards are committed, so other decks can't count them">Built</button>
-          <button class="btn favbtn" id="deckFavBtn" aria-pressed="false" aria-label="Favorite">♡</button>
-          <button class="btn" id="deckHandBtn">Sample hand</button>
-          <button class="btn" id="deckMoreBtn">More</button>
+      <div class="pagehead">
+        <button class="iconbtn" id="deckBack" aria-label="Back to decks"><svg class="ic"><use href="#i-back"/></svg></button>
+        <div class="row tight">
+          <button class="btn pill builtbtn" id="deckBuiltBtn" aria-pressed="false" title="Built: this deck's cards are committed, so other decks can't count them">Built</button>
+          <button class="iconbtn favbtn" id="deckFavBtn" aria-pressed="false" aria-label="Favorite"><svg class="ic"><use href="#i-heart"/></svg></button>
+          <button class="iconbtn" id="deckHandBtn" aria-label="Sample hand"><svg class="ic"><use href="#i-hand"/></svg></button>
+          <button class="iconbtn" id="deckMoreBtn" aria-label="More"><svg class="ic"><use href="#i-more"/></svg></button>
         </div>
       </div>
       <input type="text" id="deckName" class="deckname" aria-label="Deck name" maxlength="60">
-      <label class="row note" id="deckFormatWrap" hidden>Format <select id="deckFormatSel" class="slim"></select></label>
-      <label class="row note" id="deckBracketWrap" hidden>Bracket <select id="deckBracketSel" class="slim"><option value="">Not set</option><option value="1">1 · Exhibition</option><option value="2">2 · Core</option><option value="3">3 · Upgraded</option><option value="4">4 · Optimized</option><option value="5">5 · cEDH</option></select></label>
+      <div class="row tight deckmeta">
+        <label class="pillselect" id="deckFormatWrap" hidden><span>Format</span><select id="deckFormatSel"></select></label>
+        <label class="pillselect" id="deckBracketWrap" hidden><span>Bracket</span><select id="deckBracketSel"><option value="">Not set</option><option value="1">1 · Exhibition</option><option value="2">2 · Core</option><option value="3">3 · Upgraded</option><option value="4">4 · Optimized</option><option value="5">5 · cEDH</option></select></label>
+      </div>
       <details class="filterbox" id="deckGuide" hidden><summary>Overview &amp; strategy</summary><div class="stack dguide" id="deckGuideBody"></div></details>
       <div class="deckstats" id="deckStats"></div>
-      <div class="seg" role="group" aria-label="Deck view">
+      <div class="seg full" role="group" aria-label="Deck view">
         <button data-dsub="list" aria-pressed="true">Deck</button>
         <button data-dsub="add" aria-pressed="false">Add cards</button>
       </div>
@@ -176,26 +204,29 @@
       <div id="deckAddPane" class="stack" hidden>
         <input type="search" id="dq" placeholder="Search cards to add" autocomplete="off">
         <div class="row">
-          <label class="check"><input type="checkbox" id="dOwned" checked> Cards I own</label>
+          <label class="switch"><input type="checkbox" id="dOwned" checked> Cards I own</label>
           <span class="note" id="dInkNote"></span>
         </div>
         <div class="list" id="dRes"></div>
         <div id="dMore"></div>
       </div>
+      <p class="footnote legality-info" id="deckLegalityCaveat">Size / ink badges are structural checks only, not full deck legality. Check copy limits, card-text exceptions, card-pool eligibility and current event rules separately.</p>
     </div>
-    <p class="note legality-info" id="deckLegalityCaveat">Size / ink badges are structural checks only, not full deck legality. Collection/Browse card-pool filters do not validate a whole deck. Check copy limits, card-text exceptions, card-pool eligibility and current event rules separately.</p>
   </section>
 
   <!-- ============ BROWSE ============ -->
   <section class="view" id="vBrowse" hidden>
-    <div class="seg" role="group" aria-label="Which cards" id="bMine">
+    <div class="pagehead"><h2 class="title">Browse</h2></div>
+    <div class="seg full" role="group" aria-label="Which cards" id="bMine">
       <button data-mine="" aria-pressed="true">All cards</button>
-      <button data-mine="own" aria-pressed="false">My cards only</button>
-      <button data-mine="free" aria-pressed="false">Free cards</button>
+      <button data-mine="own" aria-pressed="false">Mine</button>
+      <button data-mine="free" aria-pressed="false">Free</button>
     </div>
-    <input type="search" id="bq" placeholder="Search all Lorcana cards" autocomplete="off">
-    <details class="filterbox" id="bFilters">
-      <summary>Filters <span class="note" id="bFilterCount"></span></summary>
+    <div class="searchrow">
+      <input type="search" id="bq" placeholder="Search all Lorcana cards" autocomplete="off">
+      <button class="iconbtn tonal" id="bFilters" data-filters="bFilterPanel" aria-label="Filters and sort"><svg class="ic"><use href="#i-filter"/></svg><span class="count" id="bFilterCount"></span></button>
+    </div>
+    <div class="panel-src" id="bFilterPanel" hidden>
       <div class="stack">
         <div class="chips" id="bInks"></div>
         <div class="filters">
@@ -216,45 +247,46 @@
             <option value="set">Set &amp; number</option><option value="name">Name</option><option value="cost">Cost</option><option value="price">Price</option>
           </select>
         </div>
-        <label>Value / ownership finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
-        <label>Card-pool eligibility <select id="bLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+        <label class="field">Finish <select id="bFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
+        <label class="field">Card-pool eligibility <select id="bLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
+        <button class="btn ghost" id="bReset">Reset filters</button>
       </div>
-    </details>
-    <div class="row between"><span class="note" id="bCount"></span><button class="btn ghost tiny" id="bReset">Reset filters</button></div>
-    <p class="summary" id="bValue" role="status"></p>
+    </div>
+    <p class="countline"><span id="bCount"></span> <span id="bValue" role="status"></span></p>
     <div class="grid" id="bGrid"></div>
     <div id="bSentinel" class="sentinel"></div>
-    <p class="note" id="bValueNote"></p>
-    <p class="note legality-info" id="bLegalityInfo"></p>
+    <p class="footnote" id="bValueNote"></p>
+    <p class="footnote legality-info" id="bLegalityInfo"></p>
   </section>
 
   <section class="view" id="vHelp" hidden>
-    <h2 class="h2">How to play</h2>
-    <div class="seg" id="helpGames" role="group" aria-label="Game"></div>
+    <div class="pagehead"><h2 class="title">How to play</h2></div>
+    <div class="seg full" id="helpGames" role="group" aria-label="Game"></div>
     <input type="search" id="helpQ" placeholder="Search rules, keywords and terms" aria-label="Search help" autocomplete="off">
     <p class="note" id="helpMsg" role="status"></p>
     <div class="stack helpdoc" id="helpBody"></div>
   </section>
 </main>
 
-<div class="update-bar" id="updateBar" role="status" hidden><span>A new version of InkScan is ready.</span><button class="btn primary" id="updateGo">Update now</button><button class="btn ghost" id="updateLater" aria-label="Later">Later</button></div>
+<div class="update-bar" id="updateBar" role="status" hidden><span>A new version of InkScan is ready.</span><button class="btn primary small" id="updateGo">Update now</button><button class="btn ghost small" id="updateLater" aria-label="Later">Later</button></div>
 <nav class="tabbar" aria-label="Main">
   <button data-tab="scan" aria-current="page">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Scan</span></button>
+    <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></i><span>Scan</span></button>
   <button data-tab="coll">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="12" height="16" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/></svg><span>Collection</span></button>
+    <i><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="12" height="16" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/></svg></i><span>Collection</span></button>
   <button data-tab="decks">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="12" height="16" rx="2"/><rect x="4" y="6" width="12" height="16" rx="2"/></svg><span>Decks</span></button>
+    <i><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="12" height="16" rx="2"/><rect x="4" y="6" width="12" height="16" rx="2"/></svg></i><span>Decks</span></button>
   <button data-tab="browse">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg><span>Browse</span></button>
+    <i><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg></i><span>Browse</span></button>
   <button data-tab="help">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6"/></svg><span>Help</span></button>
+    <i><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6"/></svg></i><span>Help</span></button>
 </nav>
 
-<!-- bottom sheet (card detail, tools, import, hand) -->
+<!-- bottom sheet (card detail, tools, filters, import, hand) -->
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
-  <div class="sheet-head"><h2 class="h2" id="sheetTitle"></h2><button class="btn ghost" id="sheetClose" aria-label="Close">✕</button></div>
+  <div class="grabber" aria-hidden="true"></div>
+  <div class="sheet-head"><h2 class="h2" id="sheetTitle"></h2><button class="iconbtn tonal small" id="sheetClose" aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <p class="note sheet-save-status" id="sheetSaveStatus" role="alert" hidden></p>
   <div class="sheet-body" id="sheetBody"></div>
 </div>
@@ -262,10 +294,10 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=39"></script>
-<script src="catalog.js?v=39"></script>
-<script src="legality.js?v=39"></script>
-<script src="games.js?v=39"></script>
-<script src="app.js?v=39"></script>
+<script src="safety.js?v=40"></script>
+<script src="catalog.js?v=40"></script>
+<script src="legality.js?v=40"></script>
+<script src="games.js?v=40"></script>
+<script src="app.js?v=40"></script>
 </body>
 </html>

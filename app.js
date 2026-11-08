@@ -143,10 +143,10 @@ function renderSaveStatus(){
   const el=$('saveStatus'); if(!el) return;
   const unknown=typeof byId!=='undefined'&&byId ? Object.keys(inv).filter(id=>!byId.has(id)).length : 0;
   el.textContent=storageError || (unknown?`${unknown} collection printing(s) are missing from the catalog. They are retained in your collection and backup.`:'Saved on this device. Cloud updates run only when you tap Update.');
-  el.classList.toggle('bad',!!storageError);
+  el.classList.toggle('bad',!!storageError); $('saveBar').hidden=!(storageError||unknown);
   const sheetStatus=$('sheetSaveStatus');
   if(sheetStatus){sheetStatus.textContent=storageError||'';sheetStatus.hidden=!storageError;}
-  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===owner()?base:noBase());$('manualUpdate').textContent=`Update (${counts.total} pending)`;}
+  if(savedState){const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),session?.uid && base?.uid===owner()?base:noBase());$('pendingDot').hidden=!counts.total; $('manualUpdate').setAttribute('aria-label',counts.total?`Cloud update: ${counts.total} change${counts.total===1?'':'s'} to send`:'Cloud update'); $('manualUpdate').title=$('manualUpdate').getAttribute('aria-label');}
 }
 
 function download(name, text, type){
@@ -516,7 +516,18 @@ function rulesHTML(t){
    Bottom sheet
    ========================================================= */
 let sheetOpen = false, sheetOnClose = null;
+/* A page panel (filters, scan settings) can be shown in the sheet: its node moves in and goes home on close,
+   so its controls keep their ids and handlers. */
+let borrowed=null;
+function returnBorrowed(){ if(!borrowed) return; const {node,home}=borrowed; borrowed=null; node.hidden=true; home.append(node); }
+function openPanelSheet(title, panelId, done){
+  const node=$(panelId); if(!node) return;
+  openSheet(title, '');
+  borrowed={node,home:node.parentElement}; node.hidden=false; $('sheetBody').append(node);
+  if(done){ const b=document.createElement('button'); b.className='btn primary block'; b.textContent=done; b.onclick=()=>closeSheet(); $('sheetBody').append(b); }
+}
 function openSheet(title, html, onClose){
+  returnBorrowed();
   $('sheetTitle').textContent = title; $('sheetBody').innerHTML = html; $('sheetBody').scrollTop = 0;
   $('sheet').hidden = false; $('scrim').hidden = false; sheetOnClose = onClose || null;
   renderSaveStatus();
@@ -524,11 +535,13 @@ function openSheet(title, html, onClose){
 }
 function closeSheet(fromPop){
   if (!sheetOpen) return;
-  sheetOpen = false; $('sheet').hidden = true; $('scrim').hidden = true; $('sheetBody').innerHTML='';
+  sheetOpen = false; $('sheet').hidden = true; $('scrim').hidden = true; returnBorrowed(); $('sheetBody').innerHTML='';
   const cb = sheetOnClose; sheetOnClose = null; cb && cb();
   if (!fromPop){ try{ history.back(); }catch(e){} }
 }
 $('sheetClose').onclick = () => closeSheet();
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-filters]'); if(b) openPanelSheet('Filters & sort', b.dataset.filters, 'Show results'); });
+$('scanSettingsBtn').onclick=()=>openPanelSheet('Scan settings','scanSettings','Done');
 $('scrim').onclick = () => closeSheet();
 window.addEventListener('popstate', () => { if (sheetOpen) closeSheet(true); });
 document.addEventListener('keydown', e => { if (e.key==='Escape' && sheetOpen) closeSheet(); });
@@ -568,7 +581,7 @@ function cardDetailHTML(c){
         <dt>Set</dt><dd>${esc(c.sn)} · #${esc(c.c)}</dd>
         <dt>Rarity</dt><dd>${esc(rarityLabel(c.r))}</dd>
         ${supplementalDetails(c)}
-        <dt>Price</dt><dd>${GAME_FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Finish pricing</dt><dd>— means unpriced.${LORCANA?` ${esc(finishPriceNote())} Rainbow never uses a generic foil quote.`:` ${esc(G.priceSource)}.`}${LORCANA&&ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</dd>
+        <dt>Price</dt><dd>${GAME_FINISHES.map(f=>`${money(priceOf(c,f))} ${finishLabel(f).toLowerCase()}${c.supplemental&&f==='foil'?' — Holofoil (provider label)':''}`).join(' · ')}</dd><dt>Source</dt><dd>${LORCANA?`<details class="mini"><summary>TCGplayer via Lorcast · — is unpriced</summary>${esc(finishPriceNote())} Rainbow never uses a generic foil quote.${ambiguousFoil(c)?' Generic foil pricing for this multi-finish printing is ambiguous and excluded.':''}</details>`:`${esc(G.priceSource)} · — is unpriced`}</dd>
         ${c.il?`<dt>Artist</dt><dd>${esc(c.il)}</dd>`:''}
         ${LORCANA?`<dt>Core Constructed</dt><dd data-legality-status="${esc(legalityOf(c).status)}">${cardLegalityHTML(c)}</dd>`:''}
       </dl>
@@ -618,7 +631,7 @@ function showTab(t){
   if (t==='coll') renderColl(); if (t==='decks') renderDecks(); if (t==='browse') renderBrowse(); if (t==='help') renderHelp();
   lsSet('inkscan.tab', t); window.scrollTo(0,0);
 }
-document.querySelector('.tabbar').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab); });
+document.querySelector('.tabbar').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(!b) return; if(b.dataset.tab===tab && tab==='decks' && curDeck){ curDeck=null; renderDecks(); } showTab(b.dataset.tab); });
 /* =========================================================
    HELP: how to play, keywords, glossary and tactics for each game, from help/<game>.json
    ========================================================= */
@@ -681,8 +694,8 @@ function logAdd(card, foil){
 }
 function renderLog(){
   const el=$('log');
-  $('logCount').textContent = log.length ? `(${log.length})` : '';
-  if (!log.length){ el.innerHTML = `<div class="empty"><strong>No scans yet</strong>Each card you scan goes straight into your collection and shows up here, newest first. Tap Undo if it read the wrong card.</div>`; return; }
+  { let v=0; for(const x of log){ const c=byId.get(x.cardId); v+=c?(priceOf(c,x.foil)||0):0; } $('logCount').textContent = log.length ? `${log.length} card${log.length===1?'':'s'} · ${money(v)}` : ''; }
+  if (!log.length){ el.innerHTML = `<div class="empty"><strong>No scans yet</strong>Scanned cards land here, newest first.</div>`; return; }
   el.innerHTML = log.slice(0,60).map(x=>{
     const c = byId.get(x.cardId); if(!c) return '';
     return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,x.foil)}</div></div>
@@ -1047,7 +1060,7 @@ function valueNote(){
 function renderFilterCount(){
   const el=$('cFilterCount'); if(!el) return;
   const n=collInks.size+COLL_PICKS.filter(id=>$(id).value).length+($('cFinish').value!=='all')+($('cLegality').value!=='all');
-  el.textContent=n?`(${n} on)`:'';
+  el.textContent=n||'';
 }
 function renderColl(){
   if(DB) syncCollPicks();
@@ -1166,7 +1179,7 @@ function renderBrowse(){
   $('bMine').querySelectorAll('[data-mine]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mine===own));
   // Filters fold away; the count on the header shows how many are on while it's closed. "My cards only" has its own switch.
   const nOn=bInks.size+[set,type,cost,rar].filter(Boolean).length+(own==='miss')+(($('bFinish').value||'all')!=='all')+($('bLegality').value!=='all');
-  $('bFilterCount').textContent=nOn?`(${nOn} on)`:'';
+  $('bFilterCount').textContent=nOn||'';
   if(own!=='miss') lsSet(MINE_KEY,own==='own'?true:own==='free'?'free':false);
   const bq=$('bq'); bq.dataset.ph??=bq.placeholder; bq.placeholder=own==='own'?'Search my cards':own==='free'?'Search my free cards':bq.dataset.ph;
   const finish=$('bFinish').value||'all';
@@ -1310,7 +1323,7 @@ function deckLead(d,st){
 }
 function deckFilterCount(){
   const n=(FORMATS&&$('dFormat').value!=='all'?1:0)+($('dFav').checked?1:0)+deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
-  $('dFilterCount').textContent=n?`(${n} on)`:'';
+  $('dFilterCount').textContent=n||'';
 }
 function deckRows(){
   const favOnly=$('dFav').checked, q=norm($('df').value), cardQ=norm($('dCard').value), status=$('dStatus').value, br=$('dBracket').value, own=$('dOwn').value, exact=$('dExact').checked;
@@ -1345,7 +1358,11 @@ function deckRows(){
 }
 function deckItemHTML({d,st}){
   const c=deckLead(d,st), rules=deckRulesState(st), cmdNames=(st.cmd?.cmds||[]).map(x=>x.n).join(' + ');
-  return `<div class="item"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div>${cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?`<div class="m">${esc(cmdNames)}</div>`:''}<div class="m">${inkSetHTML(st.inks)} ${st.inks.join(' / ')||'No cards yet'}</div><div class="m">${st.format&&st.format!=='commander'?`${esc(st.formatLabel)} · `:''}${LORCANA?st.total:st.main}/${LORCANA?60:st.size||G.deck.size} cards${st.missing?` · missing ${st.missing} (${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''})`:st.total?' · you own every card':''}</div></div>${d.built?'<span class="chip ok">Built</span>':''}${rules==='pass'?'<span class="chip ok">Rules pass</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':LORCANA&&st.total>=60&&st.inks.length<=2?'<span class="chip">Size / ink check only</span>':''}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}">${d.favorite?'♥':'♡'}</button></div>`;
+  const have=LORCANA?st.total:st.main, size=LORCANA?60:st.size||G.deck.size, owned=Math.max(0,st.total-st.missing), pct=st.total?Math.round(100*owned/st.total):0;
+  const sub=[st.format&&st.format!=='commander'?esc(st.formatLabel):'', cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?esc(cmdNames):'', `${have}/${size}`].filter(Boolean).join(' · ');
+  const status=!st.total?'No cards yet':st.missing?`Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?' partial':''}`:'You own every card';
+  const chip=d.built?'<span class="chip ok">Built</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':rules==='pass'?'<span class="chip ok">Legal</span>':'';
+  return `<div class="item deckrow"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${sub}</div><div class="meter${st.missing?'':' full'}"><i style="width:${pct}%"></i></div><div class="m">${status}</div></div>${chip}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}"><svg class="ic"><use href="#i-heart"/></svg></button></div>`;
 }
 function renderDecks(keepScroll){
   if (curDeck){ renderDeckEdit(keepScroll); return; }
@@ -1436,8 +1453,8 @@ function renderDeckEdit(keepScroll){
   $('deckFormatWrap').hidden=!FORMATS; if(FORMATS) $('deckFormatSel').value=deckFormat(d);
   $('deckBracketWrap').hidden=!R.commander; if(R.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
   renderDeckGuide(d);
-  $('deckBuiltBtn').setAttribute('aria-pressed',!!d.built); $('deckBuiltBtn').textContent=d.built?'✓ Built':'Built';
-  $('deckFavBtn').setAttribute('aria-pressed',!!d.favorite); $('deckFavBtn').textContent=d.favorite?'♥':'♡'; $('deckFavBtn').setAttribute('aria-label',d.favorite?'Remove from favorites':'Add to favorites');
+  $('deckBuiltBtn').setAttribute('aria-pressed',!!d.built); $('deckBuiltBtn').innerHTML=d.built?'<svg class="ic"><use href="#i-check"/></svg>Built':'Mark built';
+  $('deckFavBtn').setAttribute('aria-pressed',!!d.favorite); $('deckFavBtn').setAttribute('aria-label',d.favorite?'Remove from favorites':'Add to favorites');
   document.querySelectorAll('[data-dsub]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dsub===dsub));
   const st = deckStats(d); const max = Math.max(1,...st.curve);
   const warns = [];
@@ -1955,16 +1972,16 @@ async function sync(manual){
 function syncBoxHTML(){
   const agreed=session?.uid && base?.uid===owner()?base:noBase();
   const counts=InkSafety.pending(InkSafety.maps({inv,wish,decks}),agreed);
-  const when=syncState.last?new Date(syncState.last).toLocaleString():'not yet';
-  const common=`<p class="note">Manual cloud updates only. Pending on this device: ${counts.inv} collection printing(s), ${counts.decks} deck(s), ${counts.wish} wishlist item(s). Last confirmed update: ${esc(when)}.</p>
+  const when=syncState.last?new Date(syncState.last).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Never';
+  const common=`<div class="kpis"><div><strong>${counts.total}</strong>change${counts.total===1?'':'s'} to send</div><div><strong>${esc(when)}</strong>last update</div></div>
     ${syncState.err?`<p class="note" role="alert" style="color:var(--warn)">${esc(syncState.err)}</p>`:''}
     ${syncState.receipt?`<p class="note">${esc(syncState.receipt)}</p>`:''}`;
-  if(!session) return `<h3 class="h2">Cloud update</h3>${common}<p class="note">Sign in, then tap Update to review cloud changes. Signing in does not sync your collection.</p>
+  if(!session) return `${common}<p class="note">Sign in to keep a cloud copy and share with family. Nothing syncs until you tap Update.</p>
     <input type="email" id="sbEmail" placeholder="Email" autocomplete="email" value="${esc(lsGet('inkscan.email','')||'')}">
     <input type="password" id="sbPass" placeholder="Password (6+ characters)" autocomplete="current-password">
-    <div class="row"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div><p class="note" id="sbMsg"></p>`;
-  return `<h3 class="h2">Cloud update</h3>${common}<p class="note">${syncState.busy?'Checking / updating...':'Your collection stays local until you confirm an Update.'}</p>
-    <div class="row"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Update</button><button class="btn ghost" data-sync="out" ${syncState.busy?'disabled':''}>Sign out</button></div>${familyHTML()}`;
+    <div class="btnrow"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div><p class="note" id="sbMsg"></p>`;
+  return `${common}<p class="note">Signed in as ${esc(session.email||'you')}.${syncState.busy?' Updating…':''}</p>
+    <div class="btnrow"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Update now</button><button class="btn ghost" data-sync="out" ${syncState.busy?'disabled':''}>Sign out</button></div>${familyHTML()}`;
 }
 function familyHTML(){
   const h=household?.for===session?.uid?household:null, others=(h?.members||[]).filter(m=>m.id!==session.uid);
@@ -1973,9 +1990,9 @@ function familyHTML(){
   let body;
   if(h?.role==='member') body=`<p class="note">You share <b>${esc(ownerEmail)}</b>'s family collection, decks and wishlist, in every game. Tap Update to bring in changes.</p><div class="row"><button class="btn ghost" data-sync="leave">Leave family</button></div>`;
   else if(h?.role==='owner') body=`<p class="note">Shared with: ${others.length?others.map(m=>`${esc(m.email||'member')} <button class="btn ghost tiny" data-sync="remove" data-uid="${esc(m.id)}" aria-label="Remove ${esc(m.email||'member')}">Remove</button>`).join(', '):'nobody yet'}.</p><div class="row"><button class="btn" data-sync="invite">Invite someone</button></div>${codeBox}`;
-  else body=`<p class="note">Share one collection with your family: everyone scans into the same cards and decks. Counts from different phones add together.</p><div class="row"><button class="btn" data-sync="invite">Invite family</button></div>${codeBox}
+  else body=`<p class="note">Share one collection, decks and wishlist with your family.</p><div class="row"><button class="btn" data-sync="invite">Invite family</button></div>${codeBox}
     <input type="text" id="famJoin" placeholder="Have a code? Enter it here" autocomplete="off" autocapitalize="characters" value="${esc(lsGet('inkscan.joinCode','')||'')}"><div class="row"><button class="btn" data-sync="join">Join family</button></div>`;
-  return `<h3 class="h2">Family</h3>${body}<p class="note" id="famMsg" role="status"></p>`;
+  return `<div class="card"><h3 class="h3">Family</h3>${body}<p class="note" id="famMsg" role="status"></p></div>`;
 }
 function renderSyncBox(){ const el=$('syncBox'); if (el) el.innerHTML = syncBoxHTML(); }
 $('sheetBody').addEventListener('click', async e=>{
@@ -2018,7 +2035,7 @@ $('sheetBody').addEventListener('click', async e=>{
   }
   else if (a==='out'){ session=null; lsSet('inkscan.session', null); renderSyncBox(); toast('Signed out. Everything stays on this phone.'); }
 });
-$('manualUpdate').onclick=()=>{ openSheet('Cloud update', `<div id="syncBox">${syncBoxHTML()}</div>`); if(session&&navigator.onLine) refreshHousehold().then(renderSyncBox).catch(()=>{}); };
+$('manualUpdate').onclick=()=>{ openSheet('Cloud & family', `<div id="syncBox" class="stack">${syncBoxHTML()}</div>`); if(session&&navigator.onLine) refreshHousehold().then(renderSyncBox).catch(()=>{}); };
 function backupPayload(){
   const keys=[InkSafety.KEY,...InkSafety.LEGACY_KEYS];
   const raw=()=>Object.fromEntries(keys.map(k=>[k,STORE.getItem(k)]));
@@ -2034,16 +2051,15 @@ $('safetyBackup').onclick=downloadBackup;
    TOOLS: export, backup, restore, prices, clear
    ========================================================= */
 $('toolsBtn').onclick = ()=>{
-  openSheet('Tools', `<div class="own" id="syncBox">${syncBoxHTML()}</div>
-    <div class="toolbtns">
-      <button class="btn primary" data-tool="csv">Export collection CSV</button>
-      <button class="btn" data-tool="backup">Back up everything</button>
-      <button class="btn" data-tool="restore">Restore a file</button>
-      <button class="btn" data-tool="prices">Update prices</button>
+  const row=(tool,icon,title,sub)=>`<button class="menurow" data-tool="${tool}"><svg class="ic"><use href="#i-${icon}"/></svg><span><b>${title}</b>${sub?`<small>${sub}</small>`:''}</span></button>`;
+  const catalog=DB&&G.live?`${DB.cards.length.toLocaleString()} cards on this phone; the rest come from Scryfall`:DB?`Prices from ${new Date(DB.asof+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`:'';
+  openSheet('Tools', `<div class="list menu">
+      ${row('backup','save','Back up everything','Collection, decks and wishlist in one file')}
+      ${row('restore','restore','Restore from a file','A backup or a collection CSV')}
+      ${row('csv','csv','Export collection CSV','For spreadsheets and other apps')}
+      ${row('prices','tag','Update prices',esc(catalog))}
     </div>
-    <p class="note">${DB&&G.live?`${DB.cards.length.toLocaleString()} cards saved on this phone; everything else is looked up on Scryfall.`:''}${DB&&!G.live?`${DB.cards.length.toLocaleString()} cards through ${esc(DB.sets[DB.sets.length-1].name)}. TCGplayer prices from ${new Date(DB.asof+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}.`:''}</p>
-    <p class="note">"Back up everything" saves your collection, decks and wishlist in one file; Restore takes that file or a collection CSV.</p>
-    <div class="row" id="wipeRow"><button class="btn danger tiny" data-tool="wipe">Clear collection</button></div>`);
+    <div class="row" id="wipeRow"><button class="btn danger ghost small" data-tool="wipe"><svg class="ic"><use href="#i-trash"/></svg>Clear collection</button></div>`);
 };
 $('sheetBody').addEventListener('click', e=>{
   const b = e.target.closest('[data-tool]'); if(!b) return;
@@ -2051,10 +2067,10 @@ $('sheetBody').addEventListener('click', e=>{
   if (a==='csv'){ if(!Object.keys(inv).length){ toast('Nothing to export yet'); return; } download(`${GAME_ID}-collection-${today()}.csv`, '﻿'+buildCsv(), 'text/csv'); toast('CSV downloaded'); }
   else if (a==='backup'){ downloadBackup(); }
   else if (a==='restore'){ $('fileIn').click(); }
-  else if (a==='prices'){ if(LORCANA) refreshFromLorcast(true, b); else if(G.live) refreshLivePrices(b); else loadBundledCards(G.catalog,true).then(d=>{indexCards(d);renderAll();toast('Prices and cards updated');}).catch(()=>toast('Couldn’t load the card list. Check your connection.')); }
-  else if (a==='wipe'){ $('wipeRow').innerHTML = `<span class="note">Remove every card from your collection? Decks and wishlist stay.</span><button class="btn danger tiny" data-tool="wipeyes">Remove all</button><button class="btn ghost tiny" data-tool="wipeno">Keep</button>`; }
+  else if (a==='prices'){ const t=b.querySelector('b')||b; const label={get disabled(){return b.disabled},set disabled(v){b.disabled=v},get textContent(){return t.textContent},set textContent(v){t.textContent=v}}; if(LORCANA) refreshFromLorcast(true, label); else if(G.live) refreshLivePrices(label); else loadBundledCards(G.catalog,true).then(d=>{indexCards(d);renderAll();toast('Prices and cards updated');}).catch(()=>toast('Couldn’t load the card list. Check your connection.')); }
+  else if (a==='wipe'){ $('wipeRow').innerHTML = `<span class="note">Remove every card? Decks and wishlist stay.</span><button class="btn danger small" data-tool="wipeyes">Remove all</button><button class="btn ghost small" data-tool="wipeno">Keep</button>`; }
   else if (a==='wipeyes'){ inv={}; log=[]; saveInv(); renderAll(); closeSheet(); toast('Collection cleared'); }
-  else if (a==='wipeno'){ $('wipeRow').innerHTML = `<button class="btn danger tiny" data-tool="wipe">Clear collection</button>`; }
+  else if (a==='wipeno'){ $('wipeRow').innerHTML = `<button class="btn danger ghost small" data-tool="wipe"><svg class="ic"><use href="#i-trash"/></svg>Clear collection</button>`; }
 });
 const LEGACY_HEAD = ['Name','Version','Set Code','Set Name','Card Number','Rarity','Ink','Finish','Quantity','Market Price','Total Value','TCGplayer Product ID','TCGplayer URL','Lorcast ID'];
 const OLD_V6_HEAD=LEGACY_HEAD.map(name=>'InkScan v6 '+name);
@@ -2165,7 +2181,7 @@ function applyGameLabels(){
   const fill=(id,first,values,label)=>{ const el=$(id); if(el) el.innerHTML=`<option value="">${first}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(label?label(v):v)}</option>`).join(''); };
   fill('bType','All types',G.types); fill('bRar','Any rarity',G.rarities,G.rarityLabel);
   const caveat=$('deckLegalityCaveat'); if(caveat) caveat.textContent=G.id==='pokemon'?'Size, copy limits (Basic Energy unlimited) and Standard legality by regulation mark (H, I and J since the April 2026 rotation). ACE SPEC and per-name limits across different cards are not checked yet.':G.id==='onepiece'?'Size, Leader, color and copy badges are structural checks only. Check the current ban list and event rules separately.':'Each deck is checked against its format (pick it under the deck name): size, copy limits and the format ban list from Scryfall. Commander decks also check the commander, color identity and Game Changers for the bracket. Sideboards are not tracked yet.';
-  const promoNotes=document.querySelectorAll('#vScan > p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
+  const promoNotes=document.querySelectorAll('#scanSettings p.note'); promoNotes.forEach(n=>{ if(/Promos and special printings|Choose the physical finish/.test(n.textContent)) n.hidden=true; });
 }
 // Invite links (?join=CODE): keep the code for the Family box and open it, then tidy the address bar.
 function takeInviteLink(){
