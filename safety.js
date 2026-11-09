@@ -20,7 +20,9 @@
   const commandersOf = d => Array.isArray(d?.commanders) ? d.commanders.filter(k=>typeof k==='string'&&k) : [];
   const bracketOf = d => Number.isInteger(d?.bracket) && d.bracket>=1 && d.bracket<=5 ? d.bracket : null;
   const guideOf = d => d?.guide && typeof d.guide==='object' && !Array.isArray(d.guide) ? d.guide : null;
-  const deckValue = d => { if(!d || d.deleted) return null; const cmd=commandersOf(d), br=bracketOf(d), g=guideOf(d); return {name:d.name,cards:sorted(d.cards),...(cmd.length?{commanders:cmd}:{}),...(br?{bracket:br}:{}),...(g?{guide:clone(g)}:{}),...(d.favorite===true?{favorite:true}:{}),...(d.built===true?{built:true}:{}),...(typeof d.format==='string'&&d.format&&d.format!=='commander'?{format:d.format}:{})}; };
+  // Built decks can list cards not in the box yet (e.g. lands still to add). Only counts that are on the list survive.
+  const todoOf = d => { if(d?.built!==true || !d.todo || typeof d.todo!=='object' || Array.isArray(d.todo)) return null; const out={}; for(const k of Object.keys(d.todo).sort()){ const n=d.todo[k], q=d.cards?.[k]; if(Number.isInteger(n)&&n>0&&Number.isInteger(q)) out[k]=Math.min(n,q); } return Object.keys(out).length?out:null; };
+  const deckValue = d => { if(!d || d.deleted) return null; const cmd=commandersOf(d), br=bracketOf(d), g=guideOf(d); return {name:d.name,cards:sorted(d.cards),...(cmd.length?{commanders:cmd}:{}),...(br?{bracket:br}:{}),...(g?{guide:clone(g)}:{}),...(d.favorite===true?{favorite:true}:{}),...(d.built===true?{built:true}:{}),...(todoOf(d)?{todo:todoOf(d)}:{}),...(typeof d.format==='string'&&d.format&&d.format!=='commander'?{format:d.format}:{})}; };
   function maps(state){
     return {
       inv:Object.fromEntries(Object.entries(state.inv||{}).map(([id,v])=>[id,invValue(v)]).filter(([,v])=>v)),

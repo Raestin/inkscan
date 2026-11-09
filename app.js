@@ -448,9 +448,11 @@ function ownedOf(id){ return inventoryCount(inv[id]); }
 function ownedNV(nv){ let n=0; for (const c of byNV.get(nv)||[]) n+=ownedOf(c.id); return n; }
 /* Built decks commit copies from the collection by card name (any printing or finish). A copy committed
    to one built deck isn't free for any other deck; the collection itself never changes. */
-function committedNV(nv, exceptId){ let n=0; for (const d of decks) if (d.built && d.id!==exceptId) n+=d.cards[nv]||0; return n; }
+// A built deck holds its listed copies minus any it lists as still to add (cards not in the box yet).
+const heldNV=(d,nv)=>Math.max(0,(d.cards[nv]||0)-(d.todo?.[nv]||0));
+function committedNV(nv, exceptId){ let n=0; for (const d of decks) if (d.built && d.id!==exceptId) n+=heldNV(d,nv); return n; }
 function freeNV(nv, exceptId){ return Math.max(0, ownedNV(nv)-committedNV(nv, exceptId)); }
-function heldBy(nv, exceptId){ return decks.filter(d=>d.built && d.id!==exceptId && d.cards[nv]).map(d=>`${d.name} (${d.cards[nv]})`); }
+function heldBy(nv, exceptId){ return decks.filter(d=>d.built && d.id!==exceptId && heldNV(d,nv)).map(d=>`${d.name} (${heldNV(d,nv)})`); }
 function addQty(id, foil, n){
   const v = inv[id] || (inv[id] = {q:0,f:0});
   const field=finishField(foil), next=Math.max(0,(v[field]||0)+n);
@@ -1331,6 +1333,7 @@ function deckAdd(d, nv, n){
     if (next>maxQ && !(R.singletonExempt&&R.singletonExempt(c))) return R.maxCopies===1?'Commander decks are singleton: one copy of each card except basic lands':maxQ===1?`${c.n} is restricted in ${R.label}: one copy only`:`A deck can have at most ${maxQ} copies of a card`;
   }
   if (next<=0){ delete d.cards[nv]; if (d.commanders?.includes(nv)) d.commanders=d.commanders.filter(k=>k!==nv); } else d.cards[nv]=next;
+  if (d.todo?.[nv]){ if(next<=0) delete d.todo[nv]; else d.todo[nv]=Math.min(d.todo[nv],next); if(!Object.keys(d.todo).length) delete d.todo; }
   d.updated = Date.now(); saveDecks(); return true;
 }
 /* Tapping the star makes a card the commander, adds a valid partner, or swaps the commander out. */
@@ -1442,11 +1445,12 @@ $('deckFavBtn').onclick=()=>{ toggleFavorite(getDeck()); renderDeckEdit(true); }
 /* Built: this deck's cards are sleeved up, so its copies are committed and no other deck can count them. */
 $('deckBuiltBtn').onclick=()=>{
   const d=getDeck(); if(!d) return;
-  if(d.built){ delete d.built; saveDecks(); renderDeckEdit(true); toast(`${d.name} released its cards`); return; }
-  const short=Object.entries(d.cards).map(([nv,q])=>({c:repOf(nv),q,free:freeNV(nv,d.id),held:heldBy(nv,d.id)})).filter(x=>x.c&&x.free<x.q);
-  const commit=()=>{ d.built=true; saveDecks(); closeSheet(); renderDeckEdit(true); toast(`${d.name} is built: its cards are committed`); };
+  if(d.built){ delete d.built; delete d.todo; saveDecks(); renderDeckEdit(true); toast(`${d.name} released its cards`); return; }
+  const short=Object.entries(d.cards).map(([nv,q])=>({nv,c:repOf(nv),q,free:Math.min(q,freeNV(nv,d.id)),held:heldBy(nv,d.id)})).filter(x=>x.c&&x.free<x.q);
+  // Cards without enough free copies aren't taken from other decks: they're listed as still to add to this deck.
+  const commit=()=>{ d.built=true; const todo={}; for(const x of short) todo[x.nv]=x.q-x.free; if(short.length) d.todo=todo; else delete d.todo; saveDecks(); closeSheet(); renderDeckEdit(true); toast(short.length?`${d.name} is built; ${short.reduce((s,x)=>s+x.q-x.free,0)} cards listed as still to add`:`${d.name} is built: its cards are committed`); };
   if(!short.length){ commit(); return; }
-  openSheet('Some cards are short',`<p>Marking this deck built commits its cards. You don't have enough free copies of ${short.length} card${short.length===1?'':'s'}:</p><ul>${short.map(x=>`<li>${esc(x.c.n)}: need ${x.q}, ${x.free} free${x.held.length?` (in ${esc(x.held.join(', '))})`:''}</li>`).join('')}</ul><p class="note">You can mark it built anyway; those cards stay listed as missing.</p><button class="btn primary" id="builtAnyway">Mark built anyway</button><button class="btn" id="builtCancel">Cancel</button>`);
+  openSheet('Some cards are short',`<p>Marking this deck built commits its cards. Your collection doesn't have enough free copies of ${short.length} card${short.length===1?'':'s'}:</p><ul>${short.map(x=>`<li>${esc(x.c.n)}: need ${x.q}, ${x.free} free${x.held.length?` (in ${esc(x.held.join(', '))})`:''}</li>`).join('')}</ul><p class="note">They'll be listed as still to add to this deck, and they stay on your shopping list. Other decks keep their copies.</p><button class="btn primary" id="builtAnyway">Mark built</button><button class="btn" id="builtCancel">Cancel</button>`);
   $('builtAnyway').onclick=commit; $('builtCancel').onclick=()=>closeSheet();
 };
 $('deckFormatSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=$('deckFormatSel').value; if(v==='commander') delete d.format; else d.format=v; d.updated=Date.now(); saveDecks(); legalityFilled.delete(d.id); renderDeckEdit(true); toast(`Format set to ${FORMATS[deckFormat(d)].label}`); };
@@ -1530,7 +1534,8 @@ function renderDeckEdit(keepScroll){
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
-    <div class="warns">${warns.join('')}</div>`;
+    <div class="warns">${warns.join('')}</div>${d.built&&d.todo?`<p class="note todo-note">Still to add to this deck: ${Object.entries(d.todo).map(([nv,n])=>`${n} ${esc(repOf(nv)?.n||nv.replace(/\|$/,''))}`).join(', ')}. They stay on your shopping list and aren't taken from other decks. <button type="button" class="link tiny" id="todoDone">I've added them</button></p>`:''}`;
+  if($('todoDone')) $('todoDone').onclick=()=>{ delete d.todo; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); toast(`${d.name}: all cards are in the deck`); };
   $('deckListPane').hidden = dsub!=='list'; $('deckAddPane').hidden = dsub!=='add';
   if (dsub==='list') renderDeckList(d); else renderDeckAdd(d, keepScroll);
 }
@@ -1906,7 +1911,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,built:r.meta?.built===true?true:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1925,7 +1930,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.built)o.built=true;else delete o.built;if(d.format)o.format=d.format;else delete o.format;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.format)o.format=d.format;else delete o.format;return o;});
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
@@ -1935,6 +1940,7 @@ function deckMeta(value,previous){
   if(value?.guide) meta.guide=value.guide; else delete meta.guide;
   if(value?.favorite) meta.fav=true; else delete meta.fav;
   if(value?.built) meta.built=true; else delete meta.built;
+  if(value?.built && value?.todo) meta.todo=value.todo; else delete meta.todo;
   if(value?.format) meta.format=value.format; else delete meta.format;
   return meta;
 }

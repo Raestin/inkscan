@@ -150,7 +150,7 @@
   function deckFromRow(r){
     const m = r.meta && typeof r.meta === 'object' && !Array.isArray(r.meta) ? r.meta : {};
     return {id: r.id, name: r.name, cards: r.cards || {}, commanders: r.commanders || [], meta: m, updated_at: r.updated_at,
-      built: !!m.built, fav: !!m.fav, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null};
+      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null};
   }
   async function load(game, progress){
     const own = await owner();
@@ -175,7 +175,9 @@
     for (const [id, v] of state.inv){ const c = state.cat.byId.get(id); if (!c) continue; ownedByNV.set(c.nv, (ownedByNV.get(c.nv) || 0) + v.q + v.f + v.rf); }
   }
   const ownedNV = nv => ownedByNV.get(nv) || 0;
-  function committedNV(nv, exceptId){ let n = 0; for (const d of state.decks) if (d.built && d.id !== exceptId) n += d.cards[nv] || 0; return n; }
+  // A built deck holds its listed copies minus any it lists as still to add (cards not in the box yet).
+  const heldNV = (d, nv) => Math.max(0, (d.cards[nv] || 0) - (d.todo?.[nv] || 0));
+  function committedNV(nv, exceptId){ let n = 0; for (const d of state.decks) if (d.built && d.id !== exceptId) n += heldNV(d, nv); return n; }
   const freeNV = (nv, exceptId) => Math.max(0, ownedNV(nv) - committedNV(nv, exceptId));
   const num = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
   // Cheapest known printing of a card (normal first, then foil), for buying.
@@ -204,6 +206,8 @@
     const own = await owner(), meta = {...(d.meta || {})};
     for (const k of ['built', 'fav']) if (d[k]) meta[k] = true; else delete meta[k];
     if (d.format) meta.format = d.format; else delete meta.format;
+    const todo = d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).filter(([nv, n]) => Number.isInteger(n) && n > 0 && d.cards[nv]).map(([nv, n]) => [nv, Math.min(n, d.cards[nv])])) : null;
+    if (todo && Object.keys(todo).length) meta.todo = todo; else delete meta.todo;
     if (d.guide) meta.guide = d.guide;
     const row = {user_id: own, game: state.game, id: d.id, name: d.name, cards: d.cards, commanders: d.commanders || [], meta, deleted: false};
     let res;

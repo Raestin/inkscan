@@ -30,7 +30,7 @@
     power: c.st ?? undefined, toughness: ctx.game === 'mtg' ? c.wp ?? undefined : undefined, text: c.tx || undefined,
     legal: ctx.game === 'mtg' && c.lgs ? Object.entries(c.lgs).filter(([, v]) => v === 'legal').map(([k]) => k) : undefined,
     price_usd: money(c.p ?? c.pf)}, extra || {}) : null;
-  function deckSummary(d){ const st = D.deckStats(d); return {id: d.id, name: d.name, format: d.format || (d.commanders.length ? 'commander' : undefined), cards: st.total, size: st.size, built: d.built || undefined, favorite: d.fav || undefined, missing: st.missing, cost_to_finish_usd: money(st.missCost), still_loading: st.unknown || undefined}; }
+  function deckSummary(d){ const st = D.deckStats(d); return {id: d.id, name: d.name, format: d.format || (d.commanders.length ? 'commander' : undefined), cards: st.total, size: st.size, built: d.built || undefined, still_to_add: d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).map(([nv, n]) => [ctx.nvName(nv), n])) : undefined, favorite: d.fav || undefined, missing: st.missing, cost_to_finish_usd: money(st.missCost), still_loading: st.unknown || undefined}; }
   async function cardsFromNames(list){
     const cards = {}, unresolved = [];
     for (const {name, qty} of list || []){ const nv = await D.resolveName(ctx.game, name); if (nv) cards[nv] = (cards[nv] || 0) + Math.max(1, qty | 0); else unresolved.push(name); }
