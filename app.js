@@ -318,7 +318,6 @@ let fillingUnknown=false;
 async function fillUnknownCards(){
   if(!G.live||!DB||fillingUnknown||!navigator.onLine) return 0;
   const ids=[...new Set([...Object.keys(inv),...Object.keys(wish)])].filter(id=>id.startsWith('sf_')&&!byId.has(id)).map(id=>id.slice(3));
-  if(!ids.length) return 0;
   fillingUnknown=true; let added=0;
   try{
     for(let i=0;i<ids.length;i+=75){
@@ -327,7 +326,35 @@ async function fillUnknownCards(){
     }
   }catch(e){}
   finally{ fillingUnknown=false; }
-  if(added){ renderAll(); renderSaveStatus(); }
+  const wasDone=deckLookupDone; added+=await fillDeckCards();
+  if(added||deckLookupDone!==wasDone){ renderAll(); renderSaveStatus(); }
+  return added;
+}
+/* Decks store cards by normalized name ("korskyfisher|"), so a deck brought in by Update on a device that has
+   never seen those cards can't show them. Scryfall's list of every card name turns each key back into a real
+   name, and the cards are then looked up 75 at a time. Fetched once per session, and only when needed. */
+let fillingDecks=false, nameIndex=null, deckLookupDone=false;
+const unknownNote=n=>!navigator.onLine?`${n} card${n===1?'':'s'} load when online`:deckLookupDone?`${n} card${n===1?'':'s'} not found on Scryfall`:`Loading ${n} card${n===1?'':'s'}…`;
+const deckUnknown=()=>[...new Set(decks.flatMap(d=>Object.keys(d.cards)))].filter(nv=>!byNV.has(nv));
+async function fillDeckCards(){
+  if(!G.live||!DB||fillingDecks||!navigator.onLine) return 0;
+  let todo=deckUnknown(); if(!todo.length) return 0;
+  fillingDecks=true; deckLookupDone=false; let added=0;
+  try{
+    if(!nameIndex){
+      const j=await scryfall('/catalog/card-names'); if(!j?.data) return 0;
+      nameIndex=new Map(); for(const n of j.data){ const k=G.nvKey({n,v:''}); if(!nameIndex.has(k)) nameIndex.set(k,n); }
+    }
+    // Scryfall finds a double-faced card by its front face only ("Tithing Blade", not "Tithing Blade // Consuming Sepulcher").
+    const names=[...new Set(todo.map(nv=>nameIndex.get(nv)).filter(Boolean).map(n=>n.split(' // ')[0]))];
+    for(let i=0;i<names.length;i+=75){
+      const j=await scryfall('/cards/collection',{method:'POST',body:JSON.stringify({identifiers:names.slice(i,i+75).map(name=>({name}))})});
+      added+=addLiveCards((j?.data||[]).map(G.fromScryfall));
+      if(i%750===0 && added && tab==='decks') renderDecks(true);
+    }
+    deckLookupDone=true;
+  }catch(e){}
+  finally{ fillingDecks=false; }
   return added;
 }
 async function livePrinting(ref){
@@ -1259,8 +1286,11 @@ function deckStats(d){
   let leaders=0, offColor=0, overCopies=0, banned=0, notLegal=0, unchecked=0, gameChangers=0, gcUnknown=0; const gcNames=[];
   const R = deckRules(d), cmd = R.commander ? commanderCheck(d) : null;
   let total=0, inkable=0, missing=0, missCost=0, missingUnpriced=0, value=0; const curve=Array(8).fill(0); const types={};
+  let unknown=0;
   for (const [nv,q] of Object.entries(d.cards)){
-    const c = repOf(nv); if(!c) continue;
+    const c = repOf(nv);
+    // A card this device hasn't loaded yet still counts toward the deck, and as missing, so a deck is never "complete" by accident.
+    if(!c){ unknown+=q; total+=q; if(R.key) unchecked+=q; const m=Math.max(0,q-freeNV(nv,d.id)); missing+=m; missingUnpriced+=m; continue; }
     total+=q; if (c.ik) inkable+=q;
     curve[Math.min(7, Math.max(0,c.co||0))]+=q;
     const t = c.ty.split('/')[0]; types[t]=(types[t]||0)+q;
@@ -1283,7 +1313,7 @@ function deckStats(d){
   }
   const main = total - leaders;
   const bracket = cmd ? deckBracket(d) : null, gcOver = bracket && gameChangers>GC_LIMIT[bracket] ? true : false;
-  return {format:R.key, formatLabel:R.label, size:R.size, exact:!!R.exact, total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, gameChangers, gcNames, gcUnknown, bracket, gcOver, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : (()=>{ const x=deckInks(d); return x.length>1 ? x.filter(i=>i!=='Colorless') : x; })()};
+  return {unknown, format:R.key, formatLabel:R.label, size:R.size, exact:!!R.exact, total, main, leaders, offColor, overCopies, banned, notLegal, unchecked, gameChangers, gcNames, gcUnknown, bracket, gcOver, cmd, inkable, missing, missCost, missingUnpriced, curve, types, inks: cmd&&cmd.cmds.length ? cmd.identity : (()=>{ const x=deckInks(d); return x.length>1 ? x.filter(i=>i!=='Colorless') : x; })()};
 }
 /* returns true or a message explaining why it couldn't add */
 function deckAdd(d, nv, n){
@@ -1370,7 +1400,7 @@ function deckItemHTML({d,st}){
   const c=deckLead(d,st), rules=deckRulesState(st), cmdNames=(st.cmd?.cmds||[]).map(x=>x.n).join(' + ');
   const have=LORCANA?st.total:st.main, size=LORCANA?60:st.size||G.deck.size, owned=Math.max(0,st.total-st.missing), pct=st.total?Math.round(100*owned/st.total):0;
   const sub=[st.format&&st.format!=='commander'?esc(st.formatLabel):'', cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?esc(cmdNames):'', `${have}/${size}`].filter(Boolean).join(' · ');
-  const status=!st.total?'No cards yet':st.missing?`Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?' partial':''}`:'You own every card';
+  const status=!st.total?'No cards yet':st.unknown?unknownNote(st.unknown):st.missing?`Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?' partial':''}`:'You own every card';
   const chip=d.built?'<span class="chip ok">Built</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':rules==='pass'?'<span class="chip ok">Legal</span>':'';
   return `<div class="item deckrow"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${sub}</div><div class="meter${st.missing?'':' full'}"><i style="width:${pct}%"></i></div><div class="m">${status}</div></div>${chip}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}"><svg class="ic"><use href="#i-heart"/></svg></button></div>`;
 }
@@ -1496,6 +1526,7 @@ function renderDeckEdit(keepScroll){
     else if (st.offColor) warns.push(`<span class="chip warn">${st.offColor} cards off the Leader's colors</span>`);
     if (!st.format && st.main===size && !st.offColor && !st.overCopies && !st.notLegal && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
   }
+  if (st.unknown) warns.push(`<span class="chip">${esc(unknownNote(st.unknown))}</span>`);
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
