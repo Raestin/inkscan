@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0D0C14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F4F9" media="(prefers-color-scheme: light)">
+<title>InkScan Portal</title>
+<link rel="icon" href="../icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../tokens.css?v=43">
+<link rel="stylesheet" href="portal.css?v=43">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 10v10"/></symbol>
+  <symbol id="i-deck" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="16" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2h10"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H7"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><img class="logo" src="../icon-192.png" alt=""><div><div class="brand-n">InkScan</div><div class="brand-s">Portal</div></div></div>
+    <label class="sr" for="game">Game</label>
+    <select id="game" class="game-pick">
+      <option value="mtg">Magic: The Gathering</option>
+      <option value="lorcana">Lorcana</option>
+      <option value="onepiece">One Piece</option>
+      <option value="pokemon">Pokémon</option>
+    </select>
+    <nav class="nav" id="nav">
+      <a href="#home" data-view="home"><svg class="ic"><use href="#i-home"/></svg>Overview</a>
+      <a href="#collection" data-view="collection"><svg class="ic"><use href="#i-box"/></svg>Collection</a>
+      <a href="#decks" data-view="decks"><svg class="ic"><use href="#i-deck"/></svg>Deck workshop</a>
+      <a href="#simulate" data-view="simulate"><svg class="ic"><use href="#i-dice"/></svg>Simulator</a>
+      <a href="#buy" data-view="buy"><svg class="ic"><use href="#i-cart"/></svg>Buy planner</a>
+      <a href="#advisor" data-view="advisor"><svg class="ic"><use href="#i-spark"/></svg>Advisor</a>
+    </nav>
+    <div class="side-foot">
+      <div id="who" class="who-line"></div>
+      <div class="side-actions">
+        <button id="reload" class="btn ghost sm" type="button"><svg class="ic"><use href="#i-refresh"/></svg>Reload</button>
+        <a class="btn ghost sm" href="../"><svg class="ic"><use href="#i-phone"/></svg>Phone app</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <section id="signin" class="signin" hidden>
+      <h1 class="page-title">InkScan Portal</h1>
+      <p class="muted">Sign in with your InkScan account to see your collection and decks.</p>
+      <form id="signinForm" class="stack">
+        <input id="email" type="email" placeholder="Email" autocomplete="email" required>
+        <input id="pass" type="password" placeholder="Password" autocomplete="current-password" required>
+        <button class="btn primary" type="submit">Sign in</button>
+        <p id="signinMsg" class="msg" role="status"></p>
+      </form>
+    </section>
+    <div id="loading" class="loading" hidden><div class="bar"><i id="loadBar"></i></div><p id="loadMsg" class="muted">Loading…</p></div>
+    <section id="view" class="view"></section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="../games.js?v=43"></script>
+<script src="sim.js?v=43"></script>
+<script src="data.js?v=43"></script>
+<script src="charts.js?v=43"></script>
+<script src="advisor.js?v=43"></script>
+<script src="portal.js?v=43"></script>
+</body>
+</html>
