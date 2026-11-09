@@ -540,6 +540,16 @@ function closeSheet(fromPop){
   if (!fromPop){ try{ history.back(); }catch(e){} }
 }
 $('sheetClose').onclick = () => closeSheet();
+/* Drag the sheet down by its grabber or title bar: it follows the finger, then either settles back or closes. */
+(()=>{
+  const sheet=$('sheet'); let drag=null;
+  const start=e=>{ if(e.button>0||e.target.closest('button')) return; drag={y:e.clientY,t:e.timeStamp,dy:0,id:e.pointerId}; sheet.classList.add('dragging'); sheet.classList.remove('settling'); e.currentTarget.setPointerCapture?.(e.pointerId); };
+  const move=e=>{ if(!drag||e.pointerId!==drag.id) return; drag.dy=Math.max(0,e.clientY-drag.y); sheet.style.transform=drag.dy?`translateY(${drag.dy}px)`:''; };
+  const end=e=>{ if(!drag||e.pointerId!==drag.id) return; const {dy,t}=drag, fast=dy/Math.max(1,e.timeStamp-t)>0.6; drag=null; sheet.classList.remove('dragging');
+    if(dy>Math.min(160,sheet.offsetHeight*0.3)||(fast&&dy>40)){ sheet.style.transform=''; closeSheet(); return; }
+    sheet.classList.add('settling'); sheet.style.transform=''; setTimeout(()=>sheet.classList.remove('settling'),260); };
+  for(const el of [sheet.querySelector('.grabber'),sheet.querySelector('.sheet-head')]){ el.addEventListener('pointerdown',start); el.addEventListener('pointermove',move); el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end); }
+})();
 document.addEventListener('click', e=>{ const b=e.target.closest('[data-filters]'); if(b) openPanelSheet('Filters & sort', b.dataset.filters, 'Show results'); });
 $('scanSettingsBtn').onclick=()=>openPanelSheet('Scan settings','scanSettings','Done');
 $('scrim').onclick = () => closeSheet();
@@ -1134,7 +1144,7 @@ function renderWish(){
   if (rows.length) $('wishBuy').onclick = ()=>openTcg(rows.map(r=>({q:r.q, c:r.c})));
   $('wishList').innerHTML = rows.length ? rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${metaLine(r.c,foilPriceOnly(r.c))}${ownedNV(r.c.nv)?` · own ${ownedNV(r.c.nv)}`:''}</div></div>
     <div class="acts"><button data-act="w" data-id="${r.c.id}" data-d="-1" aria-label="Want one fewer">−</button><output>${r.q}</output><button data-act="w" data-id="${r.c.id}" data-d="1" aria-label="Want one more">+</button></div></div>
-    ${r.c.t?`<div style="padding:0 12px 10px 62px"><a class="link tiny" href="https://www.tcgplayer.com/product/${r.c.t}" target="_blank" rel="noopener">Buy on TCGplayer ↗</a></div>`:''}</div>`).join('')
+    ${r.c.t?`<div class="indent"><a class="link tiny" href="https://www.tcgplayer.com/product/${r.c.t}" target="_blank" rel="noopener">Buy on TCGplayer ↗</a></div>`:''}</div>`).join('')
     : `<div class="empty"><strong>Your wishlist is empty</strong>Open any card and tap + next to Wishlist, or use "Wishlist missing" on a deck.</div>`;
 }
 $('wishList').addEventListener('click', e=>{
