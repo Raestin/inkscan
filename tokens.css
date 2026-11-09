@@ -1,0 +1,51 @@
+/* InkScan design tokens, shared by the phone app (index.html) and the web portal (portal/).
+   Every size, color and shadow on either surface comes from here, on the scales in Kairos "30 Resources/UI Style Guide.md":
+   spacing 4 8 12 16 20 24 32 40 48 64 · type 12 13 15 17 20 22 28 34 (16 for inputs) · radius 4 8 12 16 20 24 999. */
+:root{
+  /* neutrals, tinted toward the brand violet */
+  --bg:#F5F4F9; --surface:#FFFFFF; --surface2:#EDECF3; --surface3:#E3E1EC; --sheet:#F7F6FB;
+  --line:rgba(23,20,42,.08); --line2:rgba(23,20,42,.14);
+  --fg:#17142A; --muted:#625E7A; --faint:#726E8A;
+  /* the one accent: gold */
+  --accent:#C99027; --accent-fg:#1B1305; --accent-ink:#8F5F08; --accent-soft:rgba(182,124,18,.12);
+  /* status, only for status */
+  --ok:#1A7A46; --ok-soft:rgba(26,122,70,.12); --warn:#A45700; --warn-soft:rgba(178,95,0,.10); --warn-line:rgba(178,95,0,.30);
+  --bad:#C62828; --bad-soft:rgba(198,40,40,.10); --scrim:rgba(14,12,26,.45);
+  /* two shadows */
+  --shadow-raised:0 1px 2px rgba(20,16,40,.06),0 4px 12px rgba(20,16,40,.06);
+  --shadow-overlay:0 8px 24px rgba(20,16,40,.10),0 24px 64px rgba(20,16,40,.14);
+  --glass:rgba(245,244,249,.78);
+  /* over photos and the camera: same in light and dark */
+  --media-bg:#0E0C18; --on-media:#FFFFFF; --on-media-muted:#B4AFCC; --media-glass:rgba(12,10,20,.62);
+  --media-line:rgba(255,255,255,.16); --media-mask-shadow:0 0 0 999px rgba(8,6,16,.42); --media-text-shadow:0 1px 4px rgba(9,9,23,.9);
+  --scan-hit:#E3B04F; --scan-hit-soft:rgba(227,176,79,.12);
+  --badge-bg:rgba(10,9,16,.82); --badge-fg:#FFFFFF; --foil-bg:#E9BD62; --foil-fg:#1A1406;
+  --knob:#FFFFFF; --rainbow:linear-gradient(135deg,#ffb3c7,#ffe29a,#a6f0c6,#9fd3ff,#d4b0ff); --fav:#D23355; --placeholder-bg:#17162F; --placeholder-fg:#FBEFCF;
+  /* data colors (Lorcana inks, MTG and Pokemon colors): dots and edges only */
+  --amber:#E0A21B; --amethyst:#7B3FA0; --emerald:#2E8B57; --ruby:#C0263C; --sapphire:#1F6FB5; --steel:#7D8A96;
+  --red:#C8323C; --green:#2E8B57; --blue:#1F6FB5; --purple:#7B3FA0; --black:#2B2833; --yellow:#D8B21E; --white:#E9E2C8; --colorless:#9A98A6;
+  --dot-ring-dark:inset 0 0 0 1px rgba(255,255,255,.35); --dot-ring-light:inset 0 0 0 1px rgba(0,0,0,.25);
+  --ring-bg:0 0 0 2px var(--bg);
+  /* chart series (portal): validated pair, light. One series uses --chart-1 only. */
+  --chart-1:#6B5BD6; --chart-2:#00928A;
+  --display:"Marcellus","Palatino Linotype",Georgia,serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  /* radius scale */
+  --r-xs:4px; --r-sm:8px; --rc:12px; --r:16px; --r-xl:20px; --r-2xl:24px; --pill:999px;
+  --tabh:64px;
+  /* motion */
+  --t-press:.12s; --t-quick:.18s; --t-sheet:.28s; --ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0D0C14; --surface:#17151F; --surface2:#211E2D; --surface3:#2C2840; --sheet:#14121C;
+  --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.13);
+  --fg:#F3F1FA; --muted:#A29EBA; --faint:#8A86A3;
+  --accent:#EDB548; --accent-fg:#1B1305; --accent-ink:#EDB548; --accent-soft:rgba(237,181,72,.14);
+  --ok:#5ED394; --ok-soft:rgba(94,211,148,.14); --warn:#F2A54A; --warn-soft:rgba(242,165,74,.12); --warn-line:rgba(242,165,74,.35);
+  --bad:#FF7B7B; --bad-soft:rgba(255,123,123,.12); --scrim:rgba(0,0,0,.6);
+  --shadow-raised:0 1px 0 rgba(255,255,255,.03) inset,0 4px 16px rgba(0,0,0,.30);
+  --shadow-overlay:0 -8px 32px rgba(0,0,0,.35),0 16px 48px rgba(0,0,0,.40);
+  --glass:rgba(13,12,20,.72); --fav:#F0506E;
+  --chart-1:#8C7BF2; --chart-2:#1FA89C;
+  color-scheme:dark;}}
