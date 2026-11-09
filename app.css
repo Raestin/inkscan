@@ -297,6 +297,8 @@ details.mini[open]{color:var(--muted);font-size:13px}
 .own .step button:disabled{opacity:.35}
 .own .step output{min-width:28px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
 .link{color:var(--accent-ink);font-weight:600;font-size:15px;text-decoration:none}
+button.link{background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
+.todo-note{margin-top:12px}
 .link.tiny{font-size:13px}
 .toolbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .toolbtns .btn{white-space:normal;height:auto;min-height:48px;padding:12px}

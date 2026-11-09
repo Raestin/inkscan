@@ -235,6 +235,7 @@
             <button class="btn primary" id="dSave" type="button" ${workshop.dirty ? '' : 'disabled'}>${d.updated_at ? 'Save changes' : 'Save deck'}</button>
           </div>
         </div>
+        ${d.built && d.todo ? `<p class="todo-note">Still to add to this deck: ${Object.entries(d.todo).map(([nv, n]) => `${n} ${esc(nvName(nv))}`).join(', ')}. They stay on your shopping list and aren't taken from other decks. <button type="button" class="link" id="todoDone">I've added them</button></p>` : ''}
         <div class="tiles">
           ${tile('Cards', `${st.total} / ${st.size}`, st.total === st.size ? 'Full deck' : st.total < st.size ? `${st.size - st.total} to add` : `${st.total - st.size} over`)}
           ${tile('Owned', pct(st.pct), st.unknown ? `${st.unknown} still loading` : st.missing ? `${plural(st.missing, 'card')} missing` : 'You own every card')}
@@ -268,7 +269,14 @@
     const mark = () => { workshop.dirty = true; renderDeckPane(p, v); };
     $('dName').onchange = () => { d.name = $('dName').value.trim() || d.name; workshop.dirty = true; $('dSave').disabled = false; };
     if ($('dFormat')) $('dFormat').onchange = () => { d.format = $('dFormat').value; mark(); };
-    $('dBuilt').onchange = () => { d.built = $('dBuilt').checked; mark(); };
+    // Marking built: cards without enough free copies are listed as still to add, not taken from other decks.
+    $('dBuilt').onchange = () => {
+      d.built = $('dBuilt').checked;
+      if (d.built){ const todo = {}; for (const [nv, q] of Object.entries(d.cards)){ const free = Math.min(q, D.freeNV(nv, d.id)); if (free < q) todo[nv] = q - free; } d.todo = Object.keys(todo).length ? todo : null; }
+      else d.todo = null;
+      mark();
+    };
+    if ($('todoDone')) $('todoDone').onclick = () => { d.todo = null; mark(); };
     $('dCopy').onclick = async () => { const text = Object.entries(d.cards).map(([nv, q]) => `${q} ${nvName(nv)}`).join('\n'); try { await navigator.clipboard.writeText(text); toast('List copied.'); } catch(e){ toast('Copy failed. Select the list and copy it.'); } };
     $('dSave').onclick = async () => {
       $('dSave').disabled = true; $('dSave').textContent = 'Saving…';
@@ -278,6 +286,7 @@
     for (const b of p.querySelectorAll('[data-qty]')) b.onclick = () => {
       const nv = b.dataset.nv, n = (d.cards[nv] || 0) + (+b.dataset.qty);
       if (n <= 0){ delete d.cards[nv]; d.commanders = d.commanders.filter(x => x !== nv); } else d.cards[nv] = n;
+      if (d.todo?.[nv]){ if (n <= 0) delete d.todo[nv]; else d.todo[nv] = Math.min(d.todo[nv], n); if (!Object.keys(d.todo).length) d.todo = null; }
       mark();
     };
     const runAdd = debounce(async () => {
