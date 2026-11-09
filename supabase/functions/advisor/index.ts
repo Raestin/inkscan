@@ -3,7 +3,7 @@
 // and runs the tools against its own copy of the collection; this function fixes the model, the
 // system prompt and the tool list, so a caller can't turn it into a general-purpose proxy.
 //
-// Deploy: supabase functions deploy advisor        (JWT verification stays on)
+// Deploy: supabase functions deploy advisor --no-verify-jwt   (the function checks the caller itself, via /auth/v1/user)
 // Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 // Optional: ADVISOR_OWNERS = comma-separated user ids whose account (and family) may use it.
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -131,8 +131,8 @@ How to work:
 - Rules questions: give the ruling first, then why, then how it resolves on the stack.
 - Format answers for a wide screen: short paragraphs, compact lists or small tables. No filler.`;
 
-async function allowed(jwt: string): Promise<string | null> {
-  const u = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: SB_ANON, Authorization: `Bearer ${jwt}` } });
+async function allowed(jwt: string, apikey: string | null): Promise<string | null> {
+  const u = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: apikey || SB_ANON, Authorization: `Bearer ${jwt}` } });
   if (!u.ok) return null;
   const uid = (await u.json())?.id;
   if (!uid) return null;
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...headers, "Content-Type": "application/json" } });
 
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!jwt || !(await allowed(jwt))) return json(403, { error: "This account can't use the advisor." });
+  if (!jwt || !(await allowed(jwt, req.headers.get("apikey")))) return json(403, { error: "This account can't use the advisor." });
   if (!Deno.env.get("ANTHROPIC_API_KEY")) return json(503, { error: "The advisor isn't set up yet: add the ANTHROPIC_API_KEY secret in Supabase." });
 
   const raw = await req.text();
@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
       const send = (o: unknown) => controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
       try {
         const stream = client.beta.messages.stream({
-          model: "claude-opus-5-5",
+          model: "claude-sonnet-5-5",
           max_tokens: 32000,
           thinking: { type: "adaptive", display: "summarized" },
           output_config: { effort: "medium" },
