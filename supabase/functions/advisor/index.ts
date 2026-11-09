@@ -3,7 +3,7 @@
 // and runs the tools against its own copy of the collection; this function fixes the model, the
 // system prompt and the tool list, so a caller can't turn it into a general-purpose proxy.
 //
-// Deploy: supabase functions deploy advisor        (JWT verification stays on)
+// Deploy: supabase functions deploy advisor --no-verify-jwt   (the function checks the caller itself, via /auth/v1/user)
 // Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 // Optional: ADVISOR_OWNERS = comma-separated user ids whose account (and family) may use it.
 import Anthropic from "npm:@anthropic-ai/sdk";
