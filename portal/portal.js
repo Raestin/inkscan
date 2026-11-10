@@ -79,6 +79,7 @@
   function renderHome(v){
     const t = collectionTotals(), rows = allStats();
     const built = rows.filter(r => r.d.built).length, ready = rows.filter(r => !r.d.built && r.st.total && !r.st.missing && !r.st.unknown);
+    const top = collectionRows().filter(r => r.c && r.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
     const close = rows.filter(r => !r.d.built && r.st.missing && !r.st.unknown).sort((a, b) => a.st.missCost - b.st.missCost || a.st.missing - b.st.missing).slice(0, 8);
     v.innerHTML = `
       <header class="page-head"><div><h1 class="page-title">Overview</h1><p class="muted">${esc(gameDef().name)} · updated ${new Date(S().loadedAt).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}</p></div></header>
@@ -90,15 +91,17 @@
         ${tile('Ready to build', ready.length.toLocaleString(), 'Unbuilt decks you have every card for')}
       </div>
       <div class="grid2">
-        <section class="card"><h2 class="sec">Ready to build</h2>${ready.length ? `<ul class="rows">${ready.slice(0, 10).map(r => deckRow(r)).join('')}</ul>` : '<p class="muted">No unbuilt deck is fully covered by your collection yet.</p>'}</section>
+        ${ready.length ? `<section class="card"><h2 class="sec">Ready to build</h2><ul class="rows">${ready.slice(0, 10).map(r => deckRow(r)).join('')}</ul></section>`
+          : `<section class="card"><h2 class="sec">Your decks</h2>${rows.length ? `<ul class="rows">${[...rows].sort((a, b) => (b.d.updated || 0) - (a.d.updated || 0)).slice(0, 8).map(r => deckRow(r, false, true)).join('')}</ul>` : '<p class="muted">No decks yet. Start one in the Deck workshop.</p>'}</section>`}
         <section class="card"><h2 class="sec">Cheapest to finish</h2>${close.length ? `<ul class="rows">${close.map(r => deckRow(r, true)).join('')}</ul><a class="link" href="#buy">Plan the shopping in Buy planner</a>` : '<p class="muted">No decks are waiting on cards.</p>'}</section>
-      </div>`;
+      </div>
+      ${top.length ? `<section class="card"><h2 class="sec">Most valuable cards</h2><div class="topcards">${top.map(r => { const u = imgUrl(r.c, 'normal'); return `<a class="topcard" href="#collection" title="${esc(cardName(r.c))}">${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<span class="ph"></span>'}<b>${esc(cardName(r.c))}</b><span>${money(r.value)}${r.n > 1 ? ` · ${r.n} copies` : ''}</span></a>`; }).join('')}</div></section>` : ''}`;
     $('ask').onsubmit = e => { e.preventDefault(); const q = $('askIn').value.trim(); if (!q) return; pendingAsk = q; location.hash = 'advisor'; };
     wireDeckLinks(v);
   }
   const tile = (label, value, sub) => `<div class="tile"><div class="tile-l">${esc(label)}</div><div class="tile-v">${esc(value)}</div><div class="tile-s">${esc(sub)}</div></div>`;
-  function deckRow({d, st}, cost){
-    return `<li><button class="row-btn" data-open-deck="${esc(d.id)}" type="button">${dots(deckColors(d))}<span class="row-n">${esc(d.name)}</span><span class="row-m">${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span>${cost ? `<span class="row-v">${plural(st.missing, 'card')}${st.missCost ? ` · ${money(st.missCost)}` : ''}${st.missUnpriced ? ` · ${st.missUnpriced} unpriced` : ''}</span>` : ''}</button></li>`;
+  function deckRow({d, st}, cost, bar){
+    return `<li><button class="row-btn" data-open-deck="${esc(d.id)}" type="button">${dots(deckColors(d))}<span class="row-n">${esc(d.name)}</span><span class="row-m">${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span>${cost ? `<span class="row-v">${plural(st.missing, 'card')}${st.missCost ? ` · ${money(st.missCost)}` : ''}${st.missUnpriced ? ` · ${st.missUnpriced} unpriced` : ''}</span>` : ''}${bar ? `<span class="row-bar${st.missing ? '' : ' full'}"><i style="width:${st.total ? Math.round(100 * (st.total - st.missing) / st.total) : 0}%"></i></span>` : ''}</button></li>`;
   }
   function wireDeckLinks(root){ for (const b of root.querySelectorAll('[data-open-deck]')) b.onclick = () => { workshop.id = b.dataset.openDeck; workshop.draft = null; location.hash = 'decks'; }; }
 

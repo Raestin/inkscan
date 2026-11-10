@@ -1,11 +1,11 @@
 {
   "name": "InkScan",
   "short_name": "InkScan",
-  "description": "Scan Disney Lorcana cards into a priced collection and export it as CSV.",
+  "description": "Scan Lorcana, Magic, One Piece and Pokémon cards into a priced collection, build decks, and see what each one still needs.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#13111F",
   "theme_color": "#1D1A35",
   "icons": [

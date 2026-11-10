@@ -13,11 +13,14 @@ a{color:var(--accent-ink)}
 :focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
 
 /* shell */
-.shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+.shell{display:grid;grid-template-columns:var(--rail-w,248px) minmax(0,1fr);min-height:100vh}
 .side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:16px;padding:24px 16px;background:var(--surface);border-right:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:12px;padding:0 8px}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px;color:var(--fg);text-decoration:none}
+.brand-n b{font-weight:400;color:var(--accent-ink)}
+.nav-label{margin:8px 0 -8px;padding:0 12px;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.side{overflow-y:auto}
 .logo{width:40px;height:40px;border-radius:var(--rc)}
-.brand-n{font-family:var(--display);font-size:20px;line-height:1.2}
+.brand-n{font-family:var(--display);font-size:22px;letter-spacing:.02em;line-height:1.2}
 .brand-s{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
 .game-pick{width:100%}
 .nav{display:flex;flex-direction:column;gap:4px}
@@ -206,7 +209,7 @@ svg .mark{pointer-events:none}
 .hbar-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hbar-sub{color:var(--muted);margin-left:4px}
 .hbar-t{height:12px}
-.hbar-t i{display:block;height:100%;border-radius:0 var(--r-xs) var(--r-xs) 0;min-width:2px}
+.hbar-t i{display:block;height:100%;border-radius:var(--r-xs);min-width:2px}
 .hbar-v{font-variant-numeric:tabular-nums;color:var(--fg)}
 .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;font-size:12px;color:var(--muted)}
 .legend-i{display:inline-flex;align-items:center;gap:8px}
@@ -246,3 +249,14 @@ svg .mark{pointer-events:none}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:12px 20px;border-radius:var(--rc);box-shadow:var(--shadow-overlay);font-size:15px;z-index:60;max-width:min(560px,calc(100vw - 32px))}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* Overview: the cards carrying the collection's value, and every deck's progress */
+.topcards{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:16px;margin-top:16px}
+.topcard{display:block;color:inherit;text-decoration:none;min-width:0}
+.topcard img,.topcard .ph{display:block;width:100%;aspect-ratio:734/1024;object-fit:cover;border-radius:var(--rc);background:var(--surface2);transition:transform var(--t-quick) var(--ease),box-shadow var(--t-quick) var(--ease)}
+.topcard:hover img{transform:translateY(-4px);box-shadow:var(--shadow-overlay)}
+.topcard b{display:block;margin-top:8px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topcard span{display:block;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row-bar{grid-area:v;align-self:center;width:96px;height:4px;border-radius:var(--pill);background:var(--surface3);overflow:hidden}
+.row-bar i{display:block;height:100%;border-radius:var(--pill);background:var(--accent)}
+.row-bar.full i{background:var(--ok)}

@@ -11,9 +11,10 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="tokens.css?v=44">
-<link rel="stylesheet" href="app.css?v=44">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="tokens.css?v=45">
+<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="shell.css?v=45">
 </head>
 <body>
 <!-- Icon set: one sprite, used as <svg class="ic"><use href="#i-name"/></svg> -->
@@ -34,12 +35,45 @@
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
   <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7"/><path d="M4 4v4.7h4.7"/></symbol>
   <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.4"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><rect x="3" y="5" width="12" height="16" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/></symbol>
+  <symbol id="i-deck" viewBox="0 0 24 24"><rect x="7" y="3" width="12" height="16" rx="2"/><rect x="4" y="6" width="12" height="16" rx="2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11h10.2L20 8H7"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-keys" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
 </svg>
+
+<aside class="rail" id="rail" aria-label="Main">
+  <a class="rail-brand" href="./"><img src="icon-192.png" alt="" width="40" height="40"><span>Ink<b>Scan</b></span></a>
+  <nav class="rail-nav" aria-label="App">
+    <button data-tab="home" aria-current="page"><svg class="ic"><use href="#i-home"/></svg>Home</button>
+    <button data-tab="coll"><svg class="ic"><use href="#i-box"/></svg>Collection</button>
+    <button data-tab="decks"><svg class="ic"><use href="#i-deck"/></svg>Decks</button>
+    <button data-tab="browse"><svg class="ic"><use href="#i-search"/></svg>Browse</button>
+    <button data-tab="scan"><svg class="ic"><use href="#i-scan"/></svg>Scan</button>
+    <button data-tab="help"><svg class="ic"><use href="#i-help"/></svg>How to play</button>
+  </nav>
+  <p class="rail-label">Portal</p>
+  <nav class="rail-nav" aria-label="Portal">
+    <a href="portal/#decks"><svg class="ic"><use href="#i-chart"/></svg>Deck workshop</a>
+    <a href="portal/#simulate"><svg class="ic"><use href="#i-dice"/></svg>Simulator</a>
+    <a href="portal/#buy"><svg class="ic"><use href="#i-cart"/></svg>Buy planner</a>
+    <a href="portal/#advisor"><svg class="ic"><use href="#i-spark"/></svg>Advisor</a>
+  </nav>
+  <button class="rail-keys" id="railKeys" type="button"><svg class="ic"><use href="#i-keys"/></svg>Keyboard shortcuts<kbd>?</kbd></button>
+</aside>
 
 <header class="top">
   <div class="wrap appbar">
     <h1 class="logo">Ink<b>Scan</b></h1>
+    <button class="searchbtn" id="searchBtn" type="button" aria-label="Search cards, decks and actions" aria-keyshortcuts="Control+K Meta+K"><svg class="ic"><use href="#i-search"/></svg><span>Search cards, decks and actions</span><kbd id="searchKey">Ctrl K</kbd></button>
     <label class="gamepill"><span class="sr">Game</span><select id="gameSel" class="gamesel" aria-label="Game"><option>Lorcana</option></select></label>
     <button class="iconbtn cloudbtn" id="manualUpdate" aria-label="Cloud update"><svg class="ic"><use href="#i-cloud"/></svg><span class="dot" id="pendingDot" hidden></span></button>
   </div>
@@ -49,8 +83,14 @@
   <div class="savebar" id="saveBar" hidden><p id="saveStatus" role="status"></p><button class="btn small" id="safetyBackup">Back up</button></div>
   <div id="loadBanner" class="banner">Loading the card list…</div>
 
+  <!-- ============ HOME ============ -->
+  <section class="view" id="vHome">
+    <div class="pagehead"><h2 class="title">Home</h2></div>
+    <div class="home" id="homeBody"><div class="skel hero-skel"></div><div class="skel row-skel"></div><div class="skel row-skel"></div></div>
+  </section>
+
   <!-- ============ SCAN ============ -->
-  <section class="view" id="vScan">
+  <section class="view" id="vScan" hidden>
     <div class="pagehead"><h2 class="title">Scan</h2><button class="iconbtn" id="scanSettingsBtn" aria-label="Scan settings"><svg class="ic"><use href="#i-gear"/></svg></button></div>
     <p id="promoCatalogStatus" class="note printing-resolution" role="status" hidden></p>
     <div class="cam" id="cam">
@@ -181,6 +221,7 @@
     </div>
 
     <div id="deckEdit" class="stack" hidden>
+      <div class="stack deck-main">
       <div class="pagehead">
         <button class="iconbtn" id="deckBack" aria-label="Back to decks"><svg class="ic"><use href="#i-back"/></svg></button>
         <div class="row tight">
@@ -202,7 +243,9 @@
         <button data-dsub="add" aria-pressed="false">Add cards</button>
       </div>
       <div id="deckListPane"></div>
+      </div>
       <div id="deckAddPane" class="stack" hidden>
+        <h3 class="h3 addhead">Add cards</h3>
         <input type="search" id="dq" placeholder="Search cards to add" autocomplete="off">
         <div class="row">
           <label class="switch"><input type="checkbox" id="dOwned" checked> Cards I own</label>
@@ -271,34 +314,37 @@
 
 <div class="update-bar" id="updateBar" role="status" hidden><span>A new version of InkScan is ready.</span><button class="btn primary small" id="updateGo">Update now</button><button class="btn ghost small" id="updateLater" aria-label="Later">Later</button></div>
 <nav class="tabbar" aria-label="Main">
-  <button data-tab="scan" aria-current="page">
-    <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></i><span>Scan</span></button>
-  <button data-tab="coll">
-    <i><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="12" height="16" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v13"/></svg></i><span>Collection</span></button>
-  <button data-tab="decks">
-    <i><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="12" height="16" rx="2"/><rect x="4" y="6" width="12" height="16" rx="2"/></svg></i><span>Decks</span></button>
-  <button data-tab="browse">
-    <i><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg></i><span>Browse</span></button>
-  <button data-tab="help">
-    <i><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6"/></svg></i><span>Help</span></button>
+  <button data-tab="home" aria-current="page"><i><svg aria-hidden="true"><use href="#i-home"/></svg></i><span>Home</span></button>
+  <button data-tab="coll"><i><svg aria-hidden="true"><use href="#i-box"/></svg></i><span>Collection</span></button>
+  <button data-tab="scan"><i><svg aria-hidden="true"><use href="#i-scan"/></svg></i><span>Scan</span></button>
+  <button data-tab="decks"><i><svg aria-hidden="true"><use href="#i-deck"/></svg></i><span>Decks</span></button>
+  <button data-tab="browse"><i><svg aria-hidden="true"><use href="#i-search"/></svg></i><span>Browse</span></button>
 </nav>
 
 <!-- bottom sheet (card detail, tools, filters, import, hand) -->
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
   <div class="grabber" aria-hidden="true"></div>
-  <div class="sheet-head"><h2 class="h2" id="sheetTitle"></h2><button class="iconbtn tonal small" id="sheetClose" aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="sheet-head"><h2 class="h2" id="sheetTitle"></h2><div class="sheet-nav" id="sheetNav" hidden><button class="iconbtn tonal small" id="cardPrev" aria-label="Previous card"><svg class="ic"><use href="#i-back"/></svg></button><button class="iconbtn tonal small" id="cardNext" aria-label="Next card"><svg class="ic"><use href="#i-next"/></svg></button></div><button class="iconbtn tonal small" id="sheetClose" aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <p class="note sheet-save-status" id="sheetSaveStatus" role="alert" hidden></p>
   <div class="sheet-body" id="sheetBody"></div>
 </div>
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<!-- search everything: cards, decks, places and actions -->
+<div class="pal-scrim" id="palScrim" hidden></div>
+<div class="pal" id="pal" role="dialog" aria-modal="true" aria-label="Search" hidden>
+  <div class="pal-in"><svg class="ic"><use href="#i-search"/></svg><input id="palQ" type="text" placeholder="Search cards, decks and actions" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" role="combobox" aria-expanded="true" aria-controls="palList" aria-autocomplete="list"><button class="pal-x" id="palClose" type="button">Close</button></div>
+  <div class="pal-list" id="palList" role="listbox"></div>
+</div>
+<div class="peek" id="peek" aria-hidden="true" hidden><img alt=""></div>
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=44"></script>
-<script src="catalog.js?v=44"></script>
-<script src="legality.js?v=44"></script>
-<script src="games.js?v=44"></script>
-<script src="app.js?v=44"></script>
+<script src="safety.js?v=45"></script>
+<script src="catalog.js?v=45"></script>
+<script src="legality.js?v=45"></script>
+<script src="games.js?v=45"></script>
+<script src="app.js?v=45"></script>
+<script src="shell.js?v=45"></script>
 </body>
 </html>
