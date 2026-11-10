@@ -46,7 +46,7 @@ function renderHome(){
   const top = topCards(8);
   box.innerHTML = `
     <div class="home-top">
-      <div class="hero"><span class="hero-label">${esc(A.gameName)} collection</span><strong>${money0(t.val)}${t.unpriced ? ' <span class="hero-sub">partial</span>' : ''}</strong><span class="hero-sub"><b>${t.u.toLocaleString()}</b> cards · <b>${t.copies.toLocaleString()}</b> copies</span></div>
+      <div class="hero"><div class="hero-main"><span class="hero-label">${esc(A.gameName)} collection</span><strong>${money0(t.val)}${t.unpriced ? ' <span class="hero-sub">partial</span>' : ''}</strong><span class="hero-sub"><b>${t.u.toLocaleString()}</b> cards · <b>${t.copies.toLocaleString()}</b> copies</span></div>${top.length >= 3 ? `<div class="hero-fan">${[1, 0, 2].map(k => { const u = A.imgUrl(top[k].c, 'normal'); return u ? `<button type="button" class="fan f${k}" data-card="${esc(top[k].c.id)}" aria-label="${esc(top[k].c.n)}"><img src="${esc(u)}" alt="" loading="lazy"></button>` : ''; }).join('')}</div>` : ''}</div>
       <div class="statrow">
         <button class="statcard" data-tab="decks"><b>${decks.length}</b><span>${decks.length === 1 ? 'Deck' : 'Decks'}, ${built} built</span></button>
         <button class="statcard" data-tab="decks"><b>${ready}</b><span>Ready to build</span></button>
@@ -224,26 +224,36 @@ document.addEventListener('inkscan:card', e => { runAt = run.indexOf(e.detail); 
 $('cardPrev').onclick = () => step(-1);
 $('cardNext').onclick = () => step(1);
 
-/* ---------- peek: hover a card's row on a wide screen to see the card ---------- */
-const peek = $('peek'), peekImg = peek.querySelector('img');
+/* ---------- peek: hover any card on a wide screen to see it large, with its stats ---------- */
+const peek = $('peek');
 let peekT = 0, peekEl = null;
 function peekHide(){ clearTimeout(peekT); peekEl = null; peek.hidden = true; }
 document.addEventListener('mouseover', e => {
-  if (!wide()) return;
+  if (!wide() || !window.matchMedia('(hover:hover)').matches) return;
   const el = e.target.closest('[data-card]');
   if (el === peekEl) return;
   peekHide();
-  if (!el || el.classList.contains('tile') || el.closest('#sheet .detail')) return;
-  const c = A.card(el.dataset.card), url = c && A.imgUrl(c, 'normal'); if (!url) return;
-  peekEl = el;
+  if (!el || el.closest('#sheet .detail')) return;
+  const c = A.card(el.dataset.card); if (!c) return;
+  peekEl = el; const x = e.clientX;
   peekT = setTimeout(() => {
     if (peekEl !== el || !el.isConnected) return;
-    const r = el.getBoundingClientRect(), w = 240, h = Math.round(w * 1024 / 734);
-    const left = r.right + 12 + w <= window.innerWidth ? Math.min(r.right + 12, e.clientX + 160) : Math.max(8, r.left - w - 12);
-    peek.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8)) + 'px';
-    peek.style.top = Math.max(8, Math.min(r.top + r.height / 2 - h / 2, window.innerHeight - h - 8)) + 'px';
-    peekImg.src = url; peek.hidden = false;
-  }, 220);
+    const url = A.imgUrl(c, 'normal'), f = A.cardFacts(c), p = A.priceOf(c);
+    peek.innerHTML = `<div class="peek-art">${url ? `<img src="${esc(url)}" alt="">` : `<span class="peek-ph">${esc(c.n)}</span>`}</div>
+      <div class="peek-info"><b class="peek-n">${esc(c.n)}</b><span class="peek-t">${esc(f.type)}${f.cost ? ` · ${esc(f.cost)}` : ''}</span>
+      ${f.stats.length ? `<div class="pstats">${f.stats.slice(0, 6).map(([l, v]) => `<span class="pstat"><b>${esc(v)}</b>${esc(l)}</span>`).join('')}</div>` : ''}
+      ${f.rules ? `<div class="peek-tx">${f.rules}</div>` : ''}
+      <span class="peek-foot"><b>${p != null ? money(p) : 'No price'}</b>${f.owned ? `You own ${f.owned}` : 'Not in your collection'} · ${esc(c.sn || '')}</span></div>`;
+    peek.hidden = false;
+    const r = el.getBoundingClientRect(), W = peek.offsetWidth, H = peek.offsetHeight, vw = window.innerWidth;
+    const rightOf = Math.min(r.right + 12, x + 160);
+    const onRight = rightOf + W <= vw - 8;
+    const left = onRight ? rightOf : Math.max(8, r.left - W - 12);
+    const top = Math.max(8, Math.min(r.top + r.height / 2 - H / 2, window.innerHeight - H - 8));
+    peek.style.left = left + 'px'; peek.style.top = top + 'px';
+    peek.style.transformOrigin = `${onRight ? 'left' : 'right'} ${Math.round(Math.max(0, Math.min(H, r.top + r.height / 2 - top)))}px`;
+    peek.classList.remove('in'); void peek.offsetWidth; peek.classList.add('in');
+  }, 200);
 });
 for (const ev of ['scroll', 'mousedown', 'keydown']) window.addEventListener(ev, peekHide, true);
 document.addEventListener('mouseleave', peekHide);

@@ -23,9 +23,118 @@
   const deckColors = d => [...new Set(Object.keys(d.cards).flatMap(nv => S().cat.rep(nv)?.inks || []))].filter(x => x !== 'Colorless').slice(0, 5);
   const formatLabel = d => game === 'mtg' ? (d.format ? gameDef().formats[d.format]?.label : d.commanders.length ? 'Commander' : '') || '' : '';
 
+  /* ---------- Card viewer: hover a card to see it large with its stats, click to open it ---------- */
+  const cardReg = new Map();
+  const cardAttr = (c, peekOnly) => { if (!c) return ''; cardReg.set(String(c.id), c); return ` data-${peekOnly ? 'peek' : 'card'}="${esc(c.id)}"`; };
+  const findCard = id => cardReg.get(id) || S().cat?.byId.get(id) || null;
+  const pips = s => esc(s).replace(/\{([^}]+)\}/g, (_, x) => `<i class="pip pip-${x.replace(/[^A-Za-z0-9]/g, '').toLowerCase()}">${x}</i>`);
+  const rulesHTML = t => String(t || '').split(/\n+/).filter(Boolean).map(l => `<p>${pips(l)}</p>`).join('');
+  function cardStats(c){
+    const rows = game === 'lorcana' ? [['Cost', c.co], ['Inkable', c.ik == null ? null : c.ik ? 'Yes' : 'No'], ['Strength', c.st], ['Willpower', c.wp], ['Lore', c.lo], ['Move', c.mv]] : gameDef().stats ? gameDef().stats(c) : [];
+    const land = /\bLand\b/.test(c.ty || '');
+    return rows.filter(x => x[1] != null && x[1] !== '' && !(land && x[0] === 'Mana value'));
+  }
+  const typeLine = c => [game === 'lorcana' ? c.i : '', String(c.ty || '').replace(/\//g, ' · '), c.cl ? String(c.cl).replace(/\//g, ' · ') : ''].filter(Boolean).join(' · ');
+  function ownLine(c){
+    const v = S().inv.get(c.id) || {q: 0, f: 0, rf: 0}, here = v.q + v.f + v.rf, all = D.ownedNV(c.nv), free = D.freeNV(c.nv);
+    if (!all) return 'You don’t own this card';
+    return `You own ${all}${here && here !== all ? ` (${here} of this printing)` : ''} · ${free} free`;
+  }
+  const priceLine = c => [c.p != null ? money(c.p) : '', c.pf != null ? `${money(c.pf)} foil` : ''].filter(Boolean).join(' · ') || 'No price';
+
+  const peek = $('peek'); let peekT = 0, peekEl = null;
+  const canHover = () => window.matchMedia('(hover:hover) and (min-width:1024px)').matches;
+  function peekHide(){ clearTimeout(peekT); peekEl = null; peek.hidden = true; }
+  document.addEventListener('mouseover', e => {
+    if (!loaded || !canHover()) return;
+    const el = e.target.closest?.('[data-card],[data-peek]');
+    if (el === peekEl) return;
+    peekHide();
+    if (!el || el.closest('#cv')) return;
+    const c = findCard(el.dataset.card || el.dataset.peek); if (!c) return;
+    peekEl = el; const x = e.clientX;
+    peekT = setTimeout(() => {
+      if (peekEl !== el || !el.isConnected) return;
+      const u = imgUrl(c, 'normal'), st = cardStats(c);
+      peek.innerHTML = `<div class="peek-art">${u ? `<img src="${esc(u)}" alt="">` : `<span class="peek-ph">${esc(cardName(c))}</span>`}</div>
+        <div class="peek-info"><b class="peek-n">${esc(cardName(c))}</b><span class="peek-t">${esc(typeLine(c))}</span>
+        ${game === 'mtg' && c.mc ? `<span class="peek-cost">${pips(c.mc)}</span>` : ''}
+        ${st.length ? `<div class="pstats">${st.slice(0, 6).map(([l, val]) => `<span class="pstat"><b>${esc(val)}</b>${esc(l)}</span>`).join('')}</div>` : ''}
+        ${c.tx ? `<div class="peek-tx">${rulesHTML(c.tx)}</div>` : ''}
+        <span class="peek-foot"><b>${esc(priceLine(c))}</b>${esc(ownLine(c))}</span></div>`;
+      peek.hidden = false;
+      const r = el.getBoundingClientRect(), W = peek.offsetWidth, H = peek.offsetHeight, vw = window.innerWidth;
+      const rightOf = Math.min(r.right + 12, x + 32);
+      const onRight = rightOf + W <= vw - 8;
+      const left = onRight ? rightOf : Math.max(8, Math.min(r.left, x - 20) - W - 12);
+      const top = Math.max(8, Math.min(r.top + r.height / 2 - H / 2, window.innerHeight - H - 8));
+      peek.style.left = left + 'px'; peek.style.top = top + 'px';
+      peek.style.transformOrigin = `${onRight ? 'left' : 'right'} ${Math.round(Math.max(0, Math.min(H, r.top + r.height / 2 - top)))}px`;
+      peek.classList.remove('in'); void peek.offsetWidth; peek.classList.add('in');
+    }, 180);
+  });
+  for (const ev of ['scroll', 'mousedown', 'keydown']) window.addEventListener(ev, peekHide, true);
+  document.addEventListener('mouseleave', peekHide);
+
+  const cvEl = $('cv'); let cvRun = [], cvAt = -1, cvFrom = null;
+  function cvShow(id){
+    const c = findCard(id); if (!c) return;
+    cvAt = cvRun.indexOf(String(id));
+    const u = imgUrl(c, game === 'lorcana' ? 'large' : 'normal'), st = cardStats(c), g = gameDef();
+    const decks = S().decks.filter(d => d.cards[c.nv]);
+    $('cvBody').innerHTML = `<div class="cv-art">${u ? `<img src="${esc(u)}" alt="${esc(cardName(c))}">` : `<span class="peek-ph">${esc(cardName(c))}</span>`}</div>
+      <div class="cv-info">
+        <h2 class="cv-n" id="cvName">${esc(cardName(c))}</h2>
+        <p class="cv-t">${dots(c.inks)}${esc(typeLine(c))}${game === 'mtg' && c.mc ? `<span class="peek-cost">${pips(c.mc)}</span>` : ''}</p>
+        ${st.length ? `<div class="cv-stats">${st.map(([l, val]) => `<div class="cv-stat"><b>${esc(val)}</b><span>${esc(l)}</span></div>`).join('')}</div>` : ''}
+        ${c.tx ? `<div class="cv-tx">${rulesHTML(c.tx)}</div>` : ''}
+        ${c.fl ? `<p class="cv-fl">${esc(c.fl)}</p>` : ''}
+        <dl class="cv-kv">
+          <dt>Set</dt><dd>${esc(c.sn || S().cat.sets.get(String(c.s)) || String(c.s || '').toUpperCase())}${c.c ? ` · #${esc(c.c)}` : ''}</dd>
+          ${c.r ? `<dt>Rarity</dt><dd>${esc(g.rarityLabel(c.r))}</dd>` : ''}
+          <dt>Price</dt><dd>${esc(priceLine(c))}</dd>
+          <dt>Owned</dt><dd>${esc(ownLine(c))}</dd>
+          ${c.il ? `<dt>Artist</dt><dd>${esc(c.il)}</dd>` : ''}
+        </dl>
+        ${decks.length ? `<div class="cv-decks"><span class="mini">In your decks</span><div class="chips">${decks.map(d => `<button type="button" class="chip-btn" data-cv-deck="${esc(d.id)}">${dots(deckColors(d))}${esc(d.name)} <span class="muted">×${d.cards[c.nv]}</span></button>`).join('')}</div></div>` : ''}
+      </div>`;
+    $('cvPrev').hidden = $('cvNext').hidden = cvRun.length < 2 || cvAt < 0;
+    $('cvPrev').disabled = cvAt <= 0; $('cvNext').disabled = cvAt >= cvRun.length - 1;
+    $('cvCount').textContent = cvRun.length > 1 && cvAt >= 0 ? `${cvAt + 1} of ${cvRun.length}` : '';
+    for (const b of cvEl.querySelectorAll('[data-cv-deck]')) b.onclick = () => {
+      if (workshop.dirty && workshop.id !== b.dataset.cvDeck && !confirm('Discard unsaved changes to this deck?')) return;
+      if (workshop.id !== b.dataset.cvDeck){ workshop.id = b.dataset.cvDeck; workshop.draft = null; }
+      cvClose(true); if (view === 'decks') render(); else location.hash = 'decks';
+    };
+  }
+  function cvOpen(id, from){
+    const box = from?.closest('tbody,.topcards,.rank,.hand-row,.gallery,.chips,.phase-cards');
+    cvRun = box ? [...new Set([...box.querySelectorAll('[data-card]')].map(x => x.dataset.card))] : [String(id)];
+    cvFrom = from || null; peekHide(); cvEl.hidden = false; document.body.classList.add('cv-open'); cvShow(id); $('cvX').focus();
+  }
+  function cvClose(skipFocus){ if (cvEl.hidden) return; cvEl.hidden = true; document.body.classList.remove('cv-open'); if (!skipFocus && cvFrom?.isConnected) (cvFrom.matches('button,a') ? cvFrom : cvFrom.querySelector('button') || cvFrom).focus?.(); cvFrom = null; }
+  const cvStep = d => { const id = cvRun[cvAt + d]; if (id) cvShow(id); };
+  $('cvX').onclick = () => cvClose(); $('cvPrev').onclick = () => cvStep(-1); $('cvNext').onclick = () => cvStep(1);
+  cvEl.addEventListener('mousedown', e => { if (e.target === cvEl) cvClose(); });
+  document.addEventListener('keydown', e => {
+    if (cvEl.hidden) return;
+    if (e.key === 'Escape'){ e.preventDefault(); cvClose(); }
+    else if (e.key === 'ArrowLeft') cvStep(-1);
+    else if (e.key === 'ArrowRight') cvStep(1);
+    else if (e.key === 'Tab'){ const f = [...cvEl.querySelectorAll('button:not([hidden]):not(:disabled)')]; if (!f.length) return; const i = f.indexOf(document.activeElement); e.preventDefault(); f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus(); }
+  });
+  document.addEventListener('click', e => {
+    const el = e.target.closest?.('[data-card]'); if (!el || el.closest('#cv') || e.target.closest('[data-qty],a[href],input,select,label')) return;
+    cvOpen(el.dataset.card, el);
+  });
+  const nameBtn = (c, label) => c ? `<button type="button" class="cardlink">${esc(label ?? cardName(c))}</button>` : `<span class="cn">${esc(label || '')}</span>`;
+  const cardChip = (c, q) => `<button type="button" class="cchip"${cardAttr(c)}>${q ? `<b>${q}</b>` : ''}${esc(cardName(c))}</button>`;
+  // a deck's own colours as a list, for the edge of its row and the band over its header
+  const deckGrad = d => { const cs = deckColors(d).map(colorVar); return cs.length > 1 ? cs.join(',') : cs.length ? `${cs[0]},${cs[0]}` : 'var(--chart-1),var(--chart-2)'; };
+
   /* ---------- boot ---------- */
-  $('game').value = game;
-  $('game').onchange = () => { game = $('game').value; D.lsSet('portal.game', game); loaded = false;
+  $('game').value = game; document.documentElement.dataset.game = game;
+  $('game').onchange = () => { game = $('game').value; D.lsSet('portal.game', game); document.documentElement.dataset.game = game; loaded = false; cardReg.clear(); cvClose(true); workshop.colors = [];
     buy.sel = new Set(D.lsGet('portal.buy.' + game, [])); Object.assign(workshop, {id: null, draft: null, dirty: false, compare: '', addQ: ''}); Object.assign(sim, {deck: null, keys: [], oddsKeys: [], result: null});
     boot(); };
   $('reload').onclick = () => { loaded = false; boot(); };
@@ -55,7 +164,7 @@
   function render(){
     for (const a of document.querySelectorAll('#nav a')) a.classList.toggle('on', a.dataset.view === view);
     if (!loaded) return;
-    C.hideTip();
+    C.hideTip(); peekHide();
     const fn = {home: renderHome, collection: renderCollection, decks: renderDecks, simulate: renderSim, buy: renderBuy, advisor: renderAdvisor}[view] || renderHome;
     fn($('view'));
     document.title = `${{home: 'Overview', collection: 'Collection', decks: 'Deck workshop', simulate: 'Simulator', buy: 'Buy planner', advisor: 'Advisor'}[view] || 'Overview'} · InkScan Portal`;
@@ -84,18 +193,23 @@
     v.innerHTML = `
       <header class="page-head"><div><h1 class="page-title">Overview</h1><p class="muted">${esc(gameDef().name)} · updated ${new Date(S().loadedAt).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}</p></div></header>
       <form class="ask" id="ask"><svg class="ic"><use href="#i-spark"/></svg><input id="askIn" placeholder="Ask the advisor: “What can I build from what I own?”" autocomplete="off"><button class="btn primary" type="submit">Ask</button></form>
+      <section class="hero">
+        <div class="hero-main"><span class="hero-l">Collection value</span><strong class="hero-v">${money(t.value)}</strong><span class="hero-s">${plural(t.copies, 'card')} · ${t.unpriced ? `${plural(t.unpriced, 'card')} unpriced` : 'market prices'}</span>
+          <div class="hero-acts"><a class="hero-btn" href="#collection">Open collection</a><a class="hero-btn" href="#decks">Deck workshop</a></div></div>
+        <div class="hero-fan">${top.slice(0, 3).map((r, i) => { const u = imgUrl(r.c, 'normal'); return u ? `<button type="button" class="fan f${i}"${cardAttr(r.c)} aria-label="${esc(cardName(r.c))}"><img src="${esc(u)}" alt=""></button>` : ''; }).join('')}</div>
+      </section>
       <div class="tiles">
-        ${tile('Collection value', money(t.value), t.unpriced ? `${plural(t.unpriced, 'card')} unpriced` : 'Market prices')}
+        ${top.length ? tile('Top card', money(top[0].value), cardName(top[0].c)) : tile('Top card', '—', 'No priced cards yet')}
         ${tile('Cards owned', t.copies.toLocaleString(), `${t.unique.toLocaleString()} different printings`)}
         ${tile('Decks', rows.length.toLocaleString(), `${built} built`)}
         ${tile('Ready to build', ready.length.toLocaleString(), 'Unbuilt decks you have every card for')}
       </div>
       <div class="grid2">
         ${ready.length ? `<section class="card"><h2 class="sec">Ready to build</h2><ul class="rows">${ready.slice(0, 10).map(r => deckRow(r)).join('')}</ul></section>`
-          : `<section class="card"><h2 class="sec">Your decks</h2>${rows.length ? `<ul class="rows">${[...rows].sort((a, b) => (b.d.updated || 0) - (a.d.updated || 0)).slice(0, 8).map(r => deckRow(r, false, true)).join('')}</ul>` : '<p class="muted">No decks yet. Start one in the Deck workshop.</p>'}</section>`}
+          : `<section class="card"><h2 class="sec">Your decks</h2>${rows.length ? `<ul class="rows">${[...rows].sort((a, b) => (Date.parse(b.d.updated_at) || 0) - (Date.parse(a.d.updated_at) || 0)).slice(0, 8).map(r => deckRow(r, false, true)).join('')}</ul>` : '<p class="muted">No decks yet. Start one in the Deck workshop.</p>'}</section>`}
         <section class="card"><h2 class="sec">Cheapest to finish</h2>${close.length ? `<ul class="rows">${close.map(r => deckRow(r, true)).join('')}</ul><a class="link" href="#buy">Plan the shopping in Buy planner</a>` : '<p class="muted">No decks are waiting on cards.</p>'}</section>
       </div>
-      ${top.length ? `<section class="card"><h2 class="sec">Most valuable cards</h2><div class="topcards">${top.map(r => { const u = imgUrl(r.c, 'normal'); return `<a class="topcard" href="#collection" title="${esc(cardName(r.c))}">${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<span class="ph"></span>'}<b>${esc(cardName(r.c))}</b><span>${money(r.value)}${r.n > 1 ? ` · ${r.n} copies` : ''}</span></a>`; }).join('')}</div></section>` : ''}`;
+      ${top.length ? `<section class="card"><h2 class="sec">Most valuable cards</h2><div class="topcards">${top.map(r => { const u = imgUrl(r.c, 'normal'); return `<button type="button" class="topcard"${cardAttr(r.c)}>${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : '<span class="ph"></span>'}<b>${esc(cardName(r.c))}</b><span>${money(r.value)}${r.n > 1 ? ` · ${r.n} copies` : ''}</span></button>`; }).join('')}</div></section>` : ''}`;
     $('ask').onsubmit = e => { e.preventDefault(); const q = $('askIn').value.trim(); if (!q) return; pendingAsk = q; location.hash = 'advisor'; };
     wireDeckLinks(v);
   }
@@ -106,7 +220,7 @@
   function wireDeckLinks(root){ for (const b of root.querySelectorAll('[data-open-deck]')) b.onclick = () => { workshop.id = b.dataset.openDeck; workshop.draft = null; location.hash = 'decks'; }; }
 
   /* ---------- Collection ---------- */
-  const coll = {q: '', color: '', type: '', rarity: '', sort: 'value', shown: 200};
+  const coll = {q: '', color: '', type: '', rarity: '', sort: 'value', shown: 200, view: D.lsGet('portal.collView', 'gallery')};
   function collectionRows(){
     const usedBy = new Map();
     for (const d of S().decks) for (const nv of Object.keys(d.cards)) (usedBy.get(nv) || usedBy.set(nv, []).get(nv)).push(d.name);
@@ -136,8 +250,8 @@
         <section class="card"><h2 class="sec">Value over time</h2><div id="chHist"></div></section>
       </div>
       <div class="grid2">
-        <section class="card"><h2 class="sec">Most valuable</h2><ol class="rank">${all.filter(r => r.c).sort((a, b) => b.value - a.value).slice(0, 10).map(r => `<li><span>${esc(cardName(r.c))}</span><span class="muted">${esc(String(r.c.s).toUpperCase())}${r.n > 1 ? ` ×${r.n}` : ''}</span><span class="num">${money(r.value)}</span></li>`).join('')}</ol></section>
-        <section class="card"><h2 class="sec">Trade bait</h2><p class="muted small">Cards worth $1 or more that aren't in any deck. ${plural(unused.length, 'printing')} sit outside every deck, worth ${money(unusedValue)} in all.</p><ol class="rank">${bait.map(r => `<li><span>${esc(cardName(r.c))}</span><span class="muted">${r.free} free</span><span class="num">${money(r.value)}</span></li>`).join('') || '<li class="muted">Nothing over $1 sits unused.</li>'}</ol></section>
+        <section class="card"><h2 class="sec">Most valuable</h2><ol class="rank">${all.filter(r => r.c).sort((a, b) => b.value - a.value).slice(0, 10).map(r => `<li${cardAttr(r.c)}>${nameBtn(r.c)}<span class="muted">${esc(String(r.c.s).toUpperCase())}${r.n > 1 ? ` ×${r.n}` : ''}</span><span class="num">${money(r.value)}</span></li>`).join('')}</ol></section>
+        <section class="card"><h2 class="sec">Trade bait</h2><p class="muted small">Cards worth $1 or more that aren't in any deck. ${plural(unused.length, 'printing')} sit outside every deck, worth ${money(unusedValue)} in all.</p><ol class="rank">${bait.map(r => `<li${cardAttr(r.c)}>${nameBtn(r.c)}<span class="muted">${r.free} free</span><span class="num">${money(r.value)}</span></li>`).join('') || '<li class="muted">Nothing over $1 sits unused.</li>'}</ol></section>
       </div>
       <section class="card">
         <div class="toolbar">
@@ -145,10 +259,11 @@
           <select id="cColor"><option value="">All ${esc(g.colorWord.toLowerCase())}s</option>${g.colors.map(x => `<option ${coll.color === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
           <select id="cType"><option value="">All types</option>${g.types.map(x => `<option ${coll.type === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
           <select id="cRarity"><option value="">All rarities</option>${g.rarities.map(x => `<option value="${esc(x)}" ${coll.rarity === x ? 'selected' : ''}>${esc(g.rarityLabel(x))}</option>`).join('')}</select>
+          <div class="seg" role="group" aria-label="Layout">${[['gallery', 'Gallery'], ['list', 'List']].map(([k, l]) => `<button type="button" aria-pressed="${coll.view === k}" data-cview="${k}">${l}</button>`).join('')}</div>
           <select id="cSort">${[['value', 'Value'], ['name', 'Name'], ['qty', 'Quantity'], ['set', 'Set']].map(([k, l]) => `<option value="${k}" ${coll.sort === k ? 'selected' : ''}>Sort: ${l}</option>`).join('')}</select>
         </div>
-        <table class="tbl"><thead><tr><th>Card</th><th>Set</th><th>Rarity</th><th class="num">Qty</th><th class="num">Free</th><th class="num">Price</th><th class="num">Value</th><th>In decks</th></tr></thead>
-        <tbody>${rows.slice(0, coll.shown).map(r => `<tr><td><div class="cell-card">${imgUrl(r.c) ? `<img loading="lazy" src="${esc(imgUrl(r.c))}" alt="">` : '<span class="thumb-ph"></span>'}<div><div class="cn">${esc(cardName(r.c))}</div><div class="cm">${esc(r.c.ty || '')}</div></div></div></td><td>${esc(String(r.c.s).toUpperCase())} #${esc(r.c.c)}</td><td>${esc(g.rarityLabel(r.c.r))}</td><td class="num">${[r.v.q ? String(r.v.q) : '', r.v.f ? `${r.v.f} foil` : '', r.v.rf ? `${r.v.rf} ${esc((g.finishes.rainbow || 'special').toLowerCase())}` : ''].filter(Boolean).join(' + ')}</td><td class="num">${r.free}</td><td class="num">${money(r.c.p ?? r.c.pf ?? null)}</td><td class="num">${money(r.value)}${r.unpriced ? '+' : ''}</td><td class="muted small">${esc(r.decks.slice(0, 2).join(', '))}${r.decks.length > 2 ? ` +${r.decks.length - 2}` : ''}</td></tr>`).join('')}</tbody></table>
+        ${coll.view === 'gallery' ? `<div class="gallery">${rows.slice(0, coll.shown).map(r => { const u = imgUrl(r.c, 'normal'); return `<button type="button" class="ctile"${cardAttr(r.c)}><span class="ctile-art">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : `<span class="peek-ph">${esc(cardName(r.c))}</span>`}${r.n > 1 ? `<span class="ctile-q">×${r.n}</span>` : ''}</span><b>${esc(cardName(r.c))}</b><span>${money(r.value)}${r.unpriced ? '+' : ''} · ${esc(String(r.c.s).toUpperCase())}</span></button>`; }).join('')}</div>` : `<table class="tbl"><thead><tr><th>Card</th><th>Set</th><th>Rarity</th><th class="num">Qty</th><th class="num">Free</th><th class="num">Price</th><th class="num">Value</th><th>In decks</th></tr></thead>
+        <tbody>${rows.slice(0, coll.shown).map(r => `<tr${cardAttr(r.c)}><td><div class="cell-card">${imgUrl(r.c) ? `<img loading="lazy" src="${esc(imgUrl(r.c))}" alt="">` : '<span class="thumb-ph"></span>'}<div><div class="cn">${nameBtn(r.c)}</div><div class="cm">${esc(r.c.ty || '')}</div></div></div></td><td>${esc(String(r.c.s).toUpperCase())} #${esc(r.c.c)}</td><td>${esc(g.rarityLabel(r.c.r))}</td><td class="num">${[r.v.q ? String(r.v.q) : '', r.v.f ? `${r.v.f} foil` : '', r.v.rf ? `${r.v.rf} ${esc((g.finishes.rainbow || 'special').toLowerCase())}` : ''].filter(Boolean).join(' + ')}</td><td class="num">${r.free}</td><td class="num">${money(r.c.p ?? r.c.pf ?? null)}</td><td class="num">${money(r.value)}${r.unpriced ? '+' : ''}</td><td class="muted small">${esc(r.decks.slice(0, 2).join(', '))}${r.decks.length > 2 ? ` +${r.decks.length - 2}` : ''}</td></tr>`).join('')}</tbody></table>`}
         ${rows.length > coll.shown ? `<button class="btn ghost" id="cMore" type="button">Show ${Math.min(200, rows.length - coll.shown)} more of ${rows.length.toLocaleString()}</button>` : rows.length ? '' : '<p class="muted">No cards match.</p>'}
       </section>`;
     const bySet = new Map(); for (const r of all) if (r.c){ const k = String(r.c.s); bySet.set(k, (bySet.get(k) || 0) + r.value); }
@@ -164,12 +279,14 @@
     $('cType').onchange = () => { coll.type = $('cType').value; re(); };
     $('cRarity').onchange = () => { coll.rarity = $('cRarity').value; re(); };
     $('cSort').onchange = () => { coll.sort = $('cSort').value; re(); };
+    for (const b of v.querySelectorAll('[data-cview]')) b.onclick = () => { coll.view = b.dataset.cview; D.lsSet('portal.collView', coll.view); re(); };
     if ($('cMore')) $('cMore').onclick = () => { coll.shown += 200; renderCollection(v); };
   }
   function debounce(fn, ms){ let t = 0; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
   /* ---------- Deck workshop ---------- */
-  const workshop = {id: null, draft: null, dirty: false, q: '', filter: 'all', compare: '', addQ: '', addResults: []};
+  const workshop = {id: null, draft: null, dirty: false, q: '', filter: 'all', sort: D.lsGet('portal.deckSort', 'name'), colors: [], compare: '', addQ: '', addResults: []};
+  const DECK_SORTS = [['name', 'Name'], ['easiest', 'Easiest to build'], ['fewest', 'Fewest cards missing'], ['cheapest', 'Cheapest to finish'], ['recent', 'Recently changed']];
   function curveOf(cards){
     const groups = game === 'lorcana' ? ['1', '2', '3', '4', '5', '6', '7+'] : ['0', '1', '2', '3', '4', '5', '6', '7+'];
     const vals = groups.map(() => 0);
@@ -191,8 +308,21 @@
   }
   function renderDecks(v){
     const all = allStats(), q = workshop.q.toLowerCase();
-    const list = all.filter(r => (!q || r.d.name.toLowerCase().includes(q)) && (workshop.filter === 'all' || (workshop.filter === 'built' && r.d.built) || (workshop.filter === 'ready' && !r.d.built && !r.st.missing && !r.st.unknown && r.st.total) || (workshop.filter === 'fav' && r.d.fav) || (workshop.filter === r.d.format)))
-      .sort((a, b) => (b.d.fav - a.d.fav) || a.d.name.localeCompare(b.d.name, undefined, {numeric: true}));
+    const isReady = r => !r.d.built && !r.st.missing && !r.st.unknown && r.st.total;
+    const tests = {all: () => true, notbuilt: r => !r.d.built, ready: isReady, close: r => !r.d.built && r.st.total && r.st.missing > 0 && r.st.missing <= 5, missing: r => !r.d.built && r.st.missing > 0, built: r => r.d.built, fav: r => r.d.fav};
+    const own = r => r.st.total ? (r.st.total - r.st.missing) / r.st.total : -1;
+    const last = r => (r.d.built ? 2 : 0) + (r.st.total ? 0 : 1);   // decks already built, and empty ones, sink in the build-first orders
+    const byName = (a, b) => a.d.name.localeCompare(b.d.name, undefined, {numeric: true});
+    const sorts = {
+      name: (a, b) => (b.d.fav - a.d.fav) || byName(a, b),
+      easiest: (a, b) => last(a) - last(b) || own(b) - own(a) || a.st.missCost - b.st.missCost || byName(a, b),
+      fewest: (a, b) => last(a) - last(b) || a.st.missing - b.st.missing || a.st.missCost - b.st.missCost || byName(a, b),
+      cheapest: (a, b) => last(a) - last(b) || a.st.missCost - b.st.missCost || a.st.missing - b.st.missing || byName(a, b),
+      recent: (a, b) => (Date.parse(b.d.updated_at) || 0) - (Date.parse(a.d.updated_at) || 0) || byName(a, b)
+    };
+    const list = all.filter(r => (!q || r.d.name.toLowerCase().includes(q)) && (tests[workshop.filter] ? tests[workshop.filter](r) : workshop.filter === r.d.format)
+      && (!workshop.colors.length || workshop.colors.every(c => deckColors(r.d).includes(c)))).sort(sorts[workshop.sort] || sorts.name);
+    const ranked = workshop.sort !== 'name' && workshop.sort !== 'recent';
     if (!workshop.id || !S().decks.some(d => d.id === workshop.id)) workshop.id = workshop.draft?.id && !workshop.draft.updated_at ? workshop.draft.id : list[0]?.d.id || null;
     const base = S().decks.find(d => d.id === workshop.id);
     if (!workshop.draft || workshop.draft.id !== workshop.id) { workshop.draft = base ? structuredClone(base) : workshop.draft; workshop.dirty = workshop.draft && !workshop.draft.updated_at; }
@@ -202,13 +332,21 @@
       <div class="workshop">
         <aside class="card deck-list">
           <div class="search"><svg class="ic"><use href="#i-search"/></svg><input id="dq" placeholder="Search decks" value="${esc(workshop.q)}"></div>
-          <select id="dFilter">${[['all', 'All decks'], ['ready', 'Ready to build'], ['built', 'Built'], ['fav', 'Favorites'], ...formats.map(([k, f]) => [k, f.label])].map(([k, l]) => `<option value="${k}" ${workshop.filter === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-          <ul class="dl">${list.map(({d, st}) => `<li><button type="button" class="dl-i ${d.id === workshop.id ? 'on' : ''}" data-id="${esc(d.id)}"><span class="dl-n">${esc(d.name)}</span><span class="dl-m">${dots(deckColors(d))}${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}${d.built ? ' · Built' : ''}</span><span class="meter"><i style="width:${Math.round(st.pct * 100)}%"></i></span></button></li>`).join('') || '<li class="muted small">No decks match.</li>'}</ul>
+          <div class="dl-ctl">
+            <label class="field"><span>Show</span><select id="dFilter">${[['all', 'All decks'], ['notbuilt', 'Not built yet'], ['ready', 'Ready to build'], ['close', 'Missing 5 or fewer'], ['missing', 'Missing cards'], ['built', 'Built'], ['fav', 'Favorites'], ...formats.map(([k, f]) => [k, f.label])].map(([k, l]) => `<option value="${k}" ${workshop.filter === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+            <label class="field"><span>Sort</span><select id="dSort">${DECK_SORTS.map(([k, l]) => `<option value="${k}" ${workshop.sort === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+          </div>
+          <div class="cpick" role="group" aria-label="${esc(gameDef().colorWord)}s">${gameDef().colors.filter(x => x !== 'Colorless').map(x => `<button type="button" class="cdot" data-col="${esc(x)}" aria-pressed="${workshop.colors.includes(x)}" aria-label="${esc(x)}" title="${esc(x)}"><i style="background:${colorVar(x)}"></i></button>`).join('')}<span class="muted small dl-count">${list.length === all.length ? plural(all.length, 'deck') : `${list.length} of ${all.length}`}</span></div>
+          <ul class="dl">${list.map(({d, st}, i) => { const o = st.total ? Math.round(100 * (st.total - st.missing) / st.total) : 0;
+            const state = d.built ? 'Built' : !st.total ? 'Empty' : st.unknown ? 'Loading cards' : st.missing ? `${plural(st.missing, 'card')} to get${st.missCost ? ` · ${money(st.missCost)}` : ''}` : 'Ready to build';
+            return `<li><button type="button" class="dl-i ${d.id === workshop.id ? 'on' : ''}" data-id="${esc(d.id)}" style="--deck:${deckGrad(d)}"><span class="dl-top">${ranked ? `<span class="dl-r">${i + 1}</span>` : ''}<span class="dl-n">${esc(d.name)}</span><span class="dl-p${st.total && !st.missing ? ' full' : ''}">${st.total ? o + '%' : ''}</span></span><span class="dl-m">${dots(deckColors(d))}${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span><span class="dl-m">${esc(state)}</span><span class="meter${st.total && !st.missing ? ' full' : ''}"><i style="width:${o}%"></i></span></button></li>`; }).join('') || '<li class="muted small dl-none">No decks match.</li>'}</ul>
         </aside>
         <div id="deckPane" class="deck-pane"></div>
       </div>`;
     $('dq').oninput = debounce(() => { workshop.q = $('dq').value; renderDecks(v); $('dq').focus(); $('dq').setSelectionRange(workshop.q.length, workshop.q.length); }, 200);
     $('dFilter').onchange = () => { workshop.filter = $('dFilter').value; renderDecks(v); };
+    $('dSort').onchange = () => { workshop.sort = $('dSort').value; D.lsSet('portal.deckSort', workshop.sort); renderDecks(v); };
+    for (const b of v.querySelectorAll('.cdot')) b.onclick = () => { const c = b.dataset.col; workshop.colors = workshop.colors.includes(c) ? workshop.colors.filter(x => x !== c) : [...workshop.colors, c]; renderDecks(v); v.querySelector(`.cdot[data-col="${c}"]`)?.focus(); };
     for (const b of v.querySelectorAll('.dl-i')) b.onclick = () => { if (workshop.dirty && !confirm('Discard unsaved changes to this deck?')) return; workshop.id = b.dataset.id; workshop.draft = null; workshop.compare = ''; renderDecks(v); };
     $('newDeck').onclick = () => {
       if (workshop.dirty && !confirm('Discard unsaved changes to this deck?')) return;
@@ -227,8 +365,10 @@
     for (const r of rows){ if (r.commander){ continue; } const i = r.c ? groups.findIndex(([, test]) => test(r.c)) : -1; (grouped[i >= 0 ? i : grouped.length - 1] || grouped[0])[1].push(r); seen.add(r.nv); }
     const cmd = st.rows.filter(r => r.commander);
     const others = S().decks.filter(x => x.id !== d.id);
+    const lead = (d.commanders.map(nv => S().cat.rep(nv)).find(c => c && imgUrl(c, 'normal'))) || st.rows.filter(r => r.c && imgUrl(r.c, 'normal') && !/\bLand\b/.test(String(r.c.ty).split('//')[0])).sort((a, b) => (b.c.p || 0) - (a.c.p || 0))[0]?.c;
     p.innerHTML = `
-      <section class="card">
+      <section class="card deck-top">
+        ${lead ? `<div class="deck-art" style="background-image:url('${esc(imgUrl(lead, 'normal'))}')"></div>` : ''}<div class="deck-band" style="--deck:${deckGrad(d)}"></div>
         <div class="deck-head">
           <input id="dName" class="title-input" value="${esc(d.name)}" aria-label="Deck name">
           <div class="deck-actions">
@@ -251,6 +391,7 @@
         <section class="card"><h2 class="sec">${esc(g.colorWord)}s</h2><div id="chColors"></div></section>
         <section class="card"><h2 class="sec">Types</h2><div id="chTypes"></div></section>
       </div>
+      ${strategyHTML(d)}
       <section class="card">
         <div class="toolbar">
           <div class="search grow"><svg class="ic"><use href="#i-search"/></svg><input id="addQ" placeholder="${game === 'mtg' ? 'Add a card: name or Scryfall search' : 'Add a card by name'}" value="${esc(workshop.addQ)}"></div>
@@ -262,8 +403,7 @@
         ${cmd.length ? `<h3 class="grp">Commander</h3>${cardTable(cmd)}` : ''}
         ${grouped.filter(([, r]) => r.length).map(([label, r]) => `<h3 class="grp">${esc(label)} <span class="muted">${r.reduce((s, x) => s + x.q, 0)}</span></h3>${cardTable(r)}`).join('')}
         ${st.rows.length ? '' : '<p class="muted">This deck is empty. Add cards with the search above.</p>'}
-      </section>
-      ${d.guide?.overview ? `<section class="card"><h2 class="sec">How it plays</h2><p>${esc(d.guide.overview)}</p>${d.guide.tip ? `<p class="muted">${esc(d.guide.tip)}</p>` : ''}</section>` : ''}`;
+      </section>`;
     const cv = curveOf(d.cards);
     C.bars($('chCurve'), {categories: cv.groups, series: [{name: 'Cards', color: C.token('--chart-1'), values: cv.vals}], format: x => String(Math.round(x)), height: 170, label: 'Curve'});
     const cc = colorCounts(d.cards);
@@ -298,19 +438,21 @@
       try {
         const r = await D.searchCards(game, q, 12);
         if (workshop.addQ.trim() !== q) return;
-        $('addRes').innerHTML = r.cards.length ? r.cards.map(c => `<button type="button" class="chip-btn" data-add="${esc(c.nv)}"><svg class="ic"><use href="#i-plus"/></svg>${esc(cardName(c))}<span class="muted">${D.ownedNV(c.nv) ? ` · own ${D.ownedNV(c.nv)}` : ''}</span></button>`).join('') : '<p class="muted small">No cards found.</p>';
+        $('addRes').innerHTML = r.cards.length ? r.cards.map(c => `<button type="button" class="chip-btn" data-add="${esc(c.nv)}"${cardAttr(c, true)}><svg class="ic"><use href="#i-plus"/></svg>${esc(cardName(c))}<span class="muted">${D.ownedNV(c.nv) ? ` · own ${D.ownedNV(c.nv)}` : ''}</span></button>`).join('') : '<p class="muted small">No cards found.</p>';
         for (const b of $('addRes').querySelectorAll('[data-add]')) b.onclick = () => { d.cards[b.dataset.add] = (d.cards[b.dataset.add] || 0) + 1; workshop.dirty = true; renderDeckPane(p, v); };
       } catch(err){ $('addRes').innerHTML = `<p class="muted small">${esc(err.message)}</p>`; }
     }, 350);
     $('addQ').oninput = () => { workshop.addQ = $('addQ').value; runAdd(); };
     if (workshop.addQ) runAdd();
+    if ($('stratAsk')) $('stratAsk').onclick = () => { pendingAsk = $('stratAsk').dataset.ask; location.hash = 'advisor'; };
+    if ($('stratSim')) $('stratSim').onclick = () => { if (!S().decks.some(x => x.id === d.id)){ toast('Save the deck first, then run it in the Simulator.'); return; } sim.deck = d.id; sim.result = null; sim.mode = 'opening'; location.hash = 'simulate'; };
     $('cmpSel').onchange = () => { workshop.compare = $('cmpSel').value; renderCompare(d); };
     renderCompare(d);
   }
   function cardTable(rows){
-    return `<table class="tbl compact fixed"><colgroup><col style="width:48px"><col><col style="width:20%"><col style="width:88px"><col style="width:64px"><col style="width:80px"><col style="width:88px"></colgroup><thead><tr><th class="num">Qty</th><th>Card</th><th>Cost</th><th class="num">Own</th><th class="num">Need</th><th class="num">Price</th><th></th></tr></thead><tbody>${rows.map(r => `<tr class="${r.need ? 'needs' : ''}">
-      <td class="num">${r.q}</td><td><span class="cn">${esc(nvName(r.nv))}</span>${r.c ? '' : ' <span class="muted small">loading</span>'}</td>
-      <td class="muted">${esc(r.c ? (game === 'mtg' ? r.c.mc || '' : r.c.co ?? '') : '')}</td>
+    return `<table class="tbl compact fixed"><colgroup><col style="width:48px"><col><col style="width:20%"><col style="width:88px"><col style="width:64px"><col style="width:80px"><col style="width:88px"></colgroup><thead><tr><th class="num">Qty</th><th>Card</th><th>Cost</th><th class="num">Own</th><th class="num">Need</th><th class="num">Price</th><th></th></tr></thead><tbody>${rows.map(r => `<tr class="${r.need ? 'needs' : ''}"${cardAttr(r.c)}>
+      <td class="num">${r.q}</td><td>${nameBtn(r.c, nvName(r.nv))}${r.c ? '' : ' <span class="muted small">loading</span>'}</td>
+      <td class="muted">${r.c ? (game === 'mtg' ? pips(r.c.mc || '') : esc(r.c.co ?? '')) : ''}</td>
       <td class="num">${r.free}${r.owned > r.free ? `<span class="muted small"> of ${r.owned}</span>` : ''}</td><td class="num">${r.need ? `<span class="need">${r.need}</span>` : '<span class="ok-t">✓</span>'}</td>
       <td class="num">${money(r.price)}</td>
       <td class="qty-btns"><button type="button" class="icon-btn" data-qty="-1" data-nv="${esc(r.nv)}" aria-label="One fewer ${esc(nvName(r.nv))}"><svg class="ic"><use href="#i-minus"/></svg></button><button type="button" class="icon-btn" data-qty="1" data-nv="${esc(r.nv)}" aria-label="One more ${esc(nvName(r.nv))}"><svg class="ic"><use href="#i-plus"/></svg></button></td></tr>`).join('')}</tbody></table>`;
@@ -341,6 +483,135 @@
   function avgCost(cards){ let n = 0, s = 0; for (const [nv, q] of Object.entries(cards)){ const c = S().cat.rep(nv); if (!c || c.co == null || /\bLand\b/.test(String(c.ty).split('//')[0])) continue; n += q; s += q * c.co; } return n ? (s / n).toFixed(2) : '—'; }
   const landCount = cards => Object.entries(cards).reduce((s, [nv, q]) => s + (/\bLand\b/.test(String(S().cat.rep(nv)?.ty || '').split('//')[0]) ? q : 0), 0);
   const inkableCount = cards => Object.entries(cards).reduce((s, [nv, q]) => s + (S().cat.rep(nv)?.ik ? q : 0), 0);
+
+  /* ---------- How the deck plays: read from the list's curve and card text ---------- */
+  function hyper(N, K, n, lo, hi){
+    const lc = (a, b) => { if (b < 0 || b > a) return -Infinity; let s = 0; for (let i = 1; i <= b; i++) s += Math.log((a - b + i) / i); return s; };
+    let p = 0; for (let k = lo; k <= Math.min(hi, K, n); k++) p += Math.exp(lc(K, k) + lc(N - K, n - k) - lc(N, n));
+    return Math.max(0, Math.min(1, p));
+  }
+  const ROLES = {
+    mtg: [
+      ['Creatures', c => /Creature/.test(c.ty), 'The bodies that attack and block.'],
+      ['Removal', (c, t) => /\b(destroy|exile) target (?!card|spell|.*graveyard)|deals? (\d+|x) damage to (any target|target (creature|planeswalker|attacking|blocking))|target creature gets -\d|\bfights? (another |up to one )?target|target (player|opponent) sacrifices|return target (creature|nonland permanent|permanent) to its owner's hand/.test(t), 'Deals with one opposing card.'],
+      ['Counterspells', (c, t) => /counter target/.test(t), 'Stops a spell before it lands.'],
+      ['Sweepers', (c, t) => /(destroy|exile) all|deals? (\d+|x) damage to each creature|all creatures get -|each (player|opponent) sacrifices/.test(t), 'Clears the whole board.'],
+      ['Card draw', (c, t) => /draws? (a|two|three|four|x|\d+) cards?|draw cards equal/.test(t), 'Keeps your hand full.'],
+      ['Ramp', (c, t) => !/\bLand\b/.test(String(c.ty).split('//')[0]) && /add \{|add (one|two|three|x) mana|search your library for (a|up to \w+) (basic )?(land|forest|plains|island|swamp|mountain)|put (a|that|up to \w+) (basic )?land cards? .*onto the battlefield/.test(t), 'Extra mana ahead of schedule.'],
+      ['Recursion', (c, t) => /return .{0,60}from (your|a) graveyard/.test(t), 'Gets cards back from the graveyard.'],
+      ['Evasive threats', (c, t) => /Creature/.test(c.ty) && /\bflying\b|\bmenace\b|\btrample\b|can't be blocked/.test(t), 'Hard to block.']
+    ],
+    lorcana: [
+      ['Characters', c => /Character/.test(c.ty), 'Quest for lore and challenge.'],
+      ['Strong questers', c => /Character/.test(c.ty) && (c.lo || 0) >= 2, 'Characters that quest for 2 lore or more.'],
+      ['Removal', (c, t) => /banish (chosen|target|all|each)|deals? \d+ damage to (chosen|each|all)|return chosen .{0,40}to (their|its) player's hand|chosen .{0,30}gets -\d/.test(t), 'Deals with opposing characters.'],
+      ['Songs', c => /Song/.test(c.ty), 'Actions your characters can sing for free.'],
+      ['Card draw', (c, t) => /draws? (a|two|three|x|\d+) cards?/.test(t), 'Keeps your hand full.'],
+      ['Ink ramp', (c, t) => /into your inkwell/.test(t), 'Extra ink ahead of schedule.'],
+      ['Evasive', (c, t) => /\bevasive\b/.test(t), 'Only evasive characters can challenge them.'],
+      ['Protection', (c, t) => /\bbodyguard\b|\bward\b|\bresist\b/.test(t), 'Bodyguard, Ward and Resist.']
+    ]
+  };
+  function deckPlan(d){
+    const mtg = game === 'mtg', lor = game === 'lorcana';
+    const isLand = c => mtg && /\bLand\b/.test(String(c.ty).split('//')[0]);
+    const all = Object.entries(d.cards).map(([nv, q]) => ({nv, q, c: S().cat.rep(nv)})).filter(x => x.c);
+    const total = all.reduce((s, x) => s + x.q, 0); if (!total) return null;
+    const spells = all.filter(x => !isLand(x.c)), nSpells = spells.reduce((s, x) => s + x.q, 0);
+    const lands = total - nSpells;
+    const cmdSet = new Set(d.commanders), full = D.deckStats(d).size || total, short = total < full * .9;
+    const costed = spells.filter(x => x.c.co != null), avg = costed.reduce((s, x) => s + x.q * x.c.co, 0) / Math.max(1, costed.reduce((s, x) => s + x.q, 0));
+    const sum = list => list.reduce((s, x) => s + x.q, 0);
+    const roles = (ROLES[game] || []).map(([label, test, hint]) => { const list = spells.filter(x => test(x.c, String(x.c.tx || '').toLowerCase())); return {label, hint, list, n: sum(list)}; });
+    const role = l => roles.find(r => r.label === l)?.n || 0;
+    const byQty = (a, b) => b.q - a.q || (b.c.p || 0) - (a.c.p || 0) || cardName(a.c).localeCompare(cardName(b.c));
+    const lo = lor ? 2 : 2, hi = lor ? 5 : 4;
+    const main = costed.filter(x => !cmdSet.has(x.nv));
+    const early = main.filter(x => x.c.co <= lo).sort(byQty), mid = main.filter(x => x.c.co > lo && x.c.co <= hi).sort(byQty), late = main.filter(x => x.c.co > hi).sort((a, b) => b.c.co - a.c.co || byQty(a, b));
+    const commander = d.commanders.map(nv => S().cat.rep(nv)).filter(Boolean);
+    const big = mtg && (commander.length || d.format === 'commander' || total > 80);
+    const singleton = all.every(x => x.q === 1 || isLand(x.c));
+    const core = singleton ? [] : spells.filter(x => x.q >= 3).sort(byQty).slice(0, 8);
+    const interact = role('Removal') + role('Counterspells') + role('Sweepers'), creat = role(mtg ? 'Creatures' : 'Characters');
+    let kind = 'Midrange', plan = '';
+    if (mtg && big){
+      kind = avg < 2.7 ? 'Low-curve Commander' : avg < 3.5 ? 'Commander' : 'Top-heavy Commander';
+      plan = `${commander.length ? `Everything is built around ${commander.map(cardName).join(' and ')}. ` : ''}Spend the first turns on lands and ramp so the commander lands with mana to spare, keep cards flowing, and hold removal for whatever stops your plan rather than the first thing that appears.`;
+    } else if (mtg){
+      if (avg <= 2.1 && creat >= nSpells * .4){ kind = 'Aggro'; plan = 'Get on the board on turns 1 and 2, keep attacking, and finish before slower decks settle. Spend removal on blockers; every turn the game goes on favours the other side.'; }
+      else if (interact >= nSpells * .3 && creat <= nSpells * .35){ kind = 'Control'; plan = 'Answer what matters, keep cards flowing, and win late with a handful of finishers. There is no hurry: save answers for the cards that actually threaten you.'; }
+      else if (avg >= 3.2 || role('Ramp') >= 8){ kind = 'Ramp'; plan = 'Spend the first turns building mana, then land threats a turn or two before they can be handled. Hands without early mana are the ones to send back.'; }
+      else { kind = 'Midrange'; plan = 'Trade early, then take over with stronger cards from turn 3 on. Play the attacker when you are ahead and the defender when you are behind; the deck has tools for both.'; }
+    } else if (lor){
+      if (avg <= 2.9 && creat >= nSpells * .7){ kind = 'Aggro'; plan = 'Put a character down every turn and quest. You win the race to 20 lore by making the other side spend their turns answering you.'; }
+      else if (interact + role('Songs') >= nSpells * .28){ kind = 'Control'; plan = 'Clear their characters with removal and songs, keep your own hand full, and out-lore them late with a few sturdy questers.'; }
+      else { kind = 'Midrange'; plan = 'Build a board through the middle turns, challenge when the trade is good and quest when it is safe. The deck wins by having the better characters on the table from turn 4 on.'; }
+    } else plan = 'Lay out your early plays, build through the middle turns and close with your biggest cards.';
+    const good = [], watch = [];
+    const cols = deckColors(d).length;
+    if (mtg){
+      const cheap = roles.filter(r => r.label === 'Ramp' || r.label === 'Card draw').flatMap(r => r.list).filter(x => x.c.co != null && x.c.co <= 2);
+      const want = Math.round((big ? 31.42 + 3.13 * avg : 19.59 + 1.9 * avg) * (big ? total / 100 : total / 60) - .28 * sum([...new Set(cheap)]));
+      if (short) watch.push(`This list has ${total} of ${full} cards, so every number here will move as you fill it in.`);
+      else if (lands && Math.abs(lands - want) >= 3) watch.push(`${lands} lands for an average mana value of ${avg.toFixed(2)}. Frank Karsten's land-count rule of thumb points to about ${want}.`);
+      else if (lands) good.push(`${lands} lands suits an average mana value of ${avg.toFixed(2)}.`);
+      const iWant = big ? 10 : 8, dWant = big ? 10 : 6;
+      if (interact >= iWant) good.push(`${interact} ways to answer an opposing card.`); else if (interact <= (big ? 5 : 3)) watch.push(`Only ${interact} ${interact === 1 ? 'way' : 'ways'} to answer an opposing card. A single strong threat can run away with the game.`);
+      if (role('Card draw') >= dWant) good.push(`${role('Card draw')} sources of card draw keep it from running dry.`); else if (role('Card draw') <= (big ? 5 : 2) && kind !== 'Aggro') watch.push(`Only ${role('Card draw')} card-draw ${role('Card draw') === 1 ? 'source' : 'sources'}. It can run out of things to do in a long game.`);
+      if (big && !short && role('Ramp') < 8) watch.push(`${role('Ramp')} ramp cards. Most Commander lists want around 10.`);
+      if (!big && sum(early) >= 14) good.push(`${sum(early)} plays at 2 mana or less, so it is rarely stuck early.`); else if (!big && sum(early) <= 6 && kind !== 'Control') watch.push(`Only ${sum(early)} plays at 2 mana or less. Expect slow starts.`);
+      if (role('Evasive threats') >= (big ? 10 : 8)) good.push(`${role('Evasive threats')} threats that are hard to block.`);
+      if (cols >= 3 && !big) watch.push(`${cols} colours in a ${total}-card list. Check “Color trouble” in the Simulator.`);
+    } else if (lor){
+      const ink = sum(all.filter(x => x.c.ik)), un = total - ink;
+      if (short) watch.push(`This list has ${total} of ${full} cards, so every number here will move as you fill it in.`);
+      if (un > 14) watch.push(`${un} cards can’t be put in the inkwell. Hands can stall on ink.`); else good.push(`${ink} of ${total} cards are inkable, so ink drops come easily.`);
+      if (role('Strong questers') >= 12) good.push(`${role('Strong questers')} characters quest for 2 lore or more.`);
+      if (role('Removal') <= 4) watch.push(`Only ${role('Removal')} removal ${role('Removal') === 1 ? 'card' : 'cards'}. A character you can’t challenge will be hard to shift.`); else if (role('Removal') >= 9) good.push(`${role('Removal')} ways to deal with opposing characters.`);
+      if (role('Card draw') <= 3) watch.push(`Only ${role('Card draw')} card-draw ${role('Card draw') === 1 ? 'source' : 'sources'}. It leans on the top of the deck late.`); else if (role('Card draw') >= 7) good.push(`${role('Card draw')} sources of card draw.`);
+      if (sum(early) <= 10) watch.push(`Only ${sum(early)} plays at 2 ink or less. Turn 1 and 2 will often be ink only.`); else if (sum(early) >= 16) good.push(`${sum(early)} plays at 2 ink or less.`);
+    }
+    const size = gameDef().deck?.handSize || 7;
+    let hand = [];
+    if (mtg && lands){
+      hand = [[pct(hyper(total, lands, size, big ? 3 : 2, big ? 5 : 4)), big ? '3 to 5 lands in the opening 7' : '2 to 4 lands in the opening 7'], [pct(1 - hyper(total, sum(early), size, 0, 0)), 'a play at 2 mana or less'], [pct(hyper(total, lands, size, 0, 1)), 'one land or none: send it back']];
+    } else if (lor){
+      const ink = sum(all.filter(x => x.c.ik));
+      hand = [[pct(hyper(total, ink, size, 3, size)), '3 or more inkable cards in the opening 7'], [pct(1 - hyper(total, sum(early), size, 0, 1)), 'two or more plays at 2 ink or less'], [pct(1 - hyper(total, sum(costed.filter(x => x.c.co === 1)), size, 0, 0)), 'a 1-cost play for turn 1']];
+    }
+    const keep = mtg ? (big ? 'Keep 3 to 5 lands with ramp or card draw. A hand that does nothing before turn 4 goes back.' : kind === 'Aggro' ? 'Keep 2 or 3 lands and at least two plays you can make by turn 2.' : kind === 'Control' ? 'Keep 3 or 4 lands with an early answer or a way to draw cards.' : 'Keep 2 to 4 lands and something to do by turn 2.')
+      : lor ? 'Keep 3 or more inkable cards and two cheap plays. Lorcana lets you put back any number of cards once, so send back expensive cards and uninkables you don’t need early.' : '';
+    return {kind, plan, avg, lands, total, roles: roles.filter(r => r.n), early, mid, late, lo, hi, core, commander, good, watch, hand, keep, sum};
+  }
+  function strategyHTML(d){
+    const P = deckPlan(d), g = d.guide || {}, t = x => typeof x === 'string' ? esc(x) : '';
+    const unit = game === 'lorcana' ? 'ink' : game === 'mtg' ? 'mana' : 'cost';
+    const byName = new Map(Object.keys(d.cards).map(nv => S().cat.rep(nv)).filter(Boolean).flatMap(c => [[String(c.n).toLowerCase(), c], [cardName(c).toLowerCase(), c]]));
+    const keyChip = n => { const c = byName.get(String(n).toLowerCase()); return c ? cardChip(c) : `<span class="cchip plain-chip">${esc(n)}</span>`; };
+    const phase = (title, when, list, note) => !list.length && !note ? '' : `<div class="phase"><div class="phase-h"><b>${title}</b><span>${when}${list.length ? ` · ${plural(P.sum(list), 'card')}` : ''}</span></div>${note ? `<p>${t(note)}</p>` : ''}<div class="phase-cards">${list.slice(0, 8).map(x => cardChip(x.c, x.q)).join('')}${list.length > 8 ? `<span class="muted small">+${list.length - 8} more</span>` : ''}</div></div>`;
+    const saved = g.overview || g.early || g.middle || g.late || g.tip || (Array.isArray(g.win) && g.win.length) || (Array.isArray(g.keys) && g.keys.length);
+    if (!P && !saved) return '';
+    const ask = `Write me a full strategy guide for my deck “${d.name}”: the game plan turn by turn, what to keep and mulligan, the key cards and combos, how to play against aggro and control, and the first three changes you would make.`;
+    return `<section class="card strategy" id="strategy">
+      <div class="strat-head"><div><h2 class="sec">How this deck plays</h2>${P ? `<p class="muted small">Read from this list’s curve and card text. Card-text matching is approximate.</p>` : ''}</div><button type="button" class="btn" id="stratAsk" data-ask="${esc(ask)}"><svg class="ic"><use href="#i-spark"/></svg>Ask the advisor for a full guide</button></div>
+      ${P ? `<div class="plan"><span class="plan-kind">${esc(P.kind)}</span><p>${esc(P.plan)}</p></div>` : ''}
+      ${Array.isArray(g.themes) && g.themes.length ? `<div class="chips">${g.themes.slice(0, 8).map(x => `<span class="chip">${t(x)}</span>`).join('')}</div>` : ''}
+      ${g.overview ? `<div class="guide-note"><span class="mini">Saved guide</span><p>${t(g.overview)}</p></div>` : ''}
+      ${P ? `<h3 class="grp">Turn by turn</h3><div class="phases">
+        ${P.commander.length ? `<div class="phase"><div class="phase-h"><b>Commander</b><span>always available</span></div><div class="phase-cards">${P.commander.map(c => cardChip(c)).join('')}</div></div>` : ''}
+        ${phase('Early', `${P.lo} ${unit} or less`, P.early, g.early)}${phase('Middle', `${P.lo + 1} to ${P.hi} ${unit}`, P.mid, g.middle)}${phase('Closing', `${P.hi + 1} ${unit} and up`, P.late, g.late)}
+      </div>` : g.early || g.middle || g.late ? `<h3 class="grp">Turn by turn</h3><dl class="cv-kv">${g.early ? `<dt>Early</dt><dd>${t(g.early)}</dd>` : ''}${g.middle ? `<dt>Middle</dt><dd>${t(g.middle)}</dd>` : ''}${g.late ? `<dt>Closing</dt><dd>${t(g.late)}</dd>` : ''}</dl>` : ''}
+      ${P?.core.length ? `<h3 class="grp">The core <span class="muted">cards you run three or more of</span></h3><div class="chips">${P.core.map(x => cardChip(x.c, x.q)).join('')}</div>` : ''}
+      ${Array.isArray(g.keys) && g.keys.length ? `<h3 class="grp">Key cards</h3><div class="chips">${g.keys.map(keyChip).join('')}</div>` : ''}
+      ${Array.isArray(g.win) && g.win.length ? `<h3 class="grp">Wins with</h3><ul class="bullets">${g.win.map(x => `<li>${t(x)}</li>`).join('')}</ul>` : ''}
+      ${P?.roles.length ? `<h3 class="grp">What it’s made of <span class="muted">open a row to see the cards</span></h3><div class="roles">${P.roles.map(r => `<details class="role"><summary><span class="role-l">${esc(r.label)}</span><span class="role-bar"><i style="width:${Math.min(100, Math.round(100 * r.n / Math.max(1, P.total - P.lands)))}%"></i></span><b>${r.n}</b></summary><p class="muted small">${esc(r.hint)}</p><div class="chips">${r.list.sort((a, b) => (a.c.co ?? 99) - (b.c.co ?? 99)).map(x => cardChip(x.c, x.q)).join('')}</div></details>`).join('')}</div>` : ''}
+      ${P?.hand.length ? `<h3 class="grp">Opening hand</h3><p>${esc(P.keep)}</p><div class="odds">${P.hand.map(([v, l]) => `<div class="odd"><b>${v}</b><span>${esc(l)}</span></div>`).join('')}</div><p class="small"><button type="button" class="link" id="stratSim">Shuffle it a few thousand times in the Simulator</button></p>` : ''}
+      ${P && (P.good.length || P.watch.length) ? `<div class="grid2 verdict">${P.good.length ? `<div><h3 class="grp">Strengths</h3><ul class="bullets ok">${P.good.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}${P.watch.length ? `<div><h3 class="grp">Watch out for</h3><ul class="bullets warn">${P.watch.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>` : ''}
+      ${g.tip ? `<h3 class="grp">Tip</h3><p>${t(g.tip)}</p>` : ''}
+      ${Array.isArray(g.sideboard) && g.sideboard.length ? `<h3 class="grp">Sideboard</h3>${g.sideboard_plan ? `<p>${t(g.sideboard_plan)}</p>` : ''}<ul class="bullets">${g.sideboard.map(x => `<li>${+x?.[0] || 1} ${t(String(x?.[1] || ''))}</li>`).join('')}</ul>` : ''}
+      ${saved && g.source ? `<p class="muted small">${t(g.source)}</p>` : ''}
+    </section>`;
+  }
 
   /* ---------- Simulator ---------- */
   const sim = {deck: null, mode: 'opening', onPlay: true, keys: [], turns: 10, oddsKeys: [], oddsNeed: 1, result: null, running: false};
@@ -404,17 +675,17 @@
           ${tile('Keep 7', pct(r.keepRate7), '2 to 5 lands')}${tile('Average lands', (r.avgLands ?? 0).toFixed(2), 'in the first 7')}
           ${tile('Mulligan to 5 or fewer', pct((r.mulliganTo?.[5] || 0) + (r.mulliganTo?.['4-'] || 0)), 'London mulligan')}${tile('Color trouble', pct(r.colorScrew), 'kept hands that can\'t cast a 1–2 drop by turn 2')}</div></section>
           <div class="grid2"><section class="card"><h2 class="sec">Lands in the opening 7</h2><div id="o1"></div></section><section class="card"><h2 class="sec">Final hand size</h2><div id="o2"></div></section></div>
-          ${samples(r.sampleHands)}`;
+          ${samples(r.sampleHands, d)}`;
         C.bars($('o1'), {categories: (r.landDist || []).map((_, i) => String(i)), series: [{name: 'Hands', color: c1, values: r.landDist || []}], format: pct, height: 190});
         const m = r.mulliganTo || {}; C.bars($('o2'), {categories: ['7', '6', '5', '4 or fewer'], series: [{name: 'Hands', color: c1, values: [m[7] || 0, m[6] || 0, m[5] || 0, m['4-'] || 0]}], format: pct, height: 190});
       } else if (game === 'lorcana'){
         host.innerHTML = `<section class="card"><div class="tiles">
           ${tile('Keep without mulligan', pct(r.keepRate), '3+ inkable, 2+ cheap')}${tile('Average inkable', (r.avgInkable ?? 0).toFixed(2), 'in the first 7')}
           ${tile('1-drop on turn 1', pct(r.pOneDropByT1), '')}${tile('3-drop on turn 3', pct(r.pThreeDropByT3 ?? r.pThreeByT3), '')}</div></section>
-          <section class="card"><h2 class="sec">Inkable cards in the opening 7</h2><div id="o1"></div></section>${samples(r.sampleHands)}`;
+          <section class="card"><h2 class="sec">Inkable cards in the opening 7</h2><div id="o1"></div></section>${samples(r.sampleHands, d)}`;
         C.bars($('o1'), {categories: (r.inkableDist || []).map((_, i) => String(i)), series: [{name: 'Hands', color: c1, values: r.inkableDist || []}], format: pct, height: 190});
       } else {
-        host.innerHTML = `<section class="card"><h2 class="sec">Card types in the opening hand (average)</h2><div id="o1"></div></section>${samples(r.sampleHands)}`;
+        host.innerHTML = `<section class="card"><h2 class="sec">Card types in the opening hand (average)</h2><div id="o1"></div></section>${samples(r.sampleHands, d)}`;
         C.hbars($('o1'), {rows: Object.entries(r.typeDist || {}).map(([k, val]) => ({label: k, value: typeof val === 'number' ? val : val.avg ?? 0, color: c1})), format: x => x.toFixed(2)});
       }
       return;
@@ -442,7 +713,11 @@
       <table class="tbl compact"><thead><tr><th>Turn</th>${pts.map(p => `<th class="num">${p.turn}</th>`).join('')}</tr></thead><tbody><tr><td>Chance</td>${pts.map(p => `<td class="num">${pct(p.p)}</td>`).join('')}</tr></tbody></table></section>`;
     C.line($('d1'), {x: pts.map(p => String(p.turn)), series: [{name: 'Chance', color: c1, values: pts.map(p => p.p)}], format: pct, max: 1, height: 200, xName: 'Turn'});
   }
-  const samples = hands => hands?.length ? `<section class="card"><h2 class="sec">Sample opening hands</h2><ol class="hands">${hands.slice(0, 5).map(hd => `<li>${hd.map(n => `<span class="hand-card">${esc(n)}</span>`).join('')}</li>`).join('')}</ol></section>` : '';
+  function samples(hands, d){
+    if (!hands?.length) return '';
+    const by = new Map(); for (const {card} of simDeck(d)){ by.set(String(card.n), card); by.set(cardName(card), card); if (card.v) by.set(`${card.n} - ${card.v}`, card); }
+    return `<section class="card"><h2 class="sec">Sample opening hands</h2><p class="muted small">Hover a card to see it larger with its stats. Click it for the full card.</p><ol class="hands">${hands.slice(0, 5).map((hd, i) => `<li><span class="hand-l">Hand ${i + 1}</span><div class="hand-row">${hd.map(n => { const c = by.get(String(n)), u = c && imgUrl(c, 'normal'); return c ? `<button type="button" class="hand-card${u ? ' art' : ''}"${cardAttr(c)} aria-label="${esc(n)}">${u ? `<img src="${esc(u)}" alt="" loading="lazy">` : esc(n)}</button>` : `<span class="hand-card">${esc(n)}</span>`; }).join('')}</div></li>`).join('')}</ol></section>`;
+  }
 
   /* ---------- Buy planner ---------- */
   const buy = {sel: new Set(D.lsGet('portal.buy.' + game, [])), shared: false};

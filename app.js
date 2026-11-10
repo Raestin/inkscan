@@ -2234,7 +2234,7 @@ function applyGameLabels(){
     sel.onchange=()=>{ if(!persistState()){ sel.value=GAME_ID; toast('Save this game first: download a backup, then switch.'); return; } lsSet(GAMES.GAME_KEY, sel.value); location.reload(); };
   }
   if(LORCANA) return;
-  document.body.dataset.game=GAME_ID;
+  document.body.dataset.game=GAME_ID; document.documentElement.dataset.game=GAME_ID;
   const setText=(id,prop,val)=>{ const el=$(id); if(el) el[prop]=val; };
   setText('bq','placeholder',G.searchPlaceholder); setText('q','placeholder',G.scanPlaceholder);
   const hint=$('camstart')?.querySelector('.note'); if(hint) hint.textContent=G.scanHint;
@@ -2309,6 +2309,14 @@ window.InkApp = {esc, norm, money, money0, toast, openSheet, closeSheet, openCar
   imgUrl:(c,size)=>imgUrl(c,size), priceOf:c=>priceOf(c,false) ?? priceOf(c,true), card:id=>byId.get(id), search:(q,n)=>DB?quickSearch(q,n,'all'):[],
   openDeck(id){ curDeck=id||null; dsub='list'; showTab('decks'); },
   get tab(){return tab}, get ready(){return !!DB}, get decks(){return decks}, get inv(){return inv}, get wish(){return wish}, get sheetCard(){return sheetCard}, get sheetOpen(){return sheetOpen},
+  // what a card says about itself, for the hover peek: its stats, type line and rules text
+  cardFacts(c){
+    const rows = LORCANA ? [['Cost',c.co],['Inkable',c.ik==null?null:c.ik?'Yes':'No'],['Strength',c.st],['Willpower',c.wp],['Lore',c.lo],['Move',c.mv]] : G.stats(c);
+    const land = /\bLand\b/.test(c.ty||'');
+    return {stats: rows.filter(x=>x[1]!=null && x[1]!=='' && !(land && x[0]==='Mana value')),
+      type: [c.i, String(c.ty||'').replace(/\//g,' · '), c.cl?String(c.cl).replace(/\//g,' · '):''].filter(Boolean).join(' · '),
+      cost: !LORCANA && c.mc ? c.mc : '', rules: c.tx ? rulesHTML(c.tx) : '', owned: ownedOf(c.id)};
+  },
   game:GAME_ID, gameName:G.name, lorcana:LORCANA, deckSize:d=>LORCANA?60:G.deck.size};
 window.__inkscan = {parseLine:t=>parseLine(t),resolveNumberLine:(text,scope)=>resolveNumberLine(text,scope),reviewNumberLine:text=>reviewNumberLine(text), get log(){return log}, get decks(){return decks}, get inv(){return inv}};
 })();
