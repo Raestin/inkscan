@@ -121,7 +121,11 @@ const inventoryRows = (c,v) => ({c:valuedCard(c),q:v?.q||0,f:v?.f||0,rf:v?.rf||0
 
 
 let toastT;
-function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2600); }
+function toast(msg, act){
+  const t=$('toast'); t.textContent=msg; t.classList.toggle('has-act',!!act);
+  if(act){ const b=document.createElement('button'); b.type='button'; b.className='toast-act'; b.textContent=act.label; b.onclick=()=>{ t.hidden=true; act.fn(); }; t.append(b); }
+  t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,act?7000:2600);
+}
 function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
 let savedState=null, storageError=null, localRevision=0, knownStoredRaw=null;
@@ -555,16 +559,26 @@ function openPanelSheet(title, panelId, done){
   borrowed={node,home:node.parentElement}; node.hidden=false; $('sheetBody').append(node);
   if(done){ const b=document.createElement('button'); b.className='btn primary block'; b.textContent=done; b.onclick=()=>closeSheet(); $('sheetBody').append(b); }
 }
+let sheetCloseT=null;
+function sheetGone(){ clearTimeout(sheetCloseT); sheetCloseT=null; const s=$('sheet'); s.hidden=true; $('scrim').hidden=true; s.classList.remove('closing'); $('scrim').classList.remove('closing'); s.style.transform=''; $('sheetBody').innerHTML=''; }
 function openSheet(title, html, onClose){
+  if(sheetCloseT) sheetGone();
   returnBorrowed();
   $('sheetTitle').textContent = title; $('sheetBody').innerHTML = html; $('sheetBody').scrollTop = 0;
   $('sheet').hidden = false; $('scrim').hidden = false; sheetOnClose = onClose || null;
   renderSaveStatus();
   if (!sheetOpen){ sheetOpen = true; try{ history.pushState({sheet:1}, ''); }catch(e){} }
+  document.dispatchEvent(new CustomEvent('inkscan:sheet'));
 }
 function closeSheet(fromPop){
   if (!sheetOpen) return;
-  sheetOpen = false; $('sheet').hidden = true; $('scrim').hidden = true; returnBorrowed(); $('sheetBody').innerHTML='';
+  sheetOpen = false;
+  const still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // A borrowed panel (filters) goes home at once; a copy without ids stays in the sheet while it slides away.
+  if(borrowed&&!still){ const copy=$('sheetBody').cloneNode(true); for(const el of copy.querySelectorAll('[id]')) el.removeAttribute('id'); returnBorrowed(); $('sheetBody').replaceChildren(...copy.childNodes); }
+  returnBorrowed();
+  if(still) sheetGone(); else { $('sheet').classList.add('closing'); $('scrim').classList.add('closing'); clearTimeout(sheetCloseT); sheetCloseT=setTimeout(sheetGone,200); }
+  document.dispatchEvent(new CustomEvent('inkscan:sheetclose'));
   const cb = sheetOnClose; sheetOnClose = null; cb && cb();
   if (!fromPop){ try{ history.back(); }catch(e){} }
 }
@@ -572,10 +586,10 @@ $('sheetClose').onclick = () => closeSheet();
 /* Drag the sheet down by its grabber or title bar: it follows the finger, then either settles back or closes. */
 (()=>{
   const sheet=$('sheet'); let drag=null;
-  const start=e=>{ if(e.button>0||e.target.closest('button')) return; drag={y:e.clientY,t:e.timeStamp,dy:0,id:e.pointerId}; sheet.classList.add('dragging'); sheet.classList.remove('settling'); e.currentTarget.setPointerCapture?.(e.pointerId); };
+  const start=e=>{ if(e.button>0||e.target.closest('button')||window.matchMedia('(min-width:1024px)').matches) return; drag={y:e.clientY,t:e.timeStamp,dy:0,id:e.pointerId}; sheet.classList.add('dragging'); sheet.classList.remove('settling'); e.currentTarget.setPointerCapture?.(e.pointerId); };
   const move=e=>{ if(!drag||e.pointerId!==drag.id) return; drag.dy=Math.max(0,e.clientY-drag.y); sheet.style.transform=drag.dy?`translateY(${drag.dy}px)`:''; };
   const end=e=>{ if(!drag||e.pointerId!==drag.id) return; const {dy,t}=drag, fast=dy/Math.max(1,e.timeStamp-t)>0.6; drag=null; sheet.classList.remove('dragging');
-    if(dy>Math.min(160,sheet.offsetHeight*0.3)||(fast&&dy>40)){ sheet.style.transform=''; closeSheet(); return; }
+    if(dy>Math.min(160,sheet.offsetHeight*0.3)||(fast&&dy>40)){ closeSheet(); return; }
     sheet.classList.add('settling'); sheet.style.transform=''; setTimeout(()=>sheet.classList.remove('settling'),260); };
   for(const el of [sheet.querySelector('.grabber'),sheet.querySelector('.sheet-head')]){ el.addEventListener('pointerdown',start); el.addEventListener('pointermove',move); el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end); }
 })();
@@ -591,6 +605,7 @@ function openCard(id){
   const c = byId.get(id); if(!c) return;
   sheetCard = c.id;
   openSheet(c.n, cardDetailHTML(c), ()=>{ sheetCard=null; renderAfterEdit(); });
+  document.dispatchEvent(new CustomEvent('inkscan:card',{detail:c.id}));
   if (G.live) livePrints(c).then(added=>{ if(added && sheetCard===c.id) $('sheetBody').innerHTML=cardDetailHTML(byId.get(c.id)||c); });
 }
 function cardDetailHTML(c){
@@ -638,7 +653,7 @@ function cardDetailHTML(c){
 }
 $('sheetBody').addEventListener('click', e=>{
   const own = e.target.closest('[data-own]'), want = e.target.closest('[data-want]'), other = e.target.closest('a[data-card]');
-  if (other){ e.preventDefault(); const id=other.dataset.card; sheetCard=id; const c=byId.get(id); $('sheetTitle').textContent=c.n; $('sheetBody').innerHTML=cardDetailHTML(c); $('sheetBody').scrollTop=0; return; }
+  if (other){ e.preventDefault(); const id=other.dataset.card; sheetCard=id; const c=byId.get(id); $('sheetTitle').textContent=c.n; $('sheetBody').innerHTML=cardDetailHTML(c); $('sheetBody').scrollTop=0; document.dispatchEvent(new CustomEvent('inkscan:card',{detail:id})); return; }
   if (!sheetCard) return;
   const c = byId.get(sheetCard);
   if (own){ addQty(c.id, own.dataset.own==='rf'?'rainbow':own.dataset.own==='f', +own.dataset.d); }
@@ -660,17 +675,19 @@ document.addEventListener('click', e=>{
 /* =========================================================
    Tabs
    ========================================================= */
-let tab = 'scan';
-const VIEWS = {scan:'vScan', coll:'vColl', decks:'vDecks', browse:'vBrowse', help:'vHelp'};
+let tab = 'home';
+const VIEWS = {home:'vHome', scan:'vScan', coll:'vColl', decks:'vDecks', browse:'vBrowse', help:'vHelp'};
 function showTab(t){
+  if(!VIEWS[t]) t='home';
   tab = t;
   for (const [k,v] of Object.entries(VIEWS)) $(v).hidden = k!==t;
-  document.querySelectorAll('.tabbar button').forEach(b=>{ if (b.dataset.tab===t) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  document.querySelectorAll('.tabbar button,.rail [data-tab]').forEach(b=>{ if (b.dataset.tab===t) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   if (t!=='scan' && stream) stopCam();
   if (t==='coll') renderColl(); if (t==='decks') renderDecks(); if (t==='browse') renderBrowse(); if (t==='help') renderHelp();
   lsSet('inkscan.tab', t); window.scrollTo(0,0);
+  document.dispatchEvent(new CustomEvent('inkscan:tab',{detail:t}));
 }
-document.querySelector('.tabbar').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(!b) return; if(b.dataset.tab===tab && tab==='decks' && curDeck){ curDeck=null; renderDecks(); } showTab(b.dataset.tab); });
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(!b) return; if(b.dataset.tab===tab && tab==='decks' && curDeck){ curDeck=null; renderDecks(); } showTab(b.dataset.tab); });
 /* =========================================================
    HELP: how to play, keywords, glossary and tactics for each game, from help/<game>.json
    ========================================================= */
@@ -714,8 +731,8 @@ async function renderHelp(){
 const HELP_V=26;
 $('helpGames').addEventListener('click',e=>{ const b=e.target.closest('[data-help]'); if(!b) return; helpGame=b.dataset.help; $('helpQ').value=''; renderHelp(); });
 $('helpQ').addEventListener('input',()=>renderHelpDoc());
-function renderAll(){ renderTotals(); renderLog(); if(tab==='scan')renderQuick(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
-function renderAfterEdit(){ renderTotals(); renderLog(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(true); if(tab==='browse') renderBrowse(); }
+function renderAll(){ renderTotals(); renderLog(); document.dispatchEvent(new CustomEvent('inkscan:data')); if(tab==='scan')renderQuick(); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(); if(tab==='browse') renderBrowse(); }
+function renderAfterEdit(){ renderTotals(); renderLog(); document.dispatchEvent(new CustomEvent('inkscan:data')); if(tab==='coll') renderColl(); if(tab==='decks') renderDecks(true); if(tab==='browse') renderBrowse(); }
 
 /* =========================================================
    SCAN
@@ -1536,8 +1553,11 @@ function renderDeckEdit(keepScroll){
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
     <div class="warns">${warns.join('')}</div>${d.built&&d.todo?`<p class="note todo-note">Still to add to this deck: ${Object.entries(d.todo).map(([nv,n])=>`${n} ${esc(repOf(nv)?.n||nv.replace(/\|$/,''))}`).join(', ')}. They stay on your shopping list and aren't taken from other decks. <button type="button" class="link tiny" id="todoDone">I've added them</button></p>`:''}`;
   if($('todoDone')) $('todoDone').onclick=()=>{ delete d.todo; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); toast(`${d.name}: all cards are in the deck`); };
-  $('deckListPane').hidden = dsub!=='list'; $('deckAddPane').hidden = dsub!=='add';
-  if (dsub==='list') renderDeckList(d); else renderDeckAdd(d, keepScroll);
+  const two=window.matchMedia('(min-width:1100px)').matches;
+  $('deckEdit').classList.toggle('two',two);
+  $('deckListPane').hidden = !two&&dsub!=='list'; $('deckAddPane').hidden = !two&&dsub!=='add';
+  if (two||dsub==='list') renderDeckList(d);
+  if (two||dsub==='add') renderDeckAdd(d, keepScroll);
 }
 function deckRowHTML(nv, q, d){
   const c = repOf(nv); const own = freeNV(nv,d.id); const short = Math.max(0,q-own); const held = heldBy(nv,d.id);
@@ -1604,7 +1624,7 @@ $('deckMoreBtn').onclick = ()=>{
       ${d.importLines||d.unresolved?'<button class="btn" data-dm="source">Review imported source</button>':''}
     </div>
     <p class="note">${esc(LORCANA?'Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.':G.deckFormatNote)}</p>
-    <div class="confirm row" id="delRow"><button class="btn danger" data-dm="del">Delete deck</button></div>`);
+    <button class="btn danger" data-dm="del">Delete deck</button>`);
 };
 function deckText(d){
   return Object.entries(d.cards).map(([nv,q])=>({q,c:repOf(nv)})).filter(x=>x.c).sort((a,b)=>(a.c.co-b.c.co)||a.c.n.localeCompare(b.c.n))
@@ -1624,9 +1644,8 @@ $('sheetBody').addEventListener('click', async e=>{
     saveWish(); toast(n?`Added ${n} cards to your wishlist`:'You already own or want every card in this deck');
   }
   else if (a==='dup'){ const c={id:uid(), name:d.name+' (copy)', cards:{...d.cards}, ...(d.commanders?.length?{commanders:[...d.commanders]}:{}), updated:Date.now()}; decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
-  else if (a==='del'){ $('delRow').innerHTML = `<span>Delete "${esc(d.name)}"? This can’t be undone.</span><button class="btn danger" data-dm="delyes">Delete</button><button class="btn ghost" data-dm="delno">Keep</button>`; }
-  else if (a==='delyes'){ decks = decks.filter(x=>x!==d); saveDecks(); curDeck=null; closeSheet(); renderDecks(); toast('Deck deleted'); }
-  else if (a==='delno'){ $('delRow').innerHTML = `<button class="btn danger" data-dm="del">Delete deck</button>`; }
+  else if (a==='del'){ const at=decks.indexOf(d); decks = decks.filter(x=>x!==d); saveDecks(); curDeck=null; closeSheet(); renderDecks();
+    toast(`Deleted ${d.name}`, {label:'Undo', fn:()=>{ decks.splice(Math.min(at,decks.length),0,d); saveDecks(); if(tab==='decks') renderDecks(); else if(tab==='home') showTab('home'); toast(`${d.name} is back`); }}); }
 });
 
 /* sample hand */
@@ -2257,7 +2276,9 @@ async function boot(){
   $('startBtn').disabled = !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   if ($('startBtn').disabled) $('camstart').querySelector('.note').textContent = 'This browser can’t open the camera. Use Chrome, or add cards with search.';
   navigator.storage?.persist?.().catch(()=>{});
-  showTab(lsGet('inkscan.tab','scan'));
+  const want=location.hash.slice(1);
+  showTab(VIEWS[want]?want:lsGet('inkscan.tab','home'));
+  document.dispatchEvent(new CustomEvent('inkscan:ready'));
   const age = (Date.now() - new Date(DB.asof+'T00:00:00').getTime())/86400000;
   if (LORCANA && age > 3 && navigator.onLine) refreshFromLorcast(false);
   getWorker().catch(()=>{});
@@ -2284,5 +2305,10 @@ $('updateGo').onclick=()=>{ if(stream) stopCam(); location.reload(); };
 $('updateLater').onclick=()=>{ $('updateBar').hidden=true; fetch('index.html',{cache:'no-store'}).then(r=>r.text()).then(t=>{updateDismissed=+((/app\.js\?v=(\d+)/.exec(t)||[])[1]||0);}).catch(()=>{}); };
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkForUpdate(); });
 setTimeout(checkForUpdate,3000);
+window.InkApp = {esc, norm, money, money0, toast, openSheet, closeSheet, openCard, showTab, totals, deckStats, deckLead, thumbHTML, tileHTML, inkSetHTML, setLabel, ownedOf,
+  imgUrl:(c,size)=>imgUrl(c,size), priceOf:c=>priceOf(c,false) ?? priceOf(c,true), card:id=>byId.get(id), search:(q,n)=>DB?quickSearch(q,n,'all'):[],
+  openDeck(id){ curDeck=id||null; dsub='list'; showTab('decks'); },
+  get tab(){return tab}, get ready(){return !!DB}, get decks(){return decks}, get inv(){return inv}, get wish(){return wish}, get sheetCard(){return sheetCard}, get sheetOpen(){return sheetOpen},
+  game:GAME_ID, gameName:G.name, lorcana:LORCANA, deckSize:d=>LORCANA?60:G.deck.size};
 window.__inkscan = {parseLine:t=>parseLine(t),resolveNumberLine:(text,scope)=>resolveNumberLine(text,scope),reviewNumberLine:text=>reviewNumberLine(text), get log(){return log}, get decks(){return decks}, get inv(){return inv}};
 })();

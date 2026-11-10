@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="../tokens.css?v=44">
-<link rel="stylesheet" href="portal.css?v=44">
+<link rel="stylesheet" href="../tokens.css?v=45">
+<link rel="stylesheet" href="portal.css?v=45">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -28,12 +28,12 @@
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
-  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
 </svg>
 
 <div class="shell">
   <aside class="side">
-    <div class="brand"><img class="logo" src="../icon-192.png" alt=""><div><div class="brand-n">InkScan</div><div class="brand-s">Portal</div></div></div>
+    <a class="brand" href="../"><img class="logo" src="../icon-192.png" alt=""><div><div class="brand-n">Ink<b>Scan</b></div><div class="brand-s">Portal</div></div></a>
     <label class="sr" for="game">Game</label>
     <select id="game" class="game-pick">
       <option value="mtg">Magic: The Gathering</option>
@@ -49,11 +49,16 @@
       <a href="#buy" data-view="buy"><svg class="ic"><use href="#i-cart"/></svg>Buy planner</a>
       <a href="#advisor" data-view="advisor"><svg class="ic"><use href="#i-spark"/></svg>Advisor</a>
     </nav>
+    <p class="nav-label">App</p>
+    <nav class="nav" aria-label="App">
+      <a href="../#home"><svg class="ic"><use href="#i-home"/></svg>Home</a>
+      <a href="../#scan"><svg class="ic"><use href="#i-scan"/></svg>Scan cards</a>
+      <a href="../#browse"><svg class="ic"><use href="#i-search"/></svg>Browse cards</a>
+    </nav>
     <div class="side-foot">
       <div id="who" class="who-line"></div>
       <div class="side-actions">
         <button id="reload" class="btn ghost sm" type="button"><svg class="ic"><use href="#i-refresh"/></svg>Reload</button>
-        <a class="btn ghost sm" href="../"><svg class="ic"><use href="#i-phone"/></svg>Phone app</a>
       </div>
     </div>
   </aside>
@@ -75,11 +80,11 @@
 </div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="../games.js?v=44"></script>
-<script src="sim.js?v=44"></script>
-<script src="data.js?v=44"></script>
-<script src="charts.js?v=44"></script>
-<script src="advisor.js?v=44"></script>
-<script src="portal.js?v=44"></script>
+<script src="../games.js?v=45"></script>
+<script src="sim.js?v=45"></script>
+<script src="data.js?v=45"></script>
+<script src="charts.js?v=45"></script>
+<script src="advisor.js?v=45"></script>
+<script src="portal.js?v=45"></script>
 </body>
 </html>

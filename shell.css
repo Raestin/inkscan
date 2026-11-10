@@ -1,0 +1,206 @@
+:root{--rail-w:248px;--cam-w:420px}
+/* InkScan shell: Home, search, the side rail and the wide (desktop) layout, card peek, and the small
+   moves that make the app feel alive. Loaded after app.css. Every value is a token from tokens.css, on the
+   scales in Kairos "30 Resources/UI Style Guide.md":
+   spacing 4 8 12 16 20 24 32 40 48 64 · type 12 13 15 17 20 22 28 34 (16 for inputs) · radius 4 8 12 16 20 24 999. */
+
+kbd{display:inline-block;min-width:20px;padding:0 4px;border-radius:var(--r-xs);border:1px solid var(--line2);background:var(--surface2);color:var(--muted);font-family:var(--body);font-size:12px;font-weight:600;line-height:20px;text-align:center}
+
+/* ---------- app bar: search sits beside the game picker ---------- */
+.rail{display:none}
+.searchbtn{order:2;display:inline-grid;place-items:center;width:44px;height:44px;flex:none;border:0;border-radius:var(--pill);background:none;color:var(--fg);cursor:pointer;transition:transform var(--t-press) var(--ease),background var(--t-quick) var(--ease)}
+.searchbtn:active{transform:scale(.92)}
+.searchbtn .ic{width:24px;height:24px}
+.searchbtn span,.searchbtn kbd{display:none}
+.appbar .gamepill{order:1}
+.appbar .cloudbtn{order:3}
+.appbar{gap:4px}
+.searchbtn:focus-visible,.rail button:focus-visible,.rail a:focus-visible,.pal-i:focus-visible,.statcard:focus-visible,.toast-act:focus-visible,.seeall:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+
+/* ---------- Home ---------- */
+.home{display:flex;flex-direction:column;gap:24px}
+.home-top{display:grid;gap:12px}
+.home .hero strong{font-size:28px}
+.statrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.statcard{display:flex;flex-direction:column;gap:4px;min-height:64px;padding:12px 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--muted);font-size:13px;text-align:left;cursor:pointer;transition:transform var(--t-press) var(--ease),background var(--t-quick) var(--ease)}
+.statcard:active{transform:scale(.97)}
+.statcard b{color:var(--fg);font-size:17px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.statcard span{line-height:1.3}
+.home-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.home-acts .btn{padding:0 8px}
+.home-acts .btn.primary{grid-column:1/-1;height:48px}
+.home-cols{display:grid;gap:24px}
+.home-sec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.home-sec>header{display:flex;align-items:center;min-height:24px;justify-content:space-between;gap:12px}
+.home-sec h3{margin:0;font-size:17px;font-weight:700;line-height:1.2}
+.seeall{border:0;background:none;padding:0;min-height:24px;color:var(--accent-ink);font-size:13px;font-weight:600;cursor:pointer}
+.hdeck .item-main{gap:12px}
+.hdeck .thumb{width:48px}
+.hdeck .item+.item::before{left:76px}
+.hdeck .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdeck .meter{max-width:220px}
+.hdeck .trail{flex:none;text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hdeck .trail b{display:block;color:var(--fg);font-size:15px;font-weight:700}
+.home .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.home .grid .tile:nth-child(n+7){display:none}
+.home-start{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:24px 20px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.home-start p{margin:0;color:var(--muted)}
+
+/* loading: quiet blocks with a shimmer, the one place a gradient is allowed */
+.skel{position:relative;overflow:hidden;border-radius:var(--r);background:var(--surface2)}
+.skel::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--line2),transparent);transform:translateX(-100%);animation:shim 1.2s infinite}
+.hero-skel{height:112px}
+.row-skel{height:64px}
+@keyframes shim{to{transform:translateX(100%)}}
+
+/* ---------- sheet: leaves the way it came; card detail steps through the list it was opened from ---------- */
+.sheet.closing{transform:translateY(100%)!important;transition:transform var(--t-quick) var(--ease);pointer-events:none}
+.scrim.closing{opacity:0;transition:opacity var(--t-quick) var(--ease)}
+.sheet-head .h2{flex:1;min-width:0}
+.sheet-nav{display:flex;gap:4px;flex:none}
+.sheet-nav button:disabled{opacity:.35;cursor:default}
+
+/* toast with an action (Undo) */
+.toast{width:max-content}
+.toast.has-act{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 20px}
+.toast.has-act{border-radius:var(--r-xl)}
+.toast-act{flex:none;height:36px;padding:0 16px;border:0;border-radius:var(--pill);background:none;color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+
+/* ---------- search everything ---------- */
+.pal-scrim{position:fixed;inset:0;z-index:40;background:var(--scrim);animation:fade var(--t-quick) var(--ease)}
+.pal{position:fixed;left:0;right:0;top:0;z-index:41;display:flex;flex-direction:column;max-height:100dvh;margin:0 auto;padding-top:env(safe-area-inset-top,0px);background:var(--sheet);border-bottom:1px solid var(--line2);border-bottom-left-radius:var(--r-xl);border-bottom-right-radius:var(--r-xl);box-shadow:var(--shadow-overlay);overflow:hidden;animation:drop var(--t-quick) var(--ease)}
+@keyframes drop{from{opacity:0;transform:translateY(-8px)}}
+.pal-in{display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--line)}
+.pal-in .ic{color:var(--muted)}
+.pal-in input{flex:1;min-width:0;height:44px;padding:0;border:0;background:none;font-size:16px}
+.pal-in input:focus{background:none;border:0}
+.pal-x{height:36px;padding:0 12px;border:0;border-radius:var(--rc);background:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer}
+.pal-list{overflow-y:auto;padding:8px;overscroll-behavior:contain}
+.pal-grp{padding:12px 12px 4px;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.pal-i{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:4px 12px;border:0;border-radius:var(--rc);background:none;color:inherit;text-align:left;cursor:pointer}
+.pal-i[aria-selected="true"]{background:var(--accent-soft)}
+.pal-i>.ic{width:32px;height:32px;padding:4px;color:var(--muted)}
+.pal-i .thumb{width:32px}
+.pal-i .w{flex:1;min-width:0}
+.pal-i .n,.pal-i .m{display:block}
+.pal-i .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-i .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-i .k{flex:none;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pal-none{margin:0;padding:24px 12px;color:var(--muted);text-align:center}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:12px 16px;margin:0;align-items:center}
+.keys dt{display:flex;gap:4px;white-space:nowrap}
+.keys dd{margin:0}
+
+/* card peek: hover a card's row to see the card */
+.peek{position:fixed;z-index:35;width:240px;aspect-ratio:734/1024;border-radius:var(--rc);overflow:hidden;background:var(--surface2);box-shadow:var(--shadow-overlay);pointer-events:none;animation:fade var(--t-press) var(--ease)}
+.peek img{display:block;width:100%;height:100%;object-fit:cover}
+.addhead{display:none}
+
+/* pointer feedback, only where there is a pointer */
+@media (hover:hover){
+  .btn:hover{background:var(--surface3)}
+  .btn.primary:hover{background:var(--accent);filter:brightness(1.06)}
+  .btn.ghost:hover{background:var(--surface2);color:var(--fg)}
+  .iconbtn:hover,.searchbtn:hover{background:var(--surface2)}
+  .iconbtn.tonal:hover{background:var(--surface3)}
+  .item-main:hover,.menurow:hover,.res:hover{background:var(--surface2)}
+  .statcard:hover{background:var(--surface2)}
+  .chip-btn:hover{color:var(--fg)}
+  .seg button:hover{color:var(--fg)}
+  .tile .art{transition:transform var(--t-quick) var(--ease),box-shadow var(--t-quick) var(--ease)}
+  .tile:hover .art{transform:translateY(-4px);box-shadow:var(--shadow-overlay)}
+  .pal-x:hover{background:var(--surface2);color:var(--fg)}
+  .tabbar button:hover{color:var(--fg)}
+}
+
+/* ---------- tablet: more room, same phone shape ---------- */
+@media (min-width:600px){
+  .home-acts{grid-template-columns:repeat(4,auto);justify-content:start}
+  .home-acts .btn{padding:0 16px}
+  .home-acts .btn.primary{grid-column:auto;height:44px}
+  .home .grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .pal{top:64px;width:min(640px,calc(100% - 48px));max-height:min(560px,calc(100dvh - 128px));padding-top:0;border:1px solid var(--line2);border-radius:var(--r-xl)}
+}
+
+/* ---------- desktop: side rail, wide pages, detail in a side panel ---------- */
+@media (min-width:1024px){
+  body{padding-left:var(--rail-w)}
+  .rail{position:fixed;left:0;top:0;bottom:0;z-index:7;display:flex;flex-direction:column;gap:16px;width:var(--rail-w);padding:24px 16px;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line)}
+  .rail-brand{display:flex;align-items:center;gap:12px;padding:0 8px 8px;color:var(--fg);text-decoration:none;font-family:var(--display);font-size:22px;letter-spacing:.02em}
+  .rail-brand img{border-radius:var(--rc)}
+  .rail-brand b{font-weight:400;color:var(--accent-ink)}
+  .rail-nav{display:flex;flex-direction:column;gap:4px}
+  .rail-nav button,.rail-nav a,.rail-keys{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:var(--rc);background:none;color:var(--muted);font-size:15px;font-weight:500;text-align:left;text-decoration:none;cursor:pointer;transition:background var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
+  .rail-nav button:hover,.rail-nav a:hover,.rail-keys:hover{background:var(--surface2);color:var(--fg)}
+  .rail-nav button[aria-current="page"]{background:var(--accent-soft);color:var(--fg);font-weight:600}
+  .rail-nav button[aria-current="page"] .ic{color:var(--accent-ink)}
+  .rail-label{margin:8px 0 -8px;padding:0 12px;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+  .rail-keys{margin-top:auto;font-size:13px}
+  .rail-keys kbd{margin-left:auto}
+
+  .tabbar{display:none}
+  .wrap{max-width:1320px;margin:0;padding-inline:40px}
+  main.wrap{padding-block:16px 64px}
+  .appbar{height:64px;gap:12px}
+  .appbar .logo{display:none}
+  .searchbtn{order:0;display:flex;place-items:normal;align-items:center;gap:12px;width:auto;flex:1;max-width:560px;height:44px;padding:0 12px;border:1px solid var(--line2);border-radius:var(--rc);background:var(--surface);color:var(--muted);font-size:15px;text-align:left}
+  .searchbtn:active{transform:none}
+  .searchbtn .ic{width:20px;height:20px}
+  .searchbtn span{display:block;flex:1}
+  .searchbtn kbd{display:inline-block}
+  .appbar .gamepill{margin-left:auto}
+  .toast{bottom:24px}
+  .update-bar{bottom:24px;left:272px}
+
+  .sheet{left:auto;top:0;width:520px;max-width:none;max-height:none;margin:0;border-top:0;border-left:1px solid var(--line2);border-radius:0;animation-name:side}
+  @keyframes side{from{transform:translateX(100%)}}
+  .sheet.closing{transform:translateX(100%)!important}
+  .grabber{display:none}
+  .sheet-head{padding:20px 24px 12px;touch-action:auto}
+  .sheet-body{flex:1;padding:4px 24px 24px}
+  .sheet .detail{grid-template-columns:minmax(0,1fr)}
+
+  .seg.full{display:inline-flex;align-self:flex-start}
+  .seg.full button{flex:none;padding:0 20px}
+  .searchrow input,#helpQ,#vBrowse>.searchrow{max-width:560px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:16px}
+  .tile .art{border-radius:var(--rc)}
+  .hand{gap:12px}
+
+  .home-top{grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px}
+  .statrow{gap:16px}
+  .statcard{justify-content:center;padding:16px 20px}
+  .home-cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home .grid{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .home .grid .tile:nth-child(n+7){display:block}
+
+  /* decks: a wall of deck cards instead of one long list */
+  .decklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;border:0;border-radius:0;background:none;overflow:visible}
+  .decklist .item{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+  .decklist .item+.item::before{display:none}
+  .decklist .thumb{width:64px}
+  .decklist .empty{grid-column:1/-1}
+
+  /* scan: camera on the left, search and this session's cards on the right */
+  #vScan{display:block}
+  #vScan>*+*{margin-top:16px}
+  #vScan>.cam{float:left;width:var(--cam-w);margin-right:32px}
+  #vScan>.cam~*{margin-left:calc(var(--cam-w) + 32px)}
+  #vScan::after{content:"";display:block;clear:both}
+}
+
+/* deck editor: the list on the left, card search always open on the right */
+@media (min-width:1100px){
+  #deckEdit.two{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px 24px;align-items:start}
+  #deckEdit.two>.footnote{grid-column:1}
+  #deckEdit.two .deck-main>.seg{display:none}
+  #deckEdit.two #deckAddPane{position:sticky;top:80px;max-height:calc(100vh - 104px);padding:16px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+  #deckEdit.two .addhead{display:block}
+  #deckEdit.two #deckAddPane>*{flex:none}
+  #deckEdit.two #dRes{border-radius:var(--rc)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .pal,.pal-scrim,.peek,.skel::after{animation:none}
+  .tile:hover .art{transform:none}
+}
