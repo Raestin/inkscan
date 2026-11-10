@@ -439,3 +439,19 @@ button.hand-card{cursor:pointer}
 .hand-card.art img{display:block;width:100%;aspect-ratio:734/1024;object-fit:cover;border-radius:var(--r-sm);background:var(--surface2);box-shadow:var(--shadow-raised)}
 .hand-card.art:hover{transform:translateY(-4px)}
 @media (prefers-reduced-motion:reduce){.peek,.peek.in{transform:none;transition:none}}
+
+/* ---------- family: who has which copies ---------- */
+.ptags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ptags.on-art{position:absolute;left:8px;bottom:8px;margin:0}
+.ptag{display:inline-flex;align-items:center;gap:4px;flex:none;font-size:12px;font-weight:700;line-height:20px;padding:0 8px;border-radius:var(--pill);color:var(--fg);background:color-mix(in srgb,var(--pc) 22%,var(--surface));border:1px solid color-mix(in srgb,var(--pc) 55%,transparent)}
+.ptag b{font-variant-numeric:tabular-nums}
+.p0{--pc:var(--tone-1)}.p1{--pc:var(--tone-2)}.p2{--pc:var(--tone-3)}.p3{--pc:var(--tone-4)}.p4{--pc:var(--ok)}.p5{--pc:var(--bad)}
+.cv-who{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.cv-move{margin-top:16px}
+.cv-move-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-top:8px}
+.cv-move-row .field{flex:1;min-width:96px}
+.deck-owner{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px}
+.deck-owner .mini{margin:0}
+.fam-rows li{display:flex;align-items:center;gap:12px;min-height:40px}
+.fam-rows .row-m{flex:1;min-width:0;color:var(--muted);font-size:13px}
+.fam-rows .row-v{font-variant-numeric:tabular-nums;font-size:13px}
