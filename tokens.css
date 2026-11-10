@@ -28,6 +28,21 @@
   --ring-bg:0 0 0 2px var(--bg);
   /* chart series (portal): validated pair, light. One series uses --chart-1 only. */
   --chart-1:#6B5BD6; --chart-2:#00928A;
+  /* colour that makes the place feel alive (v46): soft glows behind the page, one hero gradient per game,
+     a lit primary action and tinted stat cards. Each game brings its own three hues. */
+  --g0:#2A1F6B; --g1:#5B3FC4; --g2:#B8479B;
+  --grad-hero:linear-gradient(135deg,var(--g0) 0%,var(--g1) 55%,var(--g2) 100%);
+  --on-hero:#FFFFFF; --on-hero-muted:rgba(255,255,255,.80); --hero-line:rgba(255,255,255,.18); --hero-chip:rgba(255,255,255,.14);
+  --glow-a:rgba(107,91,214,.16); --glow-b:rgba(201,144,39,.14); --glow-c:rgba(0,146,138,.10);
+  --page:radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%),radial-gradient(1000px 700px at 70% 100%,var(--glow-c),transparent 62%);
+  --grad-accent:linear-gradient(135deg,#E9B44A,#C98A1C); --glow-accent:0 6px 20px rgba(201,144,39,.34);
+  --grad-progress:linear-gradient(90deg,var(--chart-1),var(--accent));
+  --grad-rail:linear-gradient(180deg,rgba(107,91,214,.10),rgba(107,91,214,0) 46%);
+  --grad-active:linear-gradient(90deg,rgba(107,91,214,.20),rgba(201,144,39,.12));
+  --grad-card:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,.72));
+  --hero-shine:radial-gradient(640px 320px at 88% -30%,rgba(255,255,255,.30),transparent 62%);
+  --tone-1:#6B5BD6; --tone-2:#B67C12; --tone-3:#00877F; --tone-4:#C2407A;
+  --glow-card:0 12px 32px rgba(107,91,214,.22),0 2px 8px rgba(20,16,40,.10);
   --display:"Marcellus","Palatino Linotype",Georgia,serif;
   --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   /* radius scale */
@@ -48,4 +63,18 @@
   --shadow-overlay:0 -8px 32px rgba(0,0,0,.35),0 16px 48px rgba(0,0,0,.40);
   --glass:rgba(13,12,20,.72); --fav:#F0506E;
   --chart-1:#8C7BF2; --chart-2:#1FA89C;
+  --glow-a:rgba(124,100,255,.22); --glow-b:rgba(237,181,72,.11); --glow-c:rgba(31,168,156,.10);
+  --grad-accent:linear-gradient(135deg,#F6CD72,#E0A12B); --glow-accent:0 6px 24px rgba(237,181,72,.30);
+  --grad-rail:linear-gradient(180deg,rgba(124,100,255,.16),rgba(124,100,255,0) 46%);
+  --grad-active:linear-gradient(90deg,rgba(124,100,255,.30),rgba(237,181,72,.14));
+  --grad-card:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  --tone-1:#9D8CFF; --tone-2:#EDB548; --tone-3:#3CC9BC; --tone-4:#F277A8;
+  --glow-card:0 12px 36px rgba(124,100,255,.34),0 2px 10px rgba(0,0,0,.5);
   color-scheme:dark;}}
+/* each game's own hues for the hero and the glow behind the page */
+[data-game="mtg"]{--g0:#1B1F4B; --g1:#7A2E8E; --g2:#D9553B}
+[data-game="pokemon"]{--g0:#0E2F6B; --g1:#2A6FD6; --g2:#D99A1B}
+[data-game="onepiece"]{--g0:#0B3A5B; --g1:#0F7F93; --g2:#D9553B}
+[data-game="mtg"]{--glow-a:rgba(190,70,120,.16)}
+[data-game="pokemon"]{--glow-a:rgba(42,111,214,.18)}
+[data-game="onepiece"]{--glow-a:rgba(15,127,147,.18)}
