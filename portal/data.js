@@ -50,7 +50,7 @@
     if (household?.for === session.uid) return household.owner;
     let h = null;
     try { h = await rest('GET', 'rpc/inkscan_household'); } catch(e){ /* no family tables: own rows */ }
-    household = {for: session.uid, owner: h?.owner || session.uid};
+    household = {for: session.uid, owner: h?.owner || session.uid, members: Array.isArray(h?.members) ? h.members : []};
     return household.owner;
   }
 
@@ -138,7 +138,7 @@
   }
 
   /* ---------- the loaded state for one game ---------- */
-  const state = {game: null, inv: new Map(), wish: new Map(), decks: [], cat: null, loadedAt: null};
+  const state = {game: null, inv: new Map(), wish: new Map(), decks: [], cat: null, loadedAt: null, family: null};
 
   async function pullAll(table, game, own){
     const key = table === 'decks' ? 'id' : 'card_id', out = [];
@@ -150,12 +150,14 @@
   function deckFromRow(r){
     const m = r.meta && typeof r.meta === 'object' && !Array.isArray(r.meta) ? r.meta : {};
     return {id: r.id, name: r.name, cards: r.cards || {}, commanders: r.commanders || [], meta: m, updated_at: r.updated_at,
-      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null};
+      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, owner: typeof m.owner === 'string' && m.owner ? m.owner : null, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null};
   }
   async function load(game, progress){
     const own = await owner();
-    const [inv, wish, decks, cat] = await Promise.all([pullAll('collection', game, own), pullAll('wishlist', game, own), pullAll('decks', game, own), baseCatalog(game)]);
+    const [inv, wish, decks, cat, fam] = await Promise.all([pullAll('collection', game, own), pullAll('wishlist', game, own), pullAll('decks', game, own), baseCatalog(game),
+      rest('POST', 'rpc/inkscan_ownership', {game}).catch(() => null)]);
     state.game = game; state.cat = cat;
+    takeFamily(fam);
     state.inv = new Map(inv.map(r => [r.card_id, {q: r.q || 0, f: r.f || 0, rf: r.rainbow_foil || 0}]));
     state.wish = new Map(wish.filter(r => r.qty > 0).map(r => [r.card_id, r.qty]));
     state.decks = decks.filter(r => !r.deleted).map(deckFromRow);
@@ -166,6 +168,26 @@
     state.loadedAt = Date.now();
     rebuildOwnership();
     return state;
+  }
+
+  /* ---------- who in the family has which copies ---------- */
+  // Off (null) until the cloud answers for a family of two or more; the Portal then hides every owner control.
+  function takeFamily(o){
+    const people = root.InkFamily ? root.InkFamily.people(household?.members, household?.owner) : [];
+    state.family = o && Array.isArray(o.holdings) && people.length > 1
+      ? {owner: household.owner, me: session.uid, people, holdings: root.InkFamily.index(o.holdings), moves: Array.isArray(o.moves) ? o.moves : []} : null;
+  }
+  const noShares = {};
+  function shares(id){
+    const f = state.family; if (!f) return noShares;
+    return root.InkFamily.split(state.inv.get(id), f.holdings[id], f.owner);
+  }
+  const deckOwner = d => d.owner && state.family?.people.some(p => p.id === d.owner) ? d.owner : state.family?.owner || null;
+  // Hands copies from one person to another. Returns how many moved.
+  async function transfer(items, deck){
+    const o = await rest('POST', 'rpc/inkscan_transfer', {game: state.game, items, deck_id: deck?.id || null, deck_name: deck?.name || null});
+    takeFamily(o);
+    return o?.moved | 0;
   }
 
   /* ---------- ownership and prices ---------- */
@@ -209,6 +231,7 @@
     const todo = d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).filter(([nv, n]) => Number.isInteger(n) && n > 0 && d.cards[nv]).map(([nv, n]) => [nv, Math.min(n, d.cards[nv])])) : null;
     if (todo && Object.keys(todo).length) meta.todo = todo; else delete meta.todo;
     if (d.guide) meta.guide = d.guide;
+    if (d.owner) meta.owner = d.owner;
     const row = {user_id: own, game: state.game, id: d.id, name: d.name, cards: d.cards, commanders: d.commanders || [], meta, deleted: false};
     let res;
     if (d.updated_at){
@@ -258,5 +281,5 @@
   }
 
   root.PortalData = {state, session: () => session, signIn, signOut, owner, load, deckStats, ownedNV, freeNV, committedNV, cheapest, ownedValue,
-    saveDeck, newId, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
+    saveDeck, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
 })(self);

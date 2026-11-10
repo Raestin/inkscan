@@ -457,10 +457,12 @@ const heldNV=(d,nv)=>Math.max(0,(d.cards[nv]||0)-(d.todo?.[nv]||0));
 function committedNV(nv, exceptId){ let n=0; for (const d of decks) if (d.built && d.id!==exceptId) n+=heldNV(d,nv); return n; }
 function freeNV(nv, exceptId){ return Math.max(0, ownedNV(nv)-committedNV(nv, exceptId)); }
 function heldBy(nv, exceptId){ return decks.filter(d=>d.built && d.id!==exceptId && heldNV(d,nv)).map(d=>`${d.name} (${heldNV(d,nv)})`); }
-function addQty(id, foil, n){
+function addQty(id, foil, n, opts){
   const v = inv[id] || (inv[id] = {q:0,f:0});
-  const field=finishField(foil), next=Math.max(0,(v[field]||0)+n);
+  const field=finishField(foil), had=v[field]||0, next=Math.max(0,had+n);
   if(!Number.isSafeInteger(next)){toast('Quantity is too large. Nothing was changed.');return;}
+  // Family: a copy that is added belongs to the person it is being added for; a copy that is removed comes off the person removing it first.
+  if(famOn() && next!==had) famNote(id, field, next-had, opts?.person||(n>0?famAdder():InkFamily.removalFrom(famShares(id),field,session.uid,household.owner)), n>0||opts?.undo?next-had:0);
   v[field]=next; if(field==='rf'&&!next)delete v.rf;
   if (!inventoryCount(v)) delete inv[id];
   if (n>0 && wish[id]){ wish[id]=Math.max(0,wish[id]-n); if(!wish[id]) delete wish[id]; saveWish(); }
@@ -499,7 +501,7 @@ function detailArtHTML(c){
 function tileHTML(c, opts={}){
   const q = opts.q ?? ownedOf(c.id), f = opts.f ?? (inv[c.id]?.f||0), rf=opts.rf??(inv[c.id]?.rf||0);
   const badge = opts.badge != null ? opts.badge : (q ? `<span class="badge${rf&&rf===q?' rainbow':f&&f===q?' foil':''}">${q}</span>` : '');
-  return `<button class="tile${opts.dim && !q ? ' missing':''}" data-card="${c.id}" aria-label="${esc(c.n+(c.v?' – '+c.v:''))}"><div class="art">${artHTML(c)}${badge}</div>${opts.cap!==false?`<div class="cap">${esc(opts.cap || (setLabel(c)+' · #'+c.c))}</div>`:''}</button>`;
+  return `<button class="tile${opts.dim && !q ? ' missing':''}" data-card="${c.id}" aria-label="${esc(c.n+(c.v?' – '+c.v:''))}"><div class="art">${artHTML(c)}${badge}${opts.tags||''}</div>${opts.cap!==false?`<div class="cap">${esc(opts.cap || (setLabel(c)+' · #'+c.c))}</div>`:''}</button>`;
 }
 function thumbHTML(c){
   const url=imgUrl(c,'small');
@@ -645,6 +647,7 @@ function cardDetailHTML(c){
         ${GAME_FINISHES.includes('rainbow')?`<div class="step"><label>${esc(finishLabel('rainbow'))}</label><button data-own="rf" data-d="-1" aria-label="One fewer ${esc(finishLabel('rainbow').toLowerCase())}">−</button><output>${v.rf||0}</output><button data-own="rf" data-d="1" aria-label="One more ${esc(finishLabel('rainbow').toLowerCase())}">+</button></div>`:''}
         <div class="step"><label>Wishlist</label><button data-want="-1" aria-label="Want one fewer">−</button><output>${w}</output><button data-want="1" aria-label="Want one more">+</button></div>
       </div>
+      ${famCardHTML(c)}
       ${decks.length?`<div class="row"><select id="deckPick" class="slim" aria-label="Deck">${deckOpts}</select><button class="btn" id="deckAddOne">Add to deck</button></div>`:''}
       ${inDecks.length?`<div class="note">In ${inDecks.join(', ')}</div>`:''}${committed?`<div class="note">You own ${ownedNV(c.nv)} of this card (any printing): ${committed} committed to built decks, ${freeNV(c.nv)} free.</div>`:''}
       ${others.length?`<div class="note">Other printings: ${others.map(o=>`<a href="#" class="link" data-card="${o.id}">${esc(setLabel(o))} #${esc(o.c)}${isSpecialCard(o)?' '+esc(LORCANA?rarityLabel(o.r):o.pv||rarityLabel(o.r)):''}</a>`).join(' · ')}</div>`:''}
@@ -743,25 +746,26 @@ function logAdd(card, foil){
   card=card && byId.get(card.id);
   if(!card || !printingAllowed(card,scanPrintingScope))return false;
   // Price availability does not identify the finish of the user's physical card.
-  addQty(card.id, foil, 1);
-  log.unshift({key:++seq, cardId:card.id, foil});
+  const who=famOn()?famAdder():null;
+  addQty(card.id, foil, 1, {person:who});
+  log.unshift({key:++seq, cardId:card.id, foil, ...(who?{who}:{})});
   renderLog();
   return true;
 }
 function renderLog(){
-  const el=$('log');
+  const el=$('log'); famChrome();
   { let v=0; for(const x of log){ const c=byId.get(x.cardId); v+=c?(priceOf(c,x.foil)||0):0; } $('logCount').textContent = log.length ? `${log.length} card${log.length===1?'':'s'} · ${money(v)}` : ''; }
   if (!log.length){ el.innerHTML = `<div class="empty"><strong>No scans yet</strong>Scanned cards land here, newest first.</div>`; return; }
   el.innerHTML = log.slice(0,60).map(x=>{
     const c = byId.get(x.cardId); if(!c) return '';
-    return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,x.foil)}</div></div>
+    return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,x.foil)}${x.who&&famOn()?' · for '+esc(famName(x.who)):''}</div></div>
       <div class="acts"><select class="log-finish" data-log-finish="${x.key}" aria-label="Finish for ${esc(c.n)}">${FINISHES.map(f=>`<option value="${f}" ${finishKey(x.foil)===f?'selected':''}>${finishLabel(f)}</option>`).join('')}</select><button data-act="lu" data-k="${x.key}">Undo</button></div></div></div>`;
   }).join('');
 }
 $('log').addEventListener('click', e=>{
   const b=e.target.closest('button[data-act]'); if(!b) return;
   const x = log.find(x=>x.key==b.dataset.k); if(!x) return;
-  if (b.dataset.act==='lu'){ addQty(x.cardId, x.foil, -1); log = log.filter(y=>y!==x); renderLog(); toast('Removed one copy'); }
+  if (b.dataset.act==='lu'){ addQty(x.cardId, x.foil, -1, {person:x.who, undo:true}); log = log.filter(y=>y!==x); renderLog(); toast('Removed one copy'); }
 });
 $('log').addEventListener('change',e=>{
   const select=e.target.closest('[data-log-finish]'); if(!select || !FINISHES.includes(select.value))return;
@@ -773,7 +777,10 @@ $('log').addEventListener('change',e=>{
   const snapshot={...snapshotState(),inv:next,revision:localRevision+1};
   try{InkSafety.save(STORE,snapshot,knownStoredRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY);}
   catch(err){storageError='Finish change could not be confirmed. Keep this tab open and back up before retrying. '+err.message;renderSaveStatus();renderLog();return;}
-  inv=next;localRevision=snapshot.revision;storageError=null;x.foil=select.value;renderSaveStatus();renderSyncBox();renderTotals();renderLog();
+  const fp=famOn()?(x.who||InkFamily.removalFrom(famShares(x.cardId),before,session.uid,household.owner)):null;
+  inv=next;localRevision=snapshot.revision;storageError=null;x.foil=select.value;
+  if(fp){famNote(x.cardId,before,-1,fp,0);famNote(x.cardId,after,1,fp,0);}
+  renderSaveStatus();renderSyncBox();renderTotals();renderLog();
 });
 // Printing identity and physical finish are independent choices.
 let scanPrintingScope='all', lastScanResolution=null;
@@ -1090,7 +1097,7 @@ $('sortSel').onchange = renderColl;
 $('cFinish').onchange=renderColl;
 $('cLegality').onchange=renderColl;
 const COLL_PICKS=['cSet','cType','cCost','cRar'];
-COLL_PICKS.forEach(id=>$(id).onchange=renderColl);
+COLL_PICKS.forEach(id=>$(id).onchange=renderColl); $('cOwner').onchange=renderColl;
 /* Type, cost and rarity use the same choices as Browse (already set up for the active game).
    Sets list only the ones you own cards from, so MTG doesn't show hundreds of empty sets. */
 let collSetKey=null;
@@ -1103,7 +1110,7 @@ function syncCollPicks(){
   $('cSet').innerHTML=`<option value="">All sets</option>`+sets.map(s=>`<option value="${esc(s.code)}">${esc(/^\d+$/.test(s.code)?s.code+' · '+s.name:s.name+(G.live?' ('+s.code.toUpperCase()+')':''))}</option>`).join('');
   $('cSet').value=codes.has(keep)?keep:'';
 }
-$('cReset').onclick=()=>{$('cf').value='';collInks.clear();COLL_PICKS.forEach(id=>$(id).value='');$('cFinish').value='all';$('cLegality').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
+$('cReset').onclick=()=>{$('cf').value='';collInks.clear();COLL_PICKS.forEach(id=>$(id).value='');$('cOwner').value='';$('cFinish').value='all';$('cLegality').value='all';$('sortSel').value='set';inkChips($('collInks'),collInks,renderColl);renderColl();};
 function valueSummary(rows,finish){
   const result=InkSafety.valuation(rows,finish);
   return `${result.partial?'Partial estimate':'Estimated value'}: ${money(result.value)} for ${result.copies} owned copies${result.unpriced?` · ${result.unpriced} copies unpriced`:''}`;
@@ -1115,19 +1122,22 @@ function valueNote(){
 
 function renderFilterCount(){
   const el=$('cFilterCount'); if(!el) return;
-  const n=collInks.size+COLL_PICKS.filter(id=>$(id).value).length+($('cFinish').value!=='all')+($('cLegality').value!=='all');
+  const n=collInks.size+COLL_PICKS.filter(id=>$(id).value).length+($('cFinish').value!=='all')+($('cLegality').value!=='all')+(famOn()&&$('cOwner').value?1:0);
   el.textContent=n||'';
 }
 function renderColl(){
   if(DB) syncCollPicks();
+  famChrome();
   renderFilterCount();
   $('collCards').hidden = csub!=='cards'; $('collSets').hidden = csub!=='sets'; $('collWish').hidden = csub!=='wish';
   if (csub==='cards') renderCollCards(); else if (csub==='sets') renderSets(); else renderWish();
 }
 function collRows(){
   const f = norm($('cf').value), set=$('cSet').value, type=$('cType').value, cost=$('cCost').value, rar=$('cRar').value; const rows = [];
-  for (const [id,v] of Object.entries(inv)){
-    const c = byId.get(id); if(!c || !inventoryCount(v)) continue;
+  const who=famOn()?$('cOwner').value:'';
+  for (const [id,all] of Object.entries(inv)){
+    const v=who?famShares(id)[who]:all; // with an owner picked, only that person's copies count
+    const c = byId.get(id); if(!c || !v || !inventoryCount(v)) continue;
     const finish=$('cFinish').value||'all';
     const q=finish==='all'||finish==='normal'?(v.q||0):0, foil=finish==='all'||finish==='foil'?(v.f||0):0, rf=finish==='all'||finish==='rainbow'?(v.rf||0):0;
     if(!q&&!foil&&!rf)continue;
@@ -1161,10 +1171,10 @@ function renderCollCards(){
   }
   if (layout==='grid'){
     el.className='grid';
-    el.innerHTML = rows.map(r=>tileHTML(r.c,{q:r.q+r.f+r.rf,f:r.f,rf:r.rf,cap: `${money(r.val)}${r.unpriced?' (partial)':''}`})).join('');
+    el.innerHTML = rows.map(r=>tileHTML(r.c,{q:r.q+r.f+r.rf,f:r.f,rf:r.rf,tags:famTags(r.c.id),cap: `${money(r.val)}${r.unpriced?' (partial)':''}`})).join('');
   } else {
     el.className='list';
-    el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}${committedNV(r.c.nv)?` · ${freeNV(r.c.nv)} of ${ownedNV(r.c.nv)} free`:''}</div></div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}${r.rf?` <span class="chip rainbow">Rainbow foil ×${r.rf}</span>`:''}</div><div class="p">${money(r.val)}${r.unpriced?' (partial)':''}</div></div></div></div>`).join('');
+    el.innerHTML = rows.map(r=>`<div class="item"><div class="item-main" data-card="${r.c.id}">${thumbHTML(r.c)}<div class="who"><div class="n">${esc(r.c.n)}</div><div class="v">${esc(r.c.v)}</div><div class="m">${esc(setLabel(r.c))} · #${esc(r.c.c)} · ${esc(rarityLabel(r.c.r))}${committedNV(r.c.nv)?` · ${freeNV(r.c.nv)} of ${ownedNV(r.c.nv)} free`:''}</div>${famTags(r.c.id,true)}</div><div class="qtyv"><div class="q">${r.q?`×${r.q}`:''}${r.q&&r.f?' ':''}${r.f?`<span class="chip foil">Foil ×${r.f}</span>`:''}${r.rf?` <span class="chip rainbow">Rainbow foil ×${r.rf}</span>`:''}</div><div class="p">${money(r.val)}${r.unpriced?' (partial)':''}</div></div></div></div>`).join('');
   }
 }
 function renderSets(){
@@ -1382,14 +1392,16 @@ function deckLead(d,st){
   return lead&&repOf(lead[0]);
 }
 function deckFilterCount(){
-  const n=(FORMATS&&$('dFormat').value!=='all'?1:0)+($('dFav').checked?1:0)+deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0);
+  const n=(FORMATS&&$('dFormat').value!=='all'?1:0)+($('dFav').checked?1:0)+deckInkSel.size+(deckInkSel.size&&$('dExact').checked?1:0)+($('dStatus').value!=='all')+($('dBracket').value!=='all')+($('dOwn').value!=='all')+(norm($('dCard').value)?1:0)+(famOn()&&$('dWho').value?1:0);
   $('dFilterCount').textContent=n||'';
 }
 function deckRows(){
   const favOnly=$('dFav').checked, q=norm($('df').value), cardQ=norm($('dCard').value), status=$('dStatus').value, br=$('dBracket').value, own=$('dOwn').value, exact=$('dExact').checked;
   const rows=[];
+  const who=famOn()?$('dWho').value:'';
   for(const d of decks){
     if(favOnly && !d.favorite) continue;
+    if(who && deckOwner(d)!==who) continue;
     if(FORMATS && $('dFormat').value!=='all' && deckFormat(d)!==$('dFormat').value) continue;
     const st=deckStats(d);
     if(q && !norm(d.name+' '+(st.cmd?.cmds||[]).map(c=>c.n).join(' ')).includes(q)) continue;
@@ -1422,9 +1434,10 @@ function deckItemHTML({d,st}){
   const sub=[st.format&&st.format!=='commander'?esc(st.formatLabel):'', cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?esc(cmdNames):'', `${have}/${size}`].filter(Boolean).join(' · ');
   const status=!st.total?'No cards yet':st.unknown?unknownNote(st.unknown):st.missing?`Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?' partial':''}`:'You own every card';
   const chip=d.built?'<span class="chip ok">Built</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':rules==='pass'?'<span class="chip ok">Legal</span>':'';
-  return `<div class="item deckrow"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${sub}</div><div class="meter${st.missing?'':' full'}"><i style="width:${pct}%"></i></div><div class="m">${status}</div></div>${chip}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}"><svg class="ic"><use href="#i-heart"/></svg></button></div>`;
+  return `<div class="item deckrow"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${sub}</div>${famOn()?`<div class="ptags">${famTag(famPerson(deckOwner(d)),0,true)}</div>`:''}<div class="meter${st.missing?'':' full'}"><i style="width:${pct}%"></i></div><div class="m">${status}</div></div>${chip}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}"><svg class="ic"><use href="#i-heart"/></svg></button></div>`;
 }
 function renderDecks(keepScroll){
+  famChrome();
   if (curDeck){ renderDeckEdit(keepScroll); return; }
   $('deckHome').hidden=false; $('deckEdit').hidden=true;
   const hasDecks=decks.length>0;
@@ -1443,16 +1456,16 @@ function renderDecks(keepScroll){
   $('deckList').innerHTML=rows.length?rows.map(deckItemHTML).join(''):`<div class="empty"><strong>No decks match</strong>Change the search or tap Reset deck filters.</div>`;
 }
 let dfT; for(const id of ['df','dCard']) $(id).addEventListener('input',()=>{ clearTimeout(dfT); dfT=setTimeout(()=>renderDecks(),150); });
-for(const id of ['dStatus','dBracket','dOwn','dSort','dExact','dFav','dFormat']) $(id).onchange=()=>renderDecks();
+for(const id of ['dStatus','dBracket','dOwn','dSort','dExact','dFav','dFormat','dWho']) $(id).onchange=()=>renderDecks();
 if(FORMATS){ $('dFormat').innerHTML='<option value="all">All formats</option>'+Object.entries(FORMATS).map(([k,f])=>`<option value="${k}">${f.label}</option>`).join(''); $('deckFormatSel').innerHTML=Object.entries(FORMATS).map(([k,f])=>`<option value="${k}">${f.label}</option>`).join(''); }
 $('dFavFirst').checked=lsGet('inkscan.favFirst',true)!==false;
 $('dFavFirst').onchange=()=>{ lsSet('inkscan.favFirst',$('dFavFirst').checked); renderDecks(); };
-$('dReset').onclick=()=>{ if(FORMATS) $('dFormat').value='all'; $('dFav').checked=false;$('dFavFirst').checked=true;lsSet('inkscan.favFirst',true);$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
+$('dReset').onclick=()=>{ if(FORMATS) $('dFormat').value='all'; $('dFav').checked=false;$('dFavFirst').checked=true;lsSet('inkscan.favFirst',true);$('df').value='';$('dCard').value='';deckInkSel.clear();$('dExact').checked=false;$('dStatus').value='all';$('dBracket').value='all';$('dOwn').value='all';$('dWho').value='';$('dSort').value='recent';inkChips($('deckInks'),deckInkSel,()=>renderDecks());renderDecks(); };
 inkChips($('deckInks'),deckInkSel,()=>renderDecks());
 function toggleFavorite(d){ if(!d) return; if(d.favorite) delete d.favorite; else d.favorite=true; saveDecks(); /* not an edit: keeps its place in Recently edited */ toast(d.favorite?`Added ${d.name} to favorites`:`Removed ${d.name} from favorites`); }
 $('deckList').addEventListener('click', e=>{ const f=e.target.closest('[data-fav]'); if(f){ const y=window.scrollY; toggleFavorite(decks.find(x=>x.id===f.dataset.fav)); renderDecks(); window.scrollTo(0,y); return; } const b=e.target.closest('[data-deck]'); if(b){ deckHomeScroll=window.scrollY; curDeck=b.dataset.deck; dsub='list'; renderDecks(); window.scrollTo(0,0); } });
 $('newDeckBtn').onclick = ()=>{
-  const d = {id:uid(), name:`New deck ${decks.length+1}`, cards:{}, updated:Date.now()};
+  const d = famStamp({id:uid(), name:`New deck ${decks.length+1}`, cards:{}, updated:Date.now()});
   decks.push(d); saveDecks(); curDeck=d.id; dsub='add'; renderDecks(); $('deckName').select();
 };
 $('deckBack').onclick = ()=>{ curDeck=null; renderDecks(); window.scrollTo(0,deckHomeScroll); };
@@ -1624,6 +1637,7 @@ $('deckMoreBtn').onclick = ()=>{
       ${d.importLines||d.unresolved?'<button class="btn" data-dm="source">Review imported source</button>':''}
     </div>
     <p class="note">${esc(LORCANA?'Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.':G.deckFormatNote)}</p>
+    ${famDeckHTML(d)}
     <button class="btn danger" data-dm="del">Delete deck</button>`);
 };
 function deckText(d){
@@ -1643,7 +1657,8 @@ $('sheetBody').addEventListener('click', async e=>{
     let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-freeNV(nv,d.id)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
     saveWish(); toast(n?`Added ${n} cards to your wishlist`:'You already own or want every card in this deck');
   }
-  else if (a==='dup'){ const c={id:uid(), name:d.name+' (copy)', cards:{...d.cards}, ...(d.commanders?.length?{commanders:[...d.commanders]}:{}), updated:Date.now()}; decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
+  else if (a==='move'){ await famMoveDeck(d,b); }
+  else if (a==='dup'){ const c=famStamp({id:uid(), name:d.name+' (copy)', cards:{...d.cards}, ...(d.commanders?.length?{commanders:[...d.commanders]}:{}), updated:Date.now()}); decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
   else if (a==='del'){ const at=decks.indexOf(d); decks = decks.filter(x=>x!==d); saveDecks(); curDeck=null; closeSheet(); renderDecks();
     toast(`Deleted ${d.name}`, {label:'Undo', fn:()=>{ decks.splice(Math.min(at,decks.length),0,d); saveDecks(); if(tab==='decks') renderDecks(); else if(tab==='home') showTab('home'); toast(`${d.name} is back`); }}); }
 });
@@ -1716,7 +1731,7 @@ $('importDeckBtn').onclick=()=>{
     const parsed=parseDeckImport($('impText').value);
     if(!parsed.lines.length&&!parsed.unresolved.length){$('impMsg').textContent='Paste a decklist first.';return;}
     const d={id:uid(),name:$('impName').value.trim()||`Imported deck ${decks.length+1}`,cards:parsed.cards,...(parsed.commanders?.length?{commanders:parsed.commanders.slice(0,2)}:{}),importLines:parsed.lines,unresolved:parsed.unresolved,updated:Date.now()};
-    imported=true; decks.push(d);saveDecks();curDeck=d.id;dsub='list';showTab('decks');
+    imported=true; decks.push(famStamp(d));saveDecks();curDeck=d.id;dsub='list';showTab('decks');
     openSheet('Deck imported',`<p>Deck saved. Your collection quantities have not changed.</p><p>${parsed.unresolved.length} unresolved line(s) retained locally for review.</p><button class="btn primary" id="importToCollection">Add these as new cards to collection</button><button class="btn" id="importDone">Done</button>`);
     $('importToCollection').onclick=()=>previewCollectionImport(d);
     $('importDone').onclick=()=>closeSheet();
@@ -1930,7 +1945,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,owner:typeof r.meta?.owner==='string'&&r.meta.owner?r.meta.owner:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -1949,7 +1964,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.format)o.format=d.format;else delete o.format;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.owner)o.owner=d.owner;else delete o.owner;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.format)o.format=d.format;else delete o.format;return o;});
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
@@ -1961,6 +1976,7 @@ function deckMeta(value,previous){
   if(value?.built) meta.built=true; else delete meta.built;
   if(value?.built && value?.todo) meta.todo=value.todo; else delete meta.todo;
   if(value?.format) meta.format=value.format; else delete meta.format;
+  if(value?.owner) meta.owner=value.owner; else delete meta.owner;
   return meta;
 }
 async function guardedWrite(operation,previous){
@@ -2028,11 +2044,158 @@ async function sync(manual){
     const confirmed=Date.now(), previousLast=syncState.last; syncState.last=confirmed;
     if(!persistState()){syncState.last=previousLast;throw Error('Update completed on the server but local receipt saving failed. Keep this tab open and back up.');}
     syncState.receipt=`Update confirmed: ${acknowledged} item(s) sent, ${plan.pulls.length} item(s) received. New edits remain pending.`;
+    // Totals are in the cloud, so who each new copy belongs to can follow. A failure here loses nothing: it is sent again next time.
+    try{ await famFlush(); }catch(e){ syncState.receipt+=' Owner tags could not be sent yet; they go with the next Update.'; }
     renderAll();toast('Update confirmed.');fillUnknownCards();
   }catch(e){
     syncState.err=`${e.message||'Update failed.'}${acknowledged?` ${acknowledged} item(s) already accepted; remaining changes are kept for retry.`:''}`;
     toast(syncState.err);
   }finally{syncState.busy=false;renderSyncBox();renderSaveStatus();}
+}
+
+/* =========================================================
+   FAMILY OWNERSHIP: who each copy belongs to, who added it, and moving copies between people.
+   The collection keeps one family total per card. The cloud records the copies that belong to each member
+   other than the family owner; whatever is left belongs to the family owner. This device keeps the last
+   picture the cloud gave it, plus the changes made here since, which follow the next confirmed Update.
+   ========================================================= */
+const FAM_KEY='inkscan.family.'+GAME_ID;
+const famBlank=()=>({for:null,holdings:[],scans:[],moves:[],queue:[],sending:null});
+let fam={...famBlank(),...(lsGet(FAM_KEY,null)||{})}, famFor=null, famIndex=null, famBusy=false, famChromeKey=null, fm={id:null};
+const famSave=()=>{ famIndex=null; lsSet(FAM_KEY,fam); };
+const famPeople=()=>session && household?.for===session.uid ? InkFamily.people(household.members,household.owner) : [];
+// On only once the cloud has answered for this family and there is more than one person in it.
+const famOn=()=>!!session && fam.for===owner() && famPeople().length>1;
+const famPerson=id=>famPeople().find(p=>p.id===id);
+const famName=id=>famPerson(id)?.name||'Someone';
+const famAdder=()=>famPerson(famFor)?famFor:session.uid;
+const famHoldings=()=>famIndex||(famIndex=InkFamily.applyDeltas(InkFamily.applyDeltas(InkFamily.index(fam.holdings),fam.sending?.items,household.owner),fam.queue,household.owner));
+const famShares=id=>InkFamily.split(inv[id],famHoldings()[id],household.owner);
+const deckOwner=d=>famPerson(d.owner)?d.owner:household?.owner;
+const famStamp=d=>{ if(famOn() && session.uid!==household.owner) d.owner=session.uid; return d; };
+function famNote(id,field,delta,person,scan){
+  if(!famOn() || (person===household.owner && !scan) || (!delta && !scan)) return;
+  let it=fam.queue.find(x=>x.c===id&&x.p===person); if(!it) fam.queue.push(it={c:id,p:person,q:0,f:0,r:0,s:0});
+  it[field==='rf'?'r':field]+=delta; it.s+=scan||0;
+  if(!it.q&&!it.f&&!it.r&&!it.s) fam.queue=fam.queue.filter(x=>x!==it);
+  famSave();
+}
+function famTake(o){
+  if(!o || !Array.isArray(o.holdings)) return;
+  const same=fam.for===owner();
+  fam={for:owner(),holdings:o.holdings,scans:Array.isArray(o.scans)?o.scans:[],moves:Array.isArray(o.moves)?o.moves:[],queue:same?fam.queue:[],sending:same?fam.sending:null};
+  famSave();
+}
+// Reads the cloud's picture. Quiet when the family tables are not there, so the rest of the app carries on without the feature.
+async function famRefresh(){
+  if(!session || !navigator.onLine) return false;
+  try{ famTake(await rpc('inkscan_ownership',{game:GAME})); return true; }catch(e){ return false; }
+}
+// One batch at a time, under one id, so a batch that is sent twice is only counted once.
+async function famFlush(){
+  if(!famOn()) return famRefresh();
+  if(!fam.sending && fam.queue.length){ fam.sending={op:crypto.randomUUID(),items:fam.queue}; fam.queue=[]; famSave(); }
+  if(!fam.sending) return famRefresh();
+  const o=await rpc('inkscan_credit',{op:fam.sending.op,game:GAME,items:fam.sending.items});
+  fam.sending=null; famSave(); famTake(o); return true;
+}
+const famPending=id=>{ const a=inv[id]||{}, b=(base?.uid===owner()?base.inv?.[id]:null)||{}; return InkFamily.FIN.some(k=>(a[k]||0)!==(b[k]||0)) || [...(fam.sending?.items||[]),...fam.queue].some(x=>x.c===id); };
+async function famMove(items,deck){
+  if(!navigator.onLine){ toast('You are offline. Reconnect to move cards.'); return null; }
+  if(famBusy) return null; famBusy=true;
+  try{ const o=await rpc('inkscan_transfer',{game:GAME,items,deck_id:deck?.id||null,deck_name:deck?.name||null}); famTake(o); return o?.moved|0; }
+  catch(e){ toast(e.message||'That move did not work. Try again.'); return null; }
+  finally{ famBusy=false; }
+}
+const famTag=(p,n,full)=>p?`<span class="ptag p${p.slot}" title="${esc(p.name)}">${esc(full?p.name:p.initials)}${n?`<b>${n}</b>`:''}</span>`:'';
+// On card art a tag only appears when someone other than the family owner has a copy; lists always name everyone.
+function famTags(id,full){
+  if(!famOn()) return '';
+  const shares=famShares(id), who=famPeople().filter(p=>shares[p.id]);
+  if(!who.length || (!full && who.length===1 && who[0].owner)) return '';
+  return `<span class="ptags${full?'':' on-art'}">${who.map(p=>famTag(p,InkFamily.count(shares[p.id]),full)).join('')}</span>`;
+}
+function famChrome(){
+  const on=famOn(), people=on?famPeople():[], key=people.map(p=>p.id+p.name).join('|');
+  for(const id of ['cOwnerWrap','dWhoWrap','famForWrap']) $(id).hidden=!on;
+  if(key===famChromeKey) return; famChromeKey=key;
+  const opts=people.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  for(const id of ['cOwner','dWho']){ const keep=$(id).value; $(id).innerHTML='<option value="">Everyone</option>'+opts; $(id).value=people.some(p=>p.id===keep)?keep:''; }
+  $('famForScan').innerHTML=opts; if(on) $('famForScan').value=famAdder();
+}
+$('famForScan').onchange=()=>{ famFor=$('famForScan').value; };
+function famCardHTML(c){
+  if(!famOn()) return '';
+  const people=famPeople(), shares=famShares(c.id), holders=people.filter(p=>shares[p.id]);
+  const label={q:finishLabel('normal').toLowerCase(),f:'foil',rf:finishLabel('rainbow').toLowerCase()};
+  const split=v=>InkFamily.FIN.filter(k=>v[k]).map(k=>`${v[k]} ${label[k]}`).join(' · ');
+  const added=(fam.scans||[]).filter(x=>x.c===c.id&&x.n>0&&famPerson(x.p)).map(x=>`${esc(famName(x.p))} (${x.n})`);
+  const pick=(id,list,value)=>`<select id="${id}">${list.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
+  let move='';
+  if(holders.length){
+    if(fm.id!==c.id) fm={id:c.id};
+    const me=session.uid;
+    const from=holders.some(p=>p.id===fm.from)?fm.from:(holders.find(p=>p.id!==me)||holders[0]).id;
+    const has=shares[from], fins=InkFamily.FIN.filter(k=>has[k]>0), fin=fins.includes(fm.fin)?fm.fin:fins[0];
+    const to=people.some(p=>p.id===fm.to&&p.id!==from)?fm.to:(from!==me&&famPerson(me)?me:people.find(p=>p.id!==from).id);
+    const n=Math.max(1,Math.min(fm.n||1,has[fin]));
+    fm={id:c.id,from,to,fin,n};
+    move=`<div class="fammove"><label class="field">From ${pick('fmFrom',holders.map(p=>[p.id,p.name]),from)}</label><label class="field">To ${pick('fmTo',people.filter(p=>p.id!==from).map(p=>[p.id,p.name]),to)}</label>${fins.length>1?`<label class="field">Finish ${pick('fmFin',fins.map(k=>[k,label[k]]),fin)}</label>`:''}${has[fin]>1?`<label class="field">Copies ${pick('fmN',Array.from({length:Math.min(has[fin],99)},(_,i)=>[i+1,String(i+1)]),n)}</label>`:''}<button class="btn primary" id="fmGo">Move</button></div>`;
+  }
+  return `<div class="fambox" id="famBox"><h3 class="h3">Who has it</h3>${holders.length?holders.map(p=>`<div class="famrow">${famTag(p,0,true)}<span class="note">${split(shares[p.id])}</span></div>`).join(''):'<p class="note">Nobody has a copy yet.</p>'}${added.length?`<p class="note">Added by ${added.join(', ')}</p>`:''}${move}<p class="note" id="fmMsg" role="status"></p><label class="field">Copies added here go to ${pick('famForCard',people.map(p=>[p.id,p.name]),famAdder())}</label></div>`;
+}
+const famBoxRefresh=()=>{ const el=$('famBox'), c=byId.get(sheetCard); if(el&&c) el.outerHTML=famCardHTML(c); };
+$('sheetBody').addEventListener('change',e=>{
+  const t=e.target; if(!sheetCard || !t.closest('#famBox')) return;
+  if(t.id==='famForCard'){ famFor=t.value; if(famOn()) $('famForScan').value=famAdder(); return; }
+  if(t.id==='fmFrom') fm.from=t.value; else if(t.id==='fmTo') fm.to=t.value; else if(t.id==='fmFin') fm.fin=t.value; else if(t.id==='fmN') fm.n=+t.value; else return;
+  famBoxRefresh();
+});
+$('sheetBody').addEventListener('click',async e=>{
+  if(e.target.id!=='fmGo' || !sheetCard) return;
+  const id=sheetCard, {from,to,fin,n}=fm, say=t=>{ if($('fmMsg')) $('fmMsg').textContent=t; };
+  if(famPending(id)){ say('This card has changes that are not in the cloud yet. Tap Update, then move it.'); return; }
+  e.target.disabled=true; say('Moving…');
+  const moved=await famMove([{c:id,from,to,q:0,f:0,r:0,[fin==='rf'?'r':fin]:n}]);
+  if(sheetCard===id) famBoxRefresh();
+  if(moved!==null) toast(moved?`Moved ${moved} to ${famName(to)}`:'Nothing moved. Tap Update, then try again.');
+});
+function famDeckHTML(d){
+  if(!famOn()) return '';
+  const from=deckOwner(d), others=famPeople().filter(p=>p.id!==from);
+  return `<div class="fambox"><h3 class="h3">Owner</h3><div class="famrow">${famTag(famPerson(from),0,true)}</div><div class="fammove"><label class="field">Move deck to <select id="dmTo">${others.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label><button class="btn" data-dm="move">Move deck</button></div><p class="note">The copies of its cards that ${esc(famName(from))} has move with it.</p><p class="note" id="dmMsg" role="status"></p></div>`;
+}
+async function famMoveDeck(d,b){
+  const to=$('dmTo')?.value, from=deckOwner(d); if(!famPerson(to) || to===from) return;
+  const say=t=>{ if($('dmMsg')) $('dmMsg').textContent=t; };
+  // A built deck holds its listed copies minus the ones still to add; those are the copies that change hands.
+  const want=Object.fromEntries(Object.keys(d.cards).map(nv=>[nv,d.built?heldNV(d,nv):d.cards[nv]]));
+  const total=Object.values(want).reduce((a,n)=>a+n,0), items=InkFamily.deckItems(want,from,to,nv=>(byNV.get(nv)||[]).map(c=>c.id),famShares);
+  b.disabled=true; say('Moving…');
+  const moved=items.length?await famMove(items,d):0;
+  if(moved===null){ b.disabled=false; say('The deck was not moved.'); return; }
+  d.owner=to; saveDecks(); closeSheet(); renderDecks();
+  toast(`${d.name} now belongs to ${famName(to)}. ${moved} of ${total} cards moved with it. Tap Update to share the change.`);
+}
+function famPeopleHTML(){
+  if(!famOn()) return '';
+  const mine=household.role==='owner';
+  return `<div class="famlist">${famPeople().map(p=>`<div class="famrow">${famTag(p,0,true)}<span class="note grow">${esc(p.email)}</span>${mine||p.id===session.uid?`<button class="btn ghost tiny" data-sync="rename" data-uid="${esc(p.id)}">Rename</button>`:''}</div>`).join('')}</div>`;
+}
+async function famRename(id){
+  const p=famPerson(id); if(!p) return;
+  const name=prompt('Name to show for '+(p.email||p.name), p.name); if(name===null) return;
+  try{ await rpc('inkscan_set_name',{member:id,name:name.trim()}); await refreshHousehold(); renderSyncBox(); renderAfterEdit(); }
+  catch(e){ if($('famMsg')) $('famMsg').textContent=e.message||'That name could not be saved.'; }
+}
+function famHistoryHTML(){
+  if(!famOn() || !fam.moves.length) return '';
+  const groups=[];
+  for(const m of [...fam.moves].sort((a,b)=>String(b.at).localeCompare(String(a.at)))){
+    const n=(m.q||0)+(m.f||0)+(m.r||0), key=m.deck?[m.deck,m.at,m.from,m.to].join('|'):null, g=key&&groups.find(x=>x.key===key);
+    if(g) g.n+=n; else groups.push({key,n,m});
+  }
+  return `<div class="card"><h3 class="h3">Recent moves</h3>${groups.slice(0,12).map(({n,m})=>`<div class="famrow"><span class="grow">${esc(famName(m.from))} to ${esc(famName(m.to))}<span class="note"> · ${m.deck?`${esc(m.deck)} (${n} card${n===1?'':'s'})`:`${n}× ${esc(byId.get(m.c)?.n||'a card')}`}</span></span><span class="note">${esc(new Date(m.at).toLocaleDateString([], {month:'short',day:'numeric'}))}</span></div>`).join('')}</div>`;
 }
 
 function syncBoxHTML(){
@@ -2058,7 +2221,7 @@ function familyHTML(){
   else if(h?.role==='owner') body=`<p class="note">Shared with: ${others.length?others.map(m=>`${esc(m.email||'member')} <button class="btn ghost tiny" data-sync="remove" data-uid="${esc(m.id)}" aria-label="Remove ${esc(m.email||'member')}">Remove</button>`).join(', '):'nobody yet'}.</p><div class="row"><button class="btn" data-sync="invite">Invite someone</button></div>${codeBox}`;
   else body=`<p class="note">Share one collection, decks and wishlist with your family.</p><div class="row"><button class="btn" data-sync="invite">Invite family</button></div>${codeBox}
     <input type="text" id="famJoin" placeholder="Have a code? Enter it here" autocomplete="off" autocapitalize="characters" value="${esc(lsGet('inkscan.joinCode','')||'')}"><div class="row"><button class="btn" data-sync="join">Join family</button></div>`;
-  return `<div class="card"><h3 class="h3">Family</h3>${body}<p class="note" id="famMsg" role="status"></p></div>`;
+  return `<div class="card"><h3 class="h3">Family</h3>${body}${famPeopleHTML()}<p class="note" id="famMsg" role="status"></p></div>${famHistoryHTML()}`;
 }
 function renderSyncBox(){ const el=$('syncBox'); if (el) el.innerHTML = syncBoxHTML(); }
 $('sheetBody').addEventListener('click', async e=>{
@@ -2075,13 +2238,14 @@ $('sheetBody').addEventListener('click', async e=>{
         if (!j.access_token){ $('sbMsg').textContent = 'Account created. Open the confirmation email on this phone, tap the link, then come back here and tap Sign in.'; b.disabled=false; return; }
         keepSession(j);
       }
-      renderSyncBox(); toast('Signed in. Tap Update when you are ready.'); refreshHousehold().then(renderSyncBox).catch(()=>{});
+      renderSyncBox(); toast('Signed in. Tap Update when you are ready.'); refreshHousehold().then(famRefresh).then(()=>{renderSyncBox();renderAfterEdit();}).catch(()=>{});
     }catch(err){
       $('sbMsg').textContent = /confirm/i.test(err.message) ? 'Confirm your email first: tap the link in the message Supabase sent you, then Sign in.'
         : /invalid login/i.test(err.message) ? 'That email and password don’t match.' : err.message;
       b.disabled = false;
     }
   } else if (a==='now'){ sync(true); }
+  else if (a==='rename'){ await famRename(b.dataset.uid); }
   else if (['invite','join','leave','remove','share'].includes(a)){
     const msg=t=>{ if($('famMsg')) $('famMsg').textContent=t; };
     try{
@@ -2096,12 +2260,13 @@ $('sheetBody').addEventListener('click', async e=>{
       }
       else if(a==='leave'){ if(!confirm('Leave the family? This phone keeps its copy of the cards; your next Update saves them to your own account.')){ b.disabled=false; return; } await rpc('inkscan_leave'); await refreshHousehold(); toast('You left the family.'); }
       else if(a==='remove'){ if(!confirm('Remove this person from the family? Their phone keeps its copy, but they stop seeing changes.')){ b.disabled=false; return; } await rpc('inkscan_remove_member',{member:b.dataset.uid}); await refreshHousehold(); }
+      if(a!=='invite') await famRefresh();
       renderSyncBox();
     }catch(err){ msg(err.message||'That did not work. Try again.'); b.disabled=false; }
   }
   else if (a==='out'){ session=null; lsSet('inkscan.session', null); renderSyncBox(); toast('Signed out. Everything stays on this phone.'); }
 });
-$('manualUpdate').onclick=()=>{ openSheet('Cloud & family', `<div id="syncBox" class="stack">${syncBoxHTML()}</div>`); if(session&&navigator.onLine) refreshHousehold().then(renderSyncBox).catch(()=>{}); };
+$('manualUpdate').onclick=()=>{ openSheet('Cloud & family', `<div id="syncBox" class="stack">${syncBoxHTML()}</div>`); if(session&&navigator.onLine) refreshHousehold().then(famRefresh).then(renderSyncBox).catch(()=>{}); };
 function backupPayload(){
   const keys=[InkSafety.KEY,...InkSafety.LEGACY_KEYS];
   const raw=()=>Object.fromEntries(keys.map(k=>[k,STORE.getItem(k)]));

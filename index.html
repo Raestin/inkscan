@@ -12,9 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="tokens.css?v=46">
-<link rel="stylesheet" href="app.css?v=46">
-<link rel="stylesheet" href="shell.css?v=46">
+<link rel="stylesheet" href="tokens.css?v=47">
+<link rel="stylesheet" href="app.css?v=47">
+<link rel="stylesheet" href="shell.css?v=47">
 </head>
 <body>
 <!-- Icon set: one sprite, used as <svg class="ic"><use href="#i-name"/></svg> -->
@@ -117,6 +117,7 @@
     <p id="scanResolution" class="note printing-resolution" role="status" aria-live="polite" hidden></p>
     <button id="scanManual" class="btn" hidden>Find the exact printing</button>
     <div class="list" id="scanPick" hidden></div>
+    <label class="field" id="famForWrap" hidden>Adding cards for <select id="famForScan"></select></label>
     <div class="sectionhead"><h3>This session</h3><span class="note" id="logCount"></span></div>
     <div class="list" id="log"></div>
     <div class="panel-src" id="scanSettings" hidden>
@@ -169,6 +170,7 @@
               <option value="rarity">Rarity</option>
             </select>
           </label>
+          <label class="field" id="cOwnerWrap" hidden>Owner <select id="cOwner"><option value="">Everyone</option></select></label>
           <label class="field">Finish <select id="cFinish"><option value="all">All finishes</option><option value="normal">Normal only</option><option value="foil">Foil only</option><option value="rainbow">Rainbow foil only</option></select></label>
           <label class="field">Card-pool eligibility <select id="cLegality"><option value="all">All eligibility statuses</option><option value="legal">Standard legal</option><option value="not_legal">Not legal</option><option value="unknown">Unknown</option></select></label>
           <button class="btn ghost" id="cReset">Reset filters</button>
@@ -210,6 +212,7 @@
           <label class="field" id="dFormatWrap" hidden>Format <select id="dFormat"><option value="all">All formats</option></select></label>
           <label class="field" id="dStatusWrap">Rules <select id="dStatus"><option value="all">All decks</option><option value="pass">Rules pass</option><option value="fix">Fix rules</option><option value="short">Not finished (under size)</option></select></label>
           <label class="field" id="dBracketWrap" hidden>Bracket <select id="dBracket"><option value="all">All brackets</option></select></label>
+          <label class="field" id="dWhoWrap" hidden>Owner <select id="dWho"><option value="">Everyone</option></select></label>
           <label class="field">Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option><option value="built">Built decks</option><option value="unbuilt">Not built</option></select></label>
           <label class="field">Contains card <input type="search" id="dCard" placeholder="Card name, like Sol Ring" autocomplete="off"></label>
           <label class="field">Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option></select></label>
@@ -340,11 +343,12 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=46"></script>
-<script src="catalog.js?v=46"></script>
-<script src="legality.js?v=46"></script>
-<script src="games.js?v=46"></script>
-<script src="app.js?v=46"></script>
-<script src="shell.js?v=46"></script>
+<script src="safety.js?v=47"></script>
+<script src="family.js?v=47"></script>
+<script src="catalog.js?v=47"></script>
+<script src="legality.js?v=47"></script>
+<script src="games.js?v=47"></script>
+<script src="app.js?v=47"></script>
+<script src="shell.js?v=47"></script>
 </body>
 </html>

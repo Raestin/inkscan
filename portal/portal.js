@@ -40,6 +40,95 @@
     if (!all) return 'You don’t own this card';
     return `You own ${all}${here && here !== all ? ` (${here} of this printing)` : ''} · ${free} free`;
   }
+  /* ---------- family: who has which copies ---------- */
+  const fam = () => S().family, famPerson = id => fam()?.people.find(p => p.id === id), famName = id => famPerson(id)?.name || 'Someone';
+  const finWords = v => [[v.q, 'normal'], [v.f, 'foil'], [v.rf, 'rainbow foil']].filter(x => x[0]).map(x => `${x[0]} ${x[1]}`).join(', ');
+  const ptag = (p, n, full) => p ? `<span class="ptag p${p.slot}" title="${esc(p.name)}">${esc(full ? p.name : p.initials)}${n ? `<b>${n}</b>` : ''}</span>` : '';
+  // On card art a tag only appears when someone other than the family owner has a copy; lists always name everyone.
+  function ptags(id, full){
+    if (!fam()) return '';
+    const sh = D.shares(id), who = fam().people.filter(p => sh[p.id]);
+    if (!who.length || (!full && who.length === 1 && who[0].owner)) return '';
+    return `<span class="ptags${full ? '' : ' on-art'}">${who.map(p => ptag(p, InkFamily.count(sh[p.id]), full)).join('')}</span>`;
+  }
+  const cvMove = {id: null, from: '', to: '', fin: 'q'};
+  function cvMoveHTML(c){
+    if (!fam()) return '';
+    const sh = D.shares(c.id), holders = fam().people.filter(p => sh[p.id]);
+    if (!holders.length) return '';
+    if (cvMove.id !== c.id || !sh[cvMove.from]){ cvMove.id = c.id; cvMove.from = (holders.find(p => p.id !== fam().me) || holders[0]).id; cvMove.to = ''; }
+    const others = fam().people.filter(p => p.id !== cvMove.from);
+    if (!others.some(p => p.id === cvMove.to)) cvMove.to = (others.find(p => p.id === fam().me) || others[0]).id;
+    const fins = InkFamily.FIN.filter(k => sh[cvMove.from][k]); if (!fins.includes(cvMove.fin)) cvMove.fin = fins[0];
+    const max = sh[cvMove.from][cvMove.fin], label = {q: 'Normal', f: 'Foil', rf: 'Rainbow foil'};
+    const opt = (list, cur) => list.map(p => `<option value="${esc(p.id)}" ${p.id === cur ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    return `<div class="cv-move"><span class="mini">Move copies</span><div class="cv-move-row">
+      <label class="field"><span>From</span><select id="cvmFrom">${opt(holders, cvMove.from)}</select></label>
+      <label class="field"><span>To</span><select id="cvmTo">${opt(others, cvMove.to)}</select></label>
+      ${fins.length > 1 ? `<label class="field"><span>Finish</span><select id="cvFin">${fins.map(k => `<option value="${k}" ${k === cvMove.fin ? 'selected' : ''}>${label[k]}</option>`).join('')}</select></label>` : ''}
+      <label class="field"><span>Copies</span><select id="cvN">${Array.from({length: max}, (_, i) => `<option>${i + 1}</option>`).join('')}</select></label>
+      <button class="btn" id="cvGo" type="button">Move</button></div><p class="muted small" id="cvMsg" role="status"></p></div>`;
+  }
+  function cvMoveWire(c){
+    if (!$('cvGo')) return;
+    $('cvmFrom').onchange = () => { cvMove.from = $('cvmFrom').value; cvShow(c.id); };
+    $('cvmTo').onchange = () => { cvMove.to = $('cvmTo').value; };
+    if ($('cvFin')) $('cvFin').onchange = () => { cvMove.fin = $('cvFin').value; cvShow(c.id); };
+    $('cvGo').onclick = async () => {
+      const n = +$('cvN').value, to = cvMove.to;
+      $('cvGo').disabled = true; $('cvMsg').textContent = 'Moving…';
+      try {
+        const moved = await D.transfer([{c: c.id, from: cvMove.from, to, q: cvMove.fin === 'q' ? n : 0, f: cvMove.fin === 'f' ? n : 0, r: cvMove.fin === 'rf' ? n : 0}]);
+        toast(moved ? `Moved ${moved} to ${famName(to)}` : 'Nothing moved. Those copies had already changed hands.');
+        const keepRun = cvRun, keepFrom = cvFrom; render(); cvRun = keepRun; cvFrom = keepFrom; cvShow(c.id);
+      } catch(err){ $('cvGo').disabled = false; $('cvMsg').textContent = err.message || 'That move did not work. Try again.'; }
+    };
+  }
+  function famMovesHTML(limit){
+    const groups = [];
+    for (const m of [...fam().moves].sort((a, b) => String(b.at).localeCompare(String(a.at)))){
+      const n = (m.q || 0) + (m.f || 0) + (m.r || 0), key = m.deck ? [m.deck, m.at, m.from, m.to].join('|') : null, g = key && groups.find(x => x.key === key);
+      if (g) g.n += n; else groups.push({key, n, m});
+    }
+    return groups.slice(0, limit).map(({n, m}) => { const c = S().cat.byId.get(m.c);
+      return `<li><span class="row-n">${esc(famName(m.from))} to ${esc(famName(m.to))}</span><span class="row-m">${m.deck ? `${esc(m.deck)} (${plural(n, 'card')})` : `${n}× ${esc(c ? cardName(c) : 'a card')}`}</span><span class="row-v">${esc(new Date(m.at).toLocaleDateString([], {month: 'short', day: 'numeric'}))}</span></li>`; }).join('');
+  }
+  function famHomeHTML(){
+    if (!fam()) return '';
+    const sum = new Map(fam().people.map(p => [p.id, {n: 0, value: 0}]));
+    for (const id of S().inv.keys()) for (const [pid, v] of Object.entries(D.shares(id))){ const t = sum.get(pid); if (!t) continue; t.n += InkFamily.count(v); t.value += D.ownedValue(id, v).value; }
+    const decksOf = id => S().decks.filter(d => D.deckOwner(d) === id).length, moves = famMovesHTML(8);
+    return `<div class="grid2">
+      <section class="card" id="famCard"><h2 class="sec">Family</h2><ul class="rows fam-rows">${fam().people.map(p => { const t = sum.get(p.id);
+        return `<li>${ptag(p, 0, true)}<span class="row-m">${plural(t.n, 'card')} · ${plural(decksOf(p.id), 'deck')}</span><span class="row-v">${money(t.value)}</span></li>`; }).join('')}</ul></section>
+      <section class="card" id="famMoves"><h2 class="sec">Recent moves</h2>${moves ? `<ul class="rows fam-rows">${moves}</ul>` : '<p class="muted">No cards have changed hands yet. Open a card or a deck to move it to someone.</p>'}</section>
+    </div>`;
+  }
+  function famDeckHTML(d){
+    if (!fam() || !d.updated_at) return '';
+    const own = D.deckOwner(d), others = fam().people.filter(p => p.id !== own);
+    return `<div class="deck-owner"><span class="mini">Owner</span>${ptag(famPerson(own), 0, true)}<label class="sr" for="dMoveTo">Move deck to</label><select id="dMoveTo">${others.map(p => `<option value="${esc(p.id)}" ${p.id === fam().me ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="btn sm" id="dMove" type="button">Move deck</button><span class="muted small">The owner's copies of its cards move with it.</span></div>`;
+  }
+  async function famMoveDeck(v){
+    const base = S().decks.find(x => x.id === workshop.id), to = $('dMoveTo').value; if (!base || !famPerson(to)) return;
+    if (workshop.dirty){ toast('Save your changes to this deck first.'); return; }
+    const from = D.deckOwner(base);
+    // A built deck holds its listed copies minus the ones still to add; those are the copies that change hands.
+    const want = Object.fromEntries(Object.keys(base.cards).map(nv => [nv, base.built ? D.heldNV(base, nv) : base.cards[nv]]));
+    const total = Object.values(want).reduce((a, n) => a + n, 0);
+    const items = InkFamily.deckItems(want, from, to, nv => (S().cat.byNV.get(nv) || []).map(c => c.id), D.shares);
+    $('dMove').disabled = true;
+    try {
+      const saved = await D.saveDeck({...base, owner: to});
+      workshop.draft = structuredClone(saved); workshop.dirty = false;
+      let moved = 0;
+      try { moved = items.length ? await D.transfer(items, saved) : 0; }
+      catch(err){ toast(`${saved.name} now belongs to ${famName(to)}, but its cards could not be moved: ${err.message}`); renderDecks(v); return; }
+      toast(`${saved.name} now belongs to ${famName(to)}. ${moved} of ${total} cards moved with it.`);
+    } catch(err){ toast(err.message); }
+    renderDecks(v);
+  }
+
   const priceLine = c => [c.p != null ? money(c.p) : '', c.pf != null ? `${money(c.pf)} foil` : ''].filter(Boolean).join(' · ') || 'No price';
 
   const peek = $('peek'); let peekT = 0, peekEl = null;
@@ -94,13 +183,16 @@
           ${c.r ? `<dt>Rarity</dt><dd>${esc(g.rarityLabel(c.r))}</dd>` : ''}
           <dt>Price</dt><dd>${esc(priceLine(c))}</dd>
           <dt>Owned</dt><dd>${esc(ownLine(c))}</dd>
+          ${fam() && ptags(c.id, true) ? `<dt>Who has it</dt><dd>${fam().people.filter(p => D.shares(c.id)[p.id]).map(p => `<span class="cv-who">${ptag(p, 0, true)}<span class="muted">${esc(finWords(D.shares(c.id)[p.id]))}</span></span>`).join('')}</dd>` : ''}
           ${c.il ? `<dt>Artist</dt><dd>${esc(c.il)}</dd>` : ''}
         </dl>
+        ${cvMoveHTML(c)}
         ${decks.length ? `<div class="cv-decks"><span class="mini">In your decks</span><div class="chips">${decks.map(d => `<button type="button" class="chip-btn" data-cv-deck="${esc(d.id)}">${dots(deckColors(d))}${esc(d.name)} <span class="muted">×${d.cards[c.nv]}</span></button>`).join('')}</div></div>` : ''}
       </div>`;
     $('cvPrev').hidden = $('cvNext').hidden = cvRun.length < 2 || cvAt < 0;
     $('cvPrev').disabled = cvAt <= 0; $('cvNext').disabled = cvAt >= cvRun.length - 1;
     $('cvCount').textContent = cvRun.length > 1 && cvAt >= 0 ? `${cvAt + 1} of ${cvRun.length}` : '';
+    cvMoveWire(c);
     for (const b of cvEl.querySelectorAll('[data-cv-deck]')) b.onclick = () => {
       if (workshop.dirty && workshop.id !== b.dataset.cvDeck && !confirm('Discard unsaved changes to this deck?')) return;
       if (workshop.id !== b.dataset.cvDeck){ workshop.id = b.dataset.cvDeck; workshop.draft = null; }
@@ -204,6 +296,7 @@
         ${tile('Decks', rows.length.toLocaleString(), `${built} built`)}
         ${tile('Ready to build', ready.length.toLocaleString(), 'Unbuilt decks you have every card for')}
       </div>
+      ${famHomeHTML()}
       <div class="grid2">
         ${ready.length ? `<section class="card"><h2 class="sec">Ready to build</h2><ul class="rows">${ready.slice(0, 10).map(r => deckRow(r)).join('')}</ul></section>`
           : `<section class="card"><h2 class="sec">Your decks</h2>${rows.length ? `<ul class="rows">${[...rows].sort((a, b) => (Date.parse(b.d.updated_at) || 0) - (Date.parse(a.d.updated_at) || 0)).slice(0, 8).map(r => deckRow(r, false, true)).join('')}</ul>` : '<p class="muted">No decks yet. Start one in the Deck workshop.</p>'}</section>`}
@@ -220,7 +313,7 @@
   function wireDeckLinks(root){ for (const b of root.querySelectorAll('[data-open-deck]')) b.onclick = () => { workshop.id = b.dataset.openDeck; workshop.draft = null; location.hash = 'decks'; }; }
 
   /* ---------- Collection ---------- */
-  const coll = {q: '', color: '', type: '', rarity: '', sort: 'value', shown: 200, view: D.lsGet('portal.collView', 'gallery')};
+  const coll = {q: '', color: '', type: '', rarity: '', owner: '', sort: 'value', shown: 200, view: D.lsGet('portal.collView', 'gallery')};
   function collectionRows(){
     const usedBy = new Map();
     for (const d of S().decks) for (const nv of Object.keys(d.cards)) (usedBy.get(nv) || usedBy.set(nv, []).get(nv)).push(d.name);
@@ -233,7 +326,10 @@
     return rows;
   }
   function renderCollection(v){
-    const all = collectionRows(), g = gameDef();
+    const g = gameDef(), who = fam() && famPerson(coll.owner) ? coll.owner : '';
+    // With one person picked, every number on the page is that person's copies only.
+    const all = !who ? collectionRows() : collectionRows().map(r => { const sh = D.shares(r.id)[who]; if (!sh) return null;
+      const val = D.ownedValue(r.id, sh); return {...r, v: sh, n: InkFamily.count(sh), value: val.value, unpriced: val.unpriced}; }).filter(Boolean);
     const q = coll.q.toLowerCase();
     let rows = all.filter(r => r.c && (!q || `${cardName(r.c)} ${r.c.ty || ''} ${r.c.tx || ''}`.toLowerCase().includes(q))
       && (!coll.color || r.c.inks.includes(coll.color)) && (!coll.type || String(r.c.ty || '').includes(coll.type)) && (!coll.rarity || r.c.r === coll.rarity));
@@ -243,7 +339,7 @@
     const unused = all.filter(r => r.c && !r.decks.length), unusedValue = unused.reduce((s, r) => s + r.value, 0);
     const bait = all.filter(r => r.c && r.value / r.n >= 1 && r.free > 0 && !r.decks.length).sort((a, b) => b.value - a.value).slice(0, 12);
     v.innerHTML = `
-      <header class="page-head"><div><h1 class="page-title">Collection</h1><p class="muted">${plural(all.reduce((s, r) => s + r.n, 0), 'card')} · ${money(all.reduce((s, r) => s + r.value, 0))}${unknown ? ` · ${plural(unknown, 'printing')} without card data` : ''}</p></div></header>
+      <header class="page-head"><div><h1 class="page-title">Collection</h1><p class="muted">${who ? `${esc(famName(who))} · ` : ''}${plural(all.reduce((s, r) => s + r.n, 0), 'card')} · ${money(all.reduce((s, r) => s + r.value, 0))}${unknown ? ` · ${plural(unknown, 'printing')} without card data` : ''}</p></div></header>
       <div class="grid3">
         <section class="card"><h2 class="sec">Value by set</h2><div id="chSets"></div></section>
         <section class="card"><h2 class="sec">Value by rarity</h2><div id="chRarity"></div></section>
@@ -259,11 +355,12 @@
           <select id="cColor"><option value="">All ${esc(g.colorWord.toLowerCase())}s</option>${g.colors.map(x => `<option ${coll.color === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
           <select id="cType"><option value="">All types</option>${g.types.map(x => `<option ${coll.type === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
           <select id="cRarity"><option value="">All rarities</option>${g.rarities.map(x => `<option value="${esc(x)}" ${coll.rarity === x ? 'selected' : ''}>${esc(g.rarityLabel(x))}</option>`).join('')}</select>
+          ${fam() ? `<select id="cOwner" aria-label="Owner"><option value="">Everyone</option>${fam().people.map(p => `<option value="${esc(p.id)}" ${who === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : ''}
           <div class="seg" role="group" aria-label="Layout">${[['gallery', 'Gallery'], ['list', 'List']].map(([k, l]) => `<button type="button" aria-pressed="${coll.view === k}" data-cview="${k}">${l}</button>`).join('')}</div>
           <select id="cSort">${[['value', 'Value'], ['name', 'Name'], ['qty', 'Quantity'], ['set', 'Set']].map(([k, l]) => `<option value="${k}" ${coll.sort === k ? 'selected' : ''}>Sort: ${l}</option>`).join('')}</select>
         </div>
-        ${coll.view === 'gallery' ? `<div class="gallery">${rows.slice(0, coll.shown).map(r => { const u = imgUrl(r.c, 'normal'); return `<button type="button" class="ctile"${cardAttr(r.c)}><span class="ctile-art">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : `<span class="peek-ph">${esc(cardName(r.c))}</span>`}${r.n > 1 ? `<span class="ctile-q">×${r.n}</span>` : ''}</span><b>${esc(cardName(r.c))}</b><span>${money(r.value)}${r.unpriced ? '+' : ''} · ${esc(String(r.c.s).toUpperCase())}</span></button>`; }).join('')}</div>` : `<table class="tbl"><thead><tr><th>Card</th><th>Set</th><th>Rarity</th><th class="num">Qty</th><th class="num">Free</th><th class="num">Price</th><th class="num">Value</th><th>In decks</th></tr></thead>
-        <tbody>${rows.slice(0, coll.shown).map(r => `<tr${cardAttr(r.c)}><td><div class="cell-card">${imgUrl(r.c) ? `<img loading="lazy" src="${esc(imgUrl(r.c))}" alt="">` : '<span class="thumb-ph"></span>'}<div><div class="cn">${nameBtn(r.c)}</div><div class="cm">${esc(r.c.ty || '')}</div></div></div></td><td>${esc(String(r.c.s).toUpperCase())} #${esc(r.c.c)}</td><td>${esc(g.rarityLabel(r.c.r))}</td><td class="num">${[r.v.q ? String(r.v.q) : '', r.v.f ? `${r.v.f} foil` : '', r.v.rf ? `${r.v.rf} ${esc((g.finishes.rainbow || 'special').toLowerCase())}` : ''].filter(Boolean).join(' + ')}</td><td class="num">${r.free}</td><td class="num">${money(r.c.p ?? r.c.pf ?? null)}</td><td class="num">${money(r.value)}${r.unpriced ? '+' : ''}</td><td class="muted small">${esc(r.decks.slice(0, 2).join(', '))}${r.decks.length > 2 ? ` +${r.decks.length - 2}` : ''}</td></tr>`).join('')}</tbody></table>`}
+        ${coll.view === 'gallery' ? `<div class="gallery">${rows.slice(0, coll.shown).map(r => { const u = imgUrl(r.c, 'normal'); return `<button type="button" class="ctile"${cardAttr(r.c)}><span class="ctile-art">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : `<span class="peek-ph">${esc(cardName(r.c))}</span>`}${r.n > 1 ? `<span class="ctile-q">×${r.n}</span>` : ''}${ptags(r.id)}</span><b>${esc(cardName(r.c))}</b><span>${money(r.value)}${r.unpriced ? '+' : ''} · ${esc(String(r.c.s).toUpperCase())}</span></button>`; }).join('')}</div>` : `<table class="tbl"><thead><tr><th>Card</th><th>Set</th><th>Rarity</th><th class="num">Qty</th><th class="num">Free</th><th class="num">Price</th><th class="num">Value</th><th>In decks</th></tr></thead>
+        <tbody>${rows.slice(0, coll.shown).map(r => `<tr${cardAttr(r.c)}><td><div class="cell-card">${imgUrl(r.c) ? `<img loading="lazy" src="${esc(imgUrl(r.c))}" alt="">` : '<span class="thumb-ph"></span>'}<div><div class="cn">${nameBtn(r.c)}</div><div class="cm">${esc(r.c.ty || '')}</div>${ptags(r.id, true)}</div></div></td><td>${esc(String(r.c.s).toUpperCase())} #${esc(r.c.c)}</td><td>${esc(g.rarityLabel(r.c.r))}</td><td class="num">${[r.v.q ? String(r.v.q) : '', r.v.f ? `${r.v.f} foil` : '', r.v.rf ? `${r.v.rf} ${esc((g.finishes.rainbow || 'special').toLowerCase())}` : ''].filter(Boolean).join(' + ')}</td><td class="num">${r.free}</td><td class="num">${money(r.c.p ?? r.c.pf ?? null)}</td><td class="num">${money(r.value)}${r.unpriced ? '+' : ''}</td><td class="muted small">${esc(r.decks.slice(0, 2).join(', '))}${r.decks.length > 2 ? ` +${r.decks.length - 2}` : ''}</td></tr>`).join('')}</tbody></table>`}
         ${rows.length > coll.shown ? `<button class="btn ghost" id="cMore" type="button">Show ${Math.min(200, rows.length - coll.shown)} more of ${rows.length.toLocaleString()}</button>` : rows.length ? '' : '<p class="muted">No cards match.</p>'}
       </section>`;
     const bySet = new Map(); for (const r of all) if (r.c){ const k = String(r.c.s); bySet.set(k, (bySet.get(k) || 0) + r.value); }
@@ -279,6 +376,7 @@
     $('cType').onchange = () => { coll.type = $('cType').value; re(); };
     $('cRarity').onchange = () => { coll.rarity = $('cRarity').value; re(); };
     $('cSort').onchange = () => { coll.sort = $('cSort').value; re(); };
+    if ($('cOwner')) $('cOwner').onchange = () => { coll.owner = $('cOwner').value; re(); };
     for (const b of v.querySelectorAll('[data-cview]')) b.onclick = () => { coll.view = b.dataset.cview; D.lsSet('portal.collView', coll.view); re(); };
     if ($('cMore')) $('cMore').onclick = () => { coll.shown += 200; renderCollection(v); };
   }
@@ -339,7 +437,7 @@
           <div class="cpick" role="group" aria-label="${esc(gameDef().colorWord)}s">${gameDef().colors.filter(x => x !== 'Colorless').map(x => `<button type="button" class="cdot" data-col="${esc(x)}" aria-pressed="${workshop.colors.includes(x)}" aria-label="${esc(x)}" title="${esc(x)}"><i style="background:${colorVar(x)}"></i></button>`).join('')}<span class="muted small dl-count">${list.length === all.length ? plural(all.length, 'deck') : `${list.length} of ${all.length}`}</span></div>
           <ul class="dl">${list.map(({d, st}, i) => { const o = st.total ? Math.round(100 * (st.total - st.missing) / st.total) : 0;
             const state = d.built ? 'Built' : !st.total ? 'Empty' : st.unknown ? 'Loading cards' : st.missing ? `${plural(st.missing, 'card')} to get${st.missCost ? ` · ${money(st.missCost)}` : ''}` : 'Ready to build';
-            return `<li><button type="button" class="dl-i ${d.id === workshop.id ? 'on' : ''}" data-id="${esc(d.id)}" style="--deck:${deckGrad(d)}"><span class="dl-top">${ranked ? `<span class="dl-r">${i + 1}</span>` : ''}<span class="dl-n">${esc(d.name)}</span><span class="dl-p${st.total && !st.missing ? ' full' : ''}">${st.total ? o + '%' : ''}</span></span><span class="dl-m">${dots(deckColors(d))}${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span><span class="dl-m">${esc(state)}</span><span class="meter${st.total && !st.missing ? ' full' : ''}"><i style="width:${o}%"></i></span></button></li>`; }).join('') || '<li class="muted small dl-none">No decks match.</li>'}</ul>
+            return `<li><button type="button" class="dl-i ${d.id === workshop.id ? 'on' : ''}" data-id="${esc(d.id)}" style="--deck:${deckGrad(d)}"><span class="dl-top">${ranked ? `<span class="dl-r">${i + 1}</span>` : ''}<span class="dl-n">${esc(d.name)}</span>${fam() ? ptag(famPerson(D.deckOwner(d))) : ''}<span class="dl-p${st.total && !st.missing ? ' full' : ''}">${st.total ? o + '%' : ''}</span></span><span class="dl-m">${dots(deckColors(d))}${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span><span class="dl-m">${esc(state)}</span><span class="meter${st.total && !st.missing ? ' full' : ''}"><i style="width:${o}%"></i></span></button></li>`; }).join('') || '<li class="muted small dl-none">No decks match.</li>'}</ul>
         </aside>
         <div id="deckPane" class="deck-pane"></div>
       </div>`;
@@ -378,6 +476,7 @@
             <button class="btn primary" id="dSave" type="button" ${workshop.dirty ? '' : 'disabled'}>${d.updated_at ? 'Save changes' : 'Save deck'}</button>
           </div>
         </div>
+        ${famDeckHTML(d)}
         ${d.built && d.todo ? `<p class="todo-note">Still to add to this deck: ${Object.entries(d.todo).map(([nv, n]) => `${n} ${esc(nvName(nv))}`).join(', ')}. They stay on your shopping list and aren't taken from other decks. <button type="button" class="link" id="todoDone">I've added them</button></p>` : ''}
         <div class="tiles">
           ${tile('Cards', `${st.total} / ${st.size}`, st.total === st.size ? 'Full deck' : st.total < st.size ? `${st.size - st.total} to add` : `${st.total - st.size} over`)}
@@ -421,6 +520,7 @@
     };
     if ($('todoDone')) $('todoDone').onclick = () => { d.todo = null; mark(); };
     $('dCopy').onclick = async () => { const text = Object.entries(d.cards).map(([nv, q]) => `${q} ${nvName(nv)}`).join('\n'); try { await navigator.clipboard.writeText(text); toast('List copied.'); } catch(e){ toast('Copy failed. Select the list and copy it.'); } };
+    if ($('dMove')) $('dMove').onclick = () => famMoveDeck(v);
     $('dSave').onclick = async () => {
       $('dSave').disabled = true; $('dSave').textContent = 'Saving…';
       try { const saved = await D.saveDeck(d); workshop.id = saved.id; workshop.draft = structuredClone(saved); workshop.dirty = false; toast('Saved. Tap Update in the phone app to bring it over.'); renderDecks(v); }
