@@ -1,0 +1,41 @@
+name: Checks
+
+# Runs on every pull request into main and on every push to main.
+# Syntax-checks every script, then runs the unit and contract tests against an
+# isolated copy of the app with the cloud constants swapped out (no network,
+# no credentials, no deploy step).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Syntax check every script
+        run: for f in app.js safety.js sw.js catalog.js legality.js games.js family.js shell.js portal/*.js; do node --check "$f"; done
+      - name: App-level tests (family helpers, Portal simulator)
+        run: node --test family.test.cjs portal/sim.test.cjs
+      - name: Unit and contract tests on an isolated copy
+        working-directory: .github/qa
+        run: |
+          node prepare-fixture.cjs
+          npm run test:unit
