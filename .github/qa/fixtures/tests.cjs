@@ -6,9 +6,9 @@ const state=()=>S.load(storage());
 const catalog=(n=3)=>({asof:new Date().toISOString().slice(0,10),sets:[{code:'1',name:'Synthetic set'}],cards:Array.from({length:n},(_,i)=>({id:'card'+i,n:'Synthetic '+i,v:'Test',s:'1',sn:'Synthetic set',c:String(i),i:i%2?'Ruby':'Amber',r:'Common',cl:'Test',tx:'Text',ty:'Character',co:2,ik:1,p:2,pf:5,iv:null}))});
 function harness(seed={}){
  const elements=new Map(), events=[], timers=[], network=[], localStorage=storage(seed);
- function el(id){if(!elements.has(id))elements.set(id,{id,value:'',hidden:false,dataset:{},style:{},textContent:'',innerHTML:'',classList:{toggle(){},add(){},remove(){}},addEventListener(type,fn){events.push({id,type,fn});},setAttribute(){},getAttribute(){return 'false';},removeAttribute(){},querySelector(){return el('child');},querySelectorAll(){return[];},getContext(){return{};},appendChild(){},click(){},remove(){},insertAdjacentHTML(){},select(){}});return elements.get(id);}
+ function el(id){if(!elements.has(id))elements.set(id,{id,value:'',hidden:false,options:[],attrs:{},dataset:{},style:{},textContent:'',innerHTML:'',classList:{toggle(){},add(){},remove(){}},addEventListener(type,fn){events.push({id,type,fn});},setAttribute(k,v){this.attrs[k]=String(v);},getAttribute(k){return Object.hasOwn(this.attrs,k)?this.attrs[k]:'false';},removeAttribute(){},querySelector(){return el('child');},querySelectorAll(){return[];},getContext(){return{};},appendChild(){},click(){},remove(){},insertAdjacentHTML(){},select(){}});return elements.get(id);}
  const doc={scripts:[],dispatchEvent(){},getElementById:el,querySelector:el,querySelectorAll:()=>[],createElement:el,addEventListener(type,fn){events.push({id:'document',type,fn});},body:el('body'),hidden:false};
- const context={InkSafety:S,InkCatalog:require('./catalog.js'),InkLegality:require('./legality.js'),InkGames:require('./games.js'),document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:true},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},CustomEvent:class{constructor(type,o){this.type=type;this.detail=o?.detail;}},IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
+ const context={InkSafety:S,InkCatalog:require('./catalog.js'),InkLegality:require('./legality.js'),InkGames:require('./games.js'),document:doc,localStorage,location:{origin:'https://raestin.github.io',pathname:'/inkscan/',hash:'',search:'',protocol:'http:',href:'https://raestin.github.io/inkscan/'},navigator:{onLine:true},URL,Blob,Response,console,Date,Math,JSON,Map,Set,Promise,Number,Object,Array,String,Error,TypeError,encodeURIComponent,decodeURIComponent,parseInt,parseFloat,isFinite,MutationObserver:class{observe(){}disconnect(){}},CustomEvent:class{constructor(type,o){this.type=type;this.detail=o?.detail;}},matchMedia:()=>({matches:false,addEventListener(){},removeEventListener(){}}),IntersectionObserver:class{observe(){}disconnect(){}},history:{pushState(){},back(){}},setTimeout(fn,ms){timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){throw Error('Unexpected interval');},fetch:async(...args)=>{network.push(args);throw Error('Unexpected network');}};
  context.window=context;context.addEventListener=(type,fn)=>events.push({id:'window',type,fn});context.scrollTo=()=>{};
  let source=fs.readFileSync(__dirname+'/app.js','utf8');
  source=source.replace('\nboot();','\n// boot suppressed only inside this test harness');
@@ -157,17 +157,19 @@ test('purchase preview rejects a concurrent cloud pull even without an edit revi
 });
 test('updated app and safety scripts have matching versioned service-worker shell entries',()=>{
  const html=fs.readFileSync(__dirname+'/index.html','utf8'),sw=fs.readFileSync(__dirname+'/sw.js','utf8');
- for(const name of ['app','safety']){assert.match(html,new RegExp(name+'\\.js\\?v=26'));assert.ok(sw.includes(name+'.js?v=26'));}
- assert.match(sw,/const CACHE = 'inkscan-v26'/);assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
+ const v=(/app\.js\?v=(\d+)/.exec(html)||[])[1];assert.ok(v,'index.html loads a versioned app.js');
+ for(const name of ['app','safety','games','catalog','legality']){assert.match(html,new RegExp(name+'\\.js\\?v='+v+'"'));assert.ok(sw.includes(name+'.js?v='+v+"'"),name+' is cached at the same version');}
+ assert.ok(sw.includes("const CACHE = 'inkscan-v"+v+"'"),'the cache name matches the release');assert.doesNotMatch(sw,/skipWaiting\s*\(|clients\.claim\s*\(/);
 });
 
 // Browser-discovered regression: null baseline + signed-out session must not match.
 test('signed-out fresh state renders pending status and manual Update without a null baseline crash',()=>{
  const h=harness();h.api.setState({inv:{card0:{q:2,f:1}},session:null,base:null});
  assert.doesNotThrow(()=>h.api.renderSaveStatus());
- assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
+ assert.equal(h.el('pendingDot').hidden,false);
+ assert.equal(h.el('manualUpdate').getAttribute('aria-label'),'Cloud update: 1 change to send');
  assert.doesNotThrow(()=>h.el('manualUpdate').onclick());
- assert.match(h.el('sheetBody').innerHTML,/Signing in does not sync/);
+ assert.match(h.el('sheetBody').innerHTML,/Sign in to keep a cloud copy/);
  assert.equal(h.network.length,0);
 });
 test('fresh signed-out boot completes with synthetic catalog and no cloud request',async()=>{
@@ -178,7 +180,7 @@ test('fresh signed-out boot completes with synthetic catalog and no cloud reques
  await h.api.boot();
  assert.equal(h.el('loadBanner').hidden,true);
  assert.equal(h.el('tCopies').textContent,'3');
- assert.equal(h.el('manualUpdate').textContent,'Update (1 pending)');
+ assert.equal(h.el('manualUpdate').getAttribute('aria-label'),'Cloud update: 1 change to send');
  assert.deepEqual([...h.network].sort(),['cards.json','core-rules.json','finish-quotes.json','promo-catalog.json']);
 });
 
