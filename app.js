@@ -138,7 +138,7 @@ function persistState(){
   try { if(!savedState) throw Error('Saved data needs recovery.'); InkSafety.save(STORE,snapshotState(),knownStoredRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY); storageError=null; renderSaveStatus(); return true; }
   catch(e){ storageError='Save could not be confirmed on this device. Keep this tab open and download a backup. '+e.message; renderSaveStatus(); return false; }
 }
-function edited(){ localRevision++; persistState(); renderSyncBox(); }
+function edited(){ localRevision++; persistState(); renderSyncBox(); scheduleSync(); }
 window.addEventListener('storage',event=>{
   if(event.key===(LORCANA?InkSafety.KEY:STORE.keyOf(InkSafety.KEY)) && event.newValue!==knownStoredRaw){storageError='Another tab saved changes. Keep this tab open and back up both tabs before reconciling. Cloud updates are stopped until local saving is safe.';renderSaveStatus();}
   if(savedState && LORCANA && (event.key===null || InkSafety.isLegacyKey(event.key))){try{InkSafety.checkLegacy(localStorage,savedState);}catch(e){storageError=e.message;renderSaveStatus();}}
@@ -146,7 +146,7 @@ window.addEventListener('storage',event=>{
 function renderSaveStatus(){
   const el=$('saveStatus'); if(!el) return;
   const unknown=typeof byId!=='undefined'&&byId ? Object.keys(inv).filter(id=>!byId.has(id)).length : 0;
-  el.textContent=storageError || (unknown?`${unknown} collection printing(s) are missing from the catalog. They are retained in your collection and backup.`:'Saved on this device. Cloud updates run only when you tap Update.');
+  el.textContent=storageError || (unknown?`${unknown} collection printing(s) are missing from the catalog. They are retained in your collection and backup.`:(session?'Saved on this device. Changes sync with the cloud automatically.':'Saved on this device. Sign in under Cloud to sync with your other devices.'));
   el.classList.toggle('bad',!!storageError); $('saveBar').hidden=!(storageError||unknown);
   const sheetStatus=$('sheetSaveStatus');
   if(sheetStatus){sheetStatus.textContent=storageError||'';sheetStatus.hidden=!storageError;}
@@ -446,7 +446,12 @@ let inv = {};     // cardId -> {q, f, rf?}; rainbow is a distinct physical finis
 let decks = [];   // [{id, name, cards:{nv:qty}, updated}]
 let wish = {};    // cardId -> qty wanted
 function saveInv(){ edited(); renderTotals(); }
-function saveDecks(){ edited(); }
+/* When each deck last really changed on this device, so a deck edited here and in the cloud since the last
+   sync keeps whichever edit is newer. Pulled-in cloud versions don't count as changes made here. */
+let deckSigs=new Map();
+const deckSig=d=>JSON.stringify(InkSafety.maps({inv:{},wish:{},decks:[d]}).decks[d.id]??null);
+function snapDeckSigs(){ deckSigs=new Map(decks.map(d=>[d.id,deckSig(d)])); }
+function saveDecks(){ const now=Date.now(); for(const d of decks){ const sig=deckSig(d); if(deckSigs.get(d.id)!==sig){ d.changed=now; deckSigs.set(d.id,sig); } } edited(); }
 function saveWish(){ edited(); }
 function ownedOf(id){ return inventoryCount(inv[id]); }
 function ownedNV(nv){ let n=0; for (const c of byNV.get(nv)||[]) n+=ownedOf(c.id); return n; }
@@ -1965,6 +1970,7 @@ function reviewUpdate(plan){
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
   decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.owner)o.owner=d.owner;else delete o.owner;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.format)o.format=d.format;else delete o.format;return o;});
+  snapDeckSigs();
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
    Keys this build doesn't know (written by a newer build) are carried through untouched. */
@@ -1996,9 +2002,11 @@ async function guardedWrite(operation,previous){
   return result[0];
 }
 async function sync(manual){
+  const auto=manual==='auto';
   if(!manual||syncState.busy) return;
+  if(auto && !autoSyncReady()) return;
   if(!session){toast('Sign in first.');return;}
-  syncState.busy=true;syncState.err=null;syncState.receipt=null;renderSyncBox();
+  syncState.busy=true;syncState.err=null;syncState.receipt=null;syncState.lastAuto=Date.now();renderSyncBox();
   let acknowledged=0;
   try{
     ensureCloudOrigin();
@@ -2018,12 +2026,9 @@ async function sync(manual){
     const rows={inv:await pullAll('inv'),wish:await pullAll('wish'),decks:await pullAll('decks')};
     const remote=remoteMaps(rows), agreed=base||noBase();
     const plan=InkSafety.plan(captured,remote,agreed);
-    if(plan.conflicts.length){
-      syncState.conflicts=plan.conflicts;
-      download(`inkscan-conflicts-${today()}.json`,JSON.stringify({app:'inkscan-conflict-review',saved:new Date().toISOString(),conflicts:plan.conflicts}),'application/json');
-      throw Error(`${plan.conflicts.length} item(s) changed both here and in the cloud. Update stopped before any writes. Local and cloud values were preserved; a conflict review file was downloaded. Resolve against a backup before retrying.`);
-    }
-    if(!(await reviewUpdate(plan))){syncState.receipt='Update cancelled. No cloud items were written.';return;}
+    const settled=settleConflicts(plan,rows);
+    if(auto && !plan.writes.length && !plan.pulls.length){ syncState.receipt=null; return; }
+    if(!auto && !(await reviewUpdate(plan))){syncState.receipt='Update cancelled. No cloud items were written.';return;}
     if(localRevision!==revision) throw Error('Local data changed during review. Nothing was uploaded. Tap Update to review the latest changes.');
     savedState.recovery=recoveryPoints('Before confirmed cloud update');
     if(!persistState())throw Error('Recovery snapshot could not be saved. No cloud items were written. Back up before retrying.');
@@ -2043,15 +2048,61 @@ async function sync(manual){
     base={uid:own,...finalCloud};
     const confirmed=Date.now(), previousLast=syncState.last; syncState.last=confirmed;
     if(!persistState()){syncState.last=previousLast;throw Error('Update completed on the server but local receipt saving failed. Keep this tab open and back up.');}
-    syncState.receipt=`Update confirmed: ${acknowledged} item(s) sent, ${plan.pulls.length} item(s) received. New edits remain pending.`;
+    syncState.receipt=`Synced: ${acknowledged} item(s) sent, ${plan.pulls.length} item(s) received.${settled?` ${settled} item(s) had changed both here and in the cloud; the newer edit was kept.`:''}`;
     // Totals are in the cloud, so who each new copy belongs to can follow. A failure here loses nothing: it is sent again next time.
     try{ await famFlush(); }catch(e){ syncState.receipt+=' Owner tags could not be sent yet; they go with the next Update.'; }
-    renderAll();toast('Update confirmed.');fillUnknownCards();
+    if(!auto||plan.pulls.length) renderAll();
+    if(!auto) toast('Update confirmed.');
+    fillUnknownCards();
   }catch(e){
     syncState.err=`${e.message||'Update failed.'}${acknowledged?` ${acknowledged} item(s) already accepted; remaining changes are kept for retry.`:''}`;
-    toast(syncState.err);
-  }finally{syncState.busy=false;renderSyncBox();renderSaveStatus();}
+    if(!auto) toast(syncState.err);
+  }finally{
+    syncState.busy=false;renderSyncBox();renderSaveStatus();
+    if(InkSafety.pending(InkSafety.maps({inv,wish,decks}),base?.uid===owner()?base:noBase()).total && !syncState.err) scheduleSync();
+  }
 }
+/* Both this device and the cloud changed the same item since the last sync. Settle it without stopping:
+   wishlist counts add together like card counts do; for a deck, the most recent edit wins, and a deck edited
+   on one side is never lost to a delete on the other. This device's version is in the recovery snapshot
+   taken before every sync that changes anything. */
+function settleConflicts(plan,rows){
+  const n=plan.conflicts.length;
+  for(const c of plan.conflicts){
+    let value;
+    if(c.section==='wish'){ const q=(c.cloud||0)+(c.local||0)-(c.previous||0); value=q>0?q:null; }
+    else if(c.section==='decks'){
+      if(c.local===null) value=c.cloud;
+      else if(c.cloud===null) value=c.local;
+      else {
+        const d=decks.find(x=>x.id===c.id), localAt=d?.changed||d?.updated||0;
+        const cloudAt=Date.parse(rows.decks.find(r=>r.id===c.id)?.updated_at||'')||0;
+        value=localAt>cloudAt?c.local:c.cloud;
+      }
+    }
+    else value=c.cloud;
+    if(value===null) delete plan.merged[c.section][c.id]; else plan.merged[c.section][c.id]=InkSafety.clone(value);
+    if(!InkSafety.same(value,c.cloud)) plan.writes.push({section:c.section,id:c.id,value:InkSafety.clone(value)});
+    if(!InkSafety.same(value,c.local)) plan.pulls.push({section:c.section,id:c.id,value:InkSafety.clone(value)});
+  }
+  plan.conflicts=[];
+  return n;
+}
+/* Automatic sync: once this device has synced with its account (or family) at least once, every change is
+   sent a few seconds after it's made, and cloud changes come in when the app opens or comes back on screen.
+   The first sync, and the first after joining or leaving a family, is still a reviewed Update. */
+let syncTimer=null;
+function autoSyncReady(){
+  if(!session||!savedState||storageError||!navigator.onLine||document.hidden) return false;
+  if(location.origin!=='https://raestin.github.io' || !location.pathname.startsWith('/inkscan/')) return false;
+  return !!base?.uid && base.uid===owner();
+}
+function scheduleSync(delay=8000){
+  clearTimeout(syncTimer);
+  if(!autoSyncReady()) return;
+  syncTimer=setTimeout(()=>{ syncTimer=null; if(syncState.busy) scheduleSync(delay); else sync('auto'); },delay);
+}
+function syncSoon(){ if(Date.now()-(syncState.lastAuto||0)>30000) scheduleSync(1500); }
 
 /* =========================================================
    FAMILY OWNERSHIP: who each copy belongs to, who added it, and moving copies between people.
@@ -2205,11 +2256,12 @@ function syncBoxHTML(){
   const common=`<div class="kpis"><div><strong>${counts.total}</strong>change${counts.total===1?'':'s'} to send</div><div><strong>${esc(when)}</strong>last update</div></div>
     ${syncState.err?`<p class="note" role="alert" style="color:var(--warn)">${esc(syncState.err)}</p>`:''}
     ${syncState.receipt?`<p class="note">${esc(syncState.receipt)}</p>`:''}`;
-  if(!session) return `${common}<p class="note">Sign in to keep a cloud copy and share with family. Nothing syncs until you tap Update.</p>
+  if(!session) return `${common}<p class="note">Sign in to keep a cloud copy and share with family. Once you're signed in, changes sync on their own.</p>
     <input type="email" id="sbEmail" placeholder="Email" autocomplete="email" value="${esc(lsGet('inkscan.email','')||'')}">
     <input type="password" id="sbPass" placeholder="Password (6+ characters)" autocomplete="current-password">
     <div class="btnrow"><button class="btn primary" data-sync="in">Sign in</button><button class="btn" data-sync="up">Create account</button></div><p class="note" id="sbMsg"></p>`;
-  return `${common}<p class="note">Signed in as ${esc(session.email||'you')}.${syncState.busy?' Updating…':''}</p>
+  const autoNote=autoSyncReady()||(base?.uid&&base.uid===owner())?' Changes sync automatically.':' Tap Update now once to start syncing automatically.';
+  return `${common}<p class="note">Signed in as ${esc(session.email||'you')}.${syncState.busy?' Syncing…':autoNote}</p>
     <div class="btnrow"><button class="btn primary" data-sync="now" ${syncState.busy?'disabled':''}>Update now</button><button class="btn ghost" data-sync="out" ${syncState.busy?'disabled':''}>Sign out</button></div>${familyHTML()}`;
 }
 function familyHTML(){
@@ -2238,7 +2290,7 @@ $('sheetBody').addEventListener('click', async e=>{
         if (!j.access_token){ $('sbMsg').textContent = 'Account created. Open the confirmation email on this phone, tap the link, then come back here and tap Sign in.'; b.disabled=false; return; }
         keepSession(j);
       }
-      renderSyncBox(); toast('Signed in. Tap Update when you are ready.'); refreshHousehold().then(famRefresh).then(()=>{renderSyncBox();renderAfterEdit();}).catch(()=>{});
+      renderSyncBox(); toast(base?.uid&&base.uid===owner()?'Signed in. Syncing now.':'Signed in. Tap Update now to bring in your cloud copy.'); scheduleSync(1500); refreshHousehold().then(famRefresh).then(()=>{renderSyncBox();renderAfterEdit();}).catch(()=>{});
     }catch(err){
       $('sbMsg').textContent = /confirm/i.test(err.message) ? 'Confirm your email first: tap the link in the message Supabase sent you, then Sign in.'
         : /invalid login/i.test(err.message) ? 'That email and password don’t match.' : err.message;
@@ -2426,6 +2478,7 @@ async function boot(){
   takeInviteLink();
   if(!savedState){ $('loadBanner').textContent=storageError; $('loadBanner').classList.add('bad'); renderSaveStatus(); return; }
   inv=InkSafety.clone(savedState.inv); decks=InkSafety.clone(savedState.decks); wish=InkSafety.clone(savedState.wish);
+  snapDeckSigs();
   renderSaveStatus();
   renderLog();
   let d;
@@ -2449,7 +2502,10 @@ async function boot(){
   getWorker().catch(()=>{});
   fillUnknownCards();
   window.addEventListener('online',()=>fillUnknownCards());
-  // Cloud reads and writes require an explicit Update confirmation.
+  // Signed-in devices that have synced before pick up cloud changes on open and whenever they return to the screen.
+  window.addEventListener('online',syncSoon);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) syncSoon(); });
+  scheduleSync(2000);
 }
 boot();
 if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
