@@ -1,6 +1,7 @@
 /* InkScan Portal advisor: a chat with Claude that can read the collection and decks, search cards, run
    simulations, price shopping lists and propose decks. Claude runs on the Supabase "advisor" function
    (the API key stays there); the tools run here in the browser against the loaded data.
+   edit_deck and set_owned change the cloud straight away; each change shows in the chat with an Undo.
    The conversation is kept per game in this browser and is only ever appended to. */
 (function(root){
   'use strict';
@@ -13,7 +14,7 @@
   const chat = () => D.lsGet(key(), {messages: [], saved: {}});
   const store = c => { if (!D.lsSet(key(), c)) ctx.toast('This conversation is too big to keep in the browser. Start a new one.'); };
 
-  const TOOL_LABEL = {get_collection: 'Read your collection', list_decks: 'Listed your decks', get_deck: 'Opened a deck', search_cards: 'Searched cards', simulate: 'Ran a simulation', buy_plan: 'Priced a shopping list', propose_deck: 'Drafted a deck'};
+  const TOOL_LABEL = {get_collection: 'Read your collection', list_decks: 'Listed your decks', get_deck: 'Opened a deck', search_cards: 'Searched cards', simulate: 'Ran a simulation', buy_plan: 'Priced a shopping list', propose_deck: 'Drafted a deck', edit_deck: 'Changed a deck', set_owned: 'Corrected a card count'};
   const SUGGEST = {
     mtg: ['Which of my decks are closest to finished, and what should I buy first?', 'Build a Pauper deck using only cards I own (lands aside).', 'Goldfish my Voja deck and tell me where it stumbles.', 'What in my collection is worth trading away?'],
     lorcana: ['Build the best 60-card deck I can from what I own.', 'Which two inks does my collection support best?', 'Simulate my strongest deck and tell me how fast it reaches 20 lore.', 'What should I buy next to make my best deck stronger?'],
@@ -86,6 +87,106 @@
       return {shown_to_user: true, saved: false, cards: st.total, owned_pct: Math.round(st.pct * 100), missing: st.missing, cost_to_finish_usd: money(st.missCost), unresolved: unresolved.length ? unresolved : undefined};
     }
   };
+
+  /* ---------- live changes: edit a deck, correct a card count ---------- */
+  const FIN = ['q', 'f', 'rf'];
+  const sum = v => (v?.q || 0) + (v?.f || 0) + (v?.rf || 0);
+  const sameCards = (a, b) => JSON.stringify(Object.entries(a || {}).sort()) === JSON.stringify(Object.entries(b || {}).sort());
+  const deckShape = d => ({cards: structuredClone(d.cards), commanders: [...(d.commanders || [])], todo: d.todo ? {...d.todo} : null});
+  function remember(id, change){ const c = chat(); c.changes = c.changes || {}; c.changes[id] = change; store(c); }
+  function deckChanged(d){ ctx.onDeckChanged?.(d); }
+  // Apply removals and additions to a copy of a deck's shape; also used by Undo's checks.
+  async function applyEdit(d, input){
+    const next = deckShape(d), lines = [], problems = [];
+    for (const {name, qty} of input.remove || []){
+      const nv = await D.resolveName(ctx.game, name), n = Math.max(1, qty | 0);
+      if (!nv || !next.cards[nv]){ problems.push(`${name} is not in ${d.name}.`); continue; }
+      const left = next.cards[nv] - n, took = Math.min(n, next.cards[nv]);
+      if (left <= 0){ delete next.cards[nv]; next.commanders = next.commanders.filter(k => k !== nv); } else next.cards[nv] = left;
+      if (next.todo?.[nv]){ if (left <= 0) delete next.todo[nv]; else next.todo[nv] = Math.min(next.todo[nv], left); }
+      lines.push({nv, n: -took});
+    }
+    for (const {name, qty} of input.add || []){
+      const nv = await D.resolveName(ctx.game, name), n = Math.max(1, qty | 0);
+      if (!nv){ problems.push(`No card found named ${name}.`); continue; }
+      next.cards[nv] = (next.cards[nv] || 0) + n;
+      lines.push({nv, n});
+    }
+    if (next.todo && !Object.keys(next.todo).length) next.todo = null;
+    return {next, lines, problems};
+  }
+  async function saveShape(d, shape){
+    return D.saveDeck({...d, cards: shape.cards, commanders: shape.commanders, todo: shape.todo});
+  }
+  function lineText(lines){ return lines.map(l => `${l.n > 0 ? '+' : '−'}${Math.abs(l.n)} ${ctx.nvName(l.nv)}`).join(', '); }
+
+  async function editDeck(input, id){
+    const d = await D.refreshDeck(input.deck_id); if (!d) return {error: 'No deck with that id. Use list_decks.'};
+    if (!(input.remove || []).length && !(input.add || []).length) return {error: 'Give cards to remove, to add, or both.'};
+    const {next, lines, problems} = await applyEdit(d, input);
+    if (problems.length) return {error: problems.join(' ') + ' Nothing was changed.'};
+    const before = deckShape(d), saved = await saveShape(d, next);
+    remember(id, {kind: 'deck', deck_id: d.id, name: d.name, text: lineText(lines), before, after: deckShape(saved), at: saved.updated_at});
+    deckChanged(saved);
+    const st = D.deckStats(saved);
+    const added = lines.filter(l => l.n > 0).map(l => { const r = st.rows.find(x => x.nv === l.nv); return {name: ctx.nvName(l.nv), in_deck: r?.q, free_copies: r?.free, need_to_buy: r?.need || undefined}; });
+    return {saved: true, deck: saved.name, changed: lineText(lines), cards: st.total, size: st.size, built: saved.built || undefined, still_missing: st.missing, added, undo: 'The user can tap Undo on this change in the chat.'};
+  }
+
+  async function setOwned(input, id){
+    if (!sameGame(input.game)) return otherGame(input.game);
+    const want = input.owned | 0; if (want < 0 || want > 999) return {error: 'owned must be 0 to 999.'};
+    const nv = await D.resolveName(ctx.game, input.name); if (!nv) return {error: `No card found named ${input.name}.`};
+    const ids = () => [...S().inv.keys()].filter(k => S().cat.byId.get(k)?.nv === nv);
+    await D.refreshCards(ids());
+    const held = ids().map(k => ({id: k, v: {...S().inv.get(k)}})).filter(x => sum(x.v) > 0), had = held.reduce((n, x) => n + sum(x.v), 0);
+    const name = ctx.nvName(nv);
+    if (want === had) return {saved: false, card: name, owned: had, note: 'Already that many; nothing changed.'};
+    // Fewer: take from the printing with the most copies, normal finish first. More: add normal copies to the
+    // printing already held most, or to the card's usual printing.
+    const plan = new Map();
+    if (want < had){
+      let drop = had - want;
+      for (const x of held.sort((a, b) => sum(b.v) - sum(a.v))){ const v = {...x.v}; for (const k of FIN){ const n = Math.min(v[k], drop); v[k] -= n; drop -= n; } if (sum(v) !== sum(x.v)) plan.set(x.id, {prev: x.v, next: v}); if (!drop) break; }
+    } else {
+      const top = held.sort((a, b) => sum(b.v) - sum(a.v))[0];
+      const pid = top?.id || S().cat.rep(nv)?.id; if (!pid) return {error: `No printing of ${name} is known.`};
+      const prev = top ? top.v : S().inv.get(pid) || null, base = prev || {q: 0, f: 0, rf: 0};
+      plan.set(pid, {prev, next: {...base, q: base.q + want - had}});
+    }
+    const done = [];
+    try { for (const [pid, p] of plan){ await D.setCount(pid, p.next, p.prev); done.push({id: pid, prev: p.prev, next: p.next}); } }
+    catch(err){ if (done.length) remember(id, {kind: 'count', nv, name, from: had, to: had + done.reduce((n, x) => n + sum(x.next) - sum(x.prev), 0), writes: done}); return {error: err.message}; }
+    remember(id, {kind: 'count', nv, name, from: had, to: want, writes: done});
+    deckChanged(null);
+    const held2 = D.committedNV(nv), short = Math.max(0, held2 - want);
+    const inDecks = S().decks.filter(d => d.cards[nv]).map(d => ({deck_id: d.id, deck: d.name, copies: d.cards[nv], built: d.built || undefined}));
+    return {saved: true, card: name, owned_before: had, owned_now: want, in_decks: inDecks, built_decks_short_by: short || undefined, undo: 'The user can tap Undo on this change in the chat.'};
+  }
+
+  async function undo(id, btn){
+    const c = chat(), ch = c.changes?.[id]; if (!ch || ch.undone) return;
+    btn.disabled = true; btn.textContent = 'Undoing…';
+    try {
+      if (ch.kind === 'deck'){
+        const d = await D.refreshDeck(ch.deck_id); if (!d) throw Error(`${ch.name} isn't in the cloud any more.`);
+        if (!sameCards(d.cards, ch.after.cards)) throw Error(`${ch.name} has changed since, so Undo would overwrite that. Change it back in the deck workshop instead.`);
+        deckChanged(await saveShape(d, ch.before));
+      } else {
+        for (const w of [...ch.writes].reverse()) await D.setCount(w.id, w.prev || {q: 0, f: 0, rf: 0}, w.next);
+        deckChanged(null);
+      }
+      const c2 = chat(); c2.changes[id].undone = true; store(c2);
+      ctx.toast(ch.kind === 'deck' ? `${ch.name} is back the way it was.` : `${ch.name} is back to ${ch.from}.`);
+    } catch(err){ ctx.toast(/changed somewhere else/.test(err.message) ? `${ch.kind === 'deck' ? ch.name : ch.name + "'s count"} changed somewhere else since, so it wasn't undone.` : err.message); }
+    paint();
+  }
+  function changeHTML(id, ch){
+    const what = ch.kind === 'deck' ? `<b>${esc(ch.name)}</b>: ${esc(ch.text)}` : `<b>Collection</b>: ${esc(ch.name)} ${ch.from} → ${ch.to}`;
+    return `<div class="change${ch.undone ? ' undone' : ''}"><span>${what}</span>${ch.undone ? '<span class="chip">Undone</span>' : `<button class="btn sm" type="button" data-undo="${esc(id)}">Undo</button>`}</div>`;
+  }
+  TOOLS.edit_deck = editDeck;
+  TOOLS.set_owned = setOwned;
 
   /* ---------- relay ---------- */
   async function call(messages, onEvent){
@@ -170,16 +271,18 @@
         for (const b of m.content){
           if (b.type === 'text' && b.text.trim()) bits.push(md(b.text));
           else if (b.type === 'tool_use' && b.name === 'propose_deck' && c.proposals?.[b.id]) bits.push(proposalHTML(b.id, c.proposals[b.id], c.saved?.[b.id]));
+          else if (b.type === 'tool_use' && c.changes?.[b.id]) bits.push(changeHTML(b.id, c.changes[b.id]));
           else if (b.type === 'tool_use') bits.push(`<span class="tool-chip">${esc(TOOL_LABEL[b.name] || b.name)}</span>`);
         }
         if (bits.length) parts.push(`<div class="msg-a">${bits.join('')}</div>`);
       }
       if (c.notes?.[i + 1]) parts.push(`<div class="msg-note">${esc(c.notes[i + 1])}</div>`);
     });
-    if (!c.messages.length) parts.push(`<div class="chat-empty"><h2>Ask about your ${esc(ctx.gameDef().name)} cards</h2><p class="muted">The advisor reads your collection and decks, checks real card data, runs simulations and can draft decks for you to save.</p><div class="suggest">${(SUGGEST[ctx.game] || []).map(s => `<button type="button" class="chip-btn" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`);
+    if (!c.messages.length) parts.push(`<div class="chat-empty"><h2>Ask about your ${esc(ctx.gameDef().name)} cards</h2><p class="muted">The advisor reads your collection and decks, checks real card data, runs simulations and can draft decks for you to save. Tell it when a card is missing or a count is wrong and it fixes the deck or collection on the spot, with an Undo.</p><div class="suggest">${(SUGGEST[ctx.game] || []).map(s => `<button type="button" class="chip-btn" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`);
     log.innerHTML = parts.join('') + '<div id="liveMsg"></div>';
     for (const b of log.querySelectorAll('[data-suggest]')) b.onclick = () => ask(b.dataset.suggest);
     for (const b of log.querySelectorAll('[data-save]')) b.onclick = () => saveProposal(b.dataset.save, b);
+    for (const b of log.querySelectorAll('[data-undo]')) b.onclick = () => undo(b.dataset.undo, b);
     paintLive();
     host.querySelector('#chatSend').disabled = busy;
     log.scrollTop = log.scrollHeight;
@@ -192,7 +295,7 @@
   async function saveProposal(id, btn){
     const c = chat(), p = c.proposals?.[id]; if (!p) return;
     btn.disabled = true; btn.textContent = 'Saving…';
-    try { const saved = await D.saveDeck(structuredClone(p)); const c2 = chat(); c2.saved = c2.saved || {}; c2.saved[id] = saved.id; store(c2); ctx.onDeckSaved?.(saved); ctx.toast(`Saved “${saved.name}”. Tap Update in the phone app to bring it over.`); paint(); }
+    try { const saved = await D.saveDeck(structuredClone(p)); const c2 = chat(); c2.saved = c2.saved || {}; c2.saved[id] = saved.id; store(c2); ctx.onDeckSaved?.(saved); ctx.toast(`Saved “${saved.name}”. It shows on your phone the next time InkScan opens.`); paint(); }
     catch(err){ ctx.toast(err.message); btn.disabled = false; btn.textContent = 'Save to InkScan'; }
   }
 
@@ -208,5 +311,5 @@
     v.querySelector('#chatNew').onclick = () => { if (busy) return; if (chat().messages.length && !confirm('Start a new conversation? This one will be cleared.')) return; D.lsSet(key(), {messages: [], saved: {}}); paint(); };
     paint(); input.focus();
   }
-  root.PortalAdvisor = {mount, ask, _tools: TOOLS, _md: md};
+  root.PortalAdvisor = {mount, ask, _tools: TOOLS, _md: md, _undo: undo, _chat: () => chat(), _ctx: c => { ctx = c; }};
 })(self);

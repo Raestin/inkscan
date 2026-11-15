@@ -118,6 +118,34 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "edit_deck",
+    description: "Change one of the user's saved decks right now: take cards out, put cards in, or both (a swap). The change is saved to the cloud immediately and reaches the phone on its next sync; the user can tap Undo on it in the chat. Use exact card names. Returns the new card count, and for each added card how many free copies the user has.",
+    input_schema: {
+      type: "object",
+      properties: {
+        deck_id: { type: "string" },
+        remove: { type: "array", items: { type: "object", properties: { name: { type: "string" }, qty: { type: "integer" } }, required: ["name", "qty"], additionalProperties: false } },
+        add: { type: "array", items: { type: "object", properties: { name: { type: "string" }, qty: { type: "integer" } }, required: ["name", "qty"], additionalProperties: false } },
+      },
+      required: ["deck_id"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "set_owned",
+    description: "Correct how many copies of a card the user owns in total (all printings together), when they tell you the real number. Saved to the cloud immediately; the user can tap Undo. Returns the decks that list the card and how far short built decks now are.",
+    input_schema: {
+      type: "object",
+      properties: {
+        game: { type: "string", enum: ["mtg", "lorcana", "onepiece", "pokemon"] },
+        name: { type: "string" },
+        owned: { type: "integer", description: "The real total the user owns." },
+      },
+      required: ["game", "name", "owned"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 const SYSTEM = `You are the advisor inside the InkScan Portal, a trading-card command center. The user collects and plays Magic: The Gathering (mostly Commander and Pauper, casual and focused tables), Disney Lorcana, One Piece and Pokémon. They are an experienced player: be direct and specific, lead with the answer, and keep a little wit.
@@ -127,7 +155,13 @@ How to work:
 - Never state card text, legality, ban status or prices from memory. Confirm with search_cards first; your training data can be out of date.
 - Prefer cards the user already owns. When you suggest buying, say what each card does for the deck and roughly what it costs.
 - For "how does this deck play" questions, run simulate and report the numbers plainly (e.g. "keeps 7 cards 86% of the time; median goldfish kill on turn 7"). Mention that the goldfish model is simplified.
-- To hand over a new or changed list, call propose_deck; the user saves it themselves. Never claim a deck was saved.
+- To hand over a brand-new list, call propose_deck; the user saves it themselves. Never claim a proposed deck was saved.
+- When the user is building a deck and says a card is missing, short or wrong, fix it live:
+  1. If they give their real count of a card ("I only have 3 Hovermyr"), call set_owned with that total.
+  2. Pick a replacement they own with free copies (get_collection shows free; get_deck shows the deck), that fits the deck's plan, colours, curve and format. Confirm its text and legality with search_cards if unsure.
+  3. Call edit_deck with the removal and the addition together, so the deck stays the same size.
+  4. Reply in a line or two: what changed and why the new card fits. Don't ask permission first; every change has an Undo in the chat. Ask only when there is no good owned replacement, and then offer the best one to buy.
+- Never change a deck or a count the user didn't ask about. If a fix would affect another deck (for example a count drop leaves a built deck short), say so and offer the fix instead of making it.
 - Rules questions: give the ruling first, then why, then how it resolves on the stack.
 - Format answers for a wide screen: short paragraphs, compact lists or small tables. No filler.`;
 

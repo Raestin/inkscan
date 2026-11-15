@@ -523,7 +523,7 @@
     if ($('dMove')) $('dMove').onclick = () => famMoveDeck(v);
     $('dSave').onclick = async () => {
       $('dSave').disabled = true; $('dSave').textContent = 'Saving…';
-      try { const saved = await D.saveDeck(d); workshop.id = saved.id; workshop.draft = structuredClone(saved); workshop.dirty = false; toast('Saved. Tap Update in the phone app to bring it over.'); renderDecks(v); }
+      try { const saved = await D.saveDeck(d); workshop.id = saved.id; workshop.draft = structuredClone(saved); workshop.dirty = false; toast('Saved. It shows on your phone the next time InkScan opens.'); renderDecks(v); }
       catch(err){ toast(err.message); $('dSave').disabled = false; $('dSave').textContent = 'Save changes'; }
     };
     for (const b of p.querySelectorAll('[data-qty]')) b.onclick = () => {
@@ -863,7 +863,9 @@
   let pendingAsk = '';
   function renderAdvisor(v){
     PortalAdvisor.mount(v, {game, gameDef, nvName, cardName, toast, buyPlan, runSim: (d, opts) => runSim(d, opts), simDeck,
-      onDeckSaved: d => { workshop.id = d.id; workshop.draft = null; }});
+      onDeckSaved: d => { workshop.id = d.id; workshop.draft = null; },
+      // The advisor changed a deck or a card count in the cloud: drop any stale, unedited workshop copy.
+      onDeckChanged: d => { if (!workshop.dirty && (!d || workshop.id === d.id)) workshop.draft = null; }});
     if (pendingAsk){ const q = pendingAsk; pendingAsk = ''; PortalAdvisor.ask(q); }
   }
 

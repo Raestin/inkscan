@@ -1,7 +1,8 @@
 /* InkScan Portal data layer: sign-in, reading the collection, wishlist and decks from the cloud,
    resolving every card to full card data, ownership math, and saving decks back.
-   The phone app stays the owner of the collection; the portal reads it and only ever writes deck rows,
-   which the phone picks up on its next Update. */
+   The portal writes deck rows, and card counts when the user corrects them through the advisor. Every write
+   only replaces the exact version it read, so it never overwrites a change made on the phone in between;
+   the phone picks the change up on its next automatic sync. */
 (function(root){
   'use strict';
   const SB_URL = 'https://fzavmefambwdhnzmbvxv.supabase.co';
@@ -222,7 +223,42 @@
     return {rows, total, unknown, missing, missCost, missUnpriced, have, size, pct: total ? have / total : 0};
   }
 
-  /* ---------- writes: decks only ---------- */
+  /* ---------- writes ---------- */
+  const stamp = () => new Date().toISOString();
+  // Re-read one deck from the cloud before changing it, so an edit lands on the latest version.
+  async function refreshDeck(id){
+    const own = await owner();
+    const rows = await rest('GET', `decks?user_id=eq.${encodeURIComponent(own)}&game=eq.${state.game}&id=eq.${encodeURIComponent(id)}&select=*`);
+    const i = state.decks.findIndex(x => x.id === id), r = rows?.[0];
+    if (!r || r.deleted){ if (i >= 0) state.decks.splice(i, 1); return null; }
+    const d = deckFromRow(r); if (i >= 0) state.decks[i] = d; else state.decks.push(d);
+    return d;
+  }
+  // Re-read the cloud counts of some printings (ids) into the loaded collection.
+  async function refreshCards(ids){
+    ids = [...new Set(ids)]; if (!ids.length) return;
+    const own = await owner();
+    const rows = await rest('GET', `collection?user_id=eq.${encodeURIComponent(own)}&game=eq.${state.game}&card_id=in.(${ids.map(id => encodeURIComponent('"' + id + '"')).join(',')})&select=*`);
+    for (const id of ids) state.inv.delete(id);
+    for (const r of rows || []) state.inv.set(r.card_id, {q: r.q || 0, f: r.f || 0, rf: r.rainbow_foil || 0});
+    rebuildOwnership();
+  }
+  // Set the owned copies of one printing. prev is the count this change was worked out from; if the cloud
+  // no longer holds exactly that, nothing is written.
+  async function setCount(id, next, prev){
+    const own = await owner(), v = {q: Math.max(0, next.q | 0), f: Math.max(0, next.f | 0), rf: Math.max(0, next.rf | 0)};
+    const row = {user_id: own, game: state.game, card_id: id, q: v.q, f: v.f, rainbow_foil: v.rf, updated_at: stamp()};
+    let res;
+    if (prev){
+      res = await rest('PATCH', `collection?user_id=eq.${encodeURIComponent(own)}&game=eq.${state.game}&card_id=eq.${encodeURIComponent(id)}&q=eq.${prev.q | 0}&f=eq.${prev.f | 0}&rainbow_foil=eq.${prev.rf | 0}`, row, {Prefer: 'return=representation'});
+    } else {
+      try { res = await rest('POST', 'collection', row, {Prefer: 'return=representation'}); }
+      catch(e){ if (e.status === 409 || e.code === '23505') res = []; else throw e; }
+    }
+    if (!Array.isArray(res) || res.length !== 1) throw Error('That card count changed somewhere else a moment ago. Nothing was changed; check the count and try again.');
+    state.inv.set(id, v); rebuildOwnership();
+    return v;
+  }
   function newId(){ return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   async function saveDeck(d){
     const own = await owner(), meta = {...(d.meta || {})};
@@ -232,7 +268,7 @@
     if (todo && Object.keys(todo).length) meta.todo = todo; else delete meta.todo;
     if (d.guide) meta.guide = d.guide;
     if (d.owner) meta.owner = d.owner;
-    const row = {user_id: own, game: state.game, id: d.id, name: d.name, cards: d.cards, commanders: d.commanders || [], meta, deleted: false};
+    const row = {user_id: own, game: state.game, id: d.id, name: d.name, cards: d.cards, commanders: d.commanders || [], meta, deleted: false, updated_at: stamp()};
     let res;
     if (d.updated_at){
       // Only overwrite the version we loaded; if the phone changed it since, stop instead of clobbering.
@@ -281,5 +317,5 @@
   }
 
   root.PortalData = {state, session: () => session, signIn, signOut, owner, load, deckStats, ownedNV, freeNV, committedNV, cheapest, ownedValue,
-    saveDeck, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
+    saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
 })(self);
