@@ -224,6 +224,7 @@
   }
 
   /* ---------- writes ---------- */
+  // The database stamps updated_at on every write too (touch_* triggers); this keeps the local copy close.
   const stamp = () => new Date().toISOString();
   // Re-read one deck from the cloud before changing it, so an edit lands on the latest version.
   async function refreshDeck(id){
