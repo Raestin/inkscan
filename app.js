@@ -121,6 +121,8 @@ const inventoryRows = (c,v) => ({c:valuedCard(c),q:v?.q||0,f:v?.f||0,rf:v?.rf||0
 
 
 let toastT;
+// Mana costs like {1}{W} become one small pill per symbol; themes.js swaps each for the real symbol.
+const pips = s => esc(s).replace(/\{([^}]+)\}/g, (_, x) => `<i class="pip pip-${x.replace(/[^A-Za-z0-9]/g,'').toLowerCase()}">${x}</i>`);
 function toast(msg, act){
   const t=$('toast'); t.textContent=msg; t.classList.toggle('has-act',!!act);
   if(act){ const b=document.createElement('button'); b.type='button'; b.className='toast-act'; b.textContent=act.label; b.onclick=()=>{ t.hidden=true; act.fn(); }; t.append(b); }
@@ -633,7 +635,7 @@ function cardDetailHTML(c){
   return `<div class="detail">
     <div class="big">${detailArtHTML(c)}</div>
     <div class="facts">
-      ${(LORCANA?c.v:G.displayVersion(c))?`<div class="ver">${esc(LORCANA?c.v:G.displayVersion(c))}</div>`:''}${!LORCANA&&c.mc?`<div class="note">${esc(c.mc)}</div>`:''}
+      ${(LORCANA?c.v:G.displayVersion(c))?`<div class="ver">${esc(LORCANA?c.v:G.displayVersion(c))}</div>`:''}${!LORCANA&&c.mc?`<div class="note">${pips(c.mc)}</div>`:''}
       <div class="row">${inkDot(c)}<span class="note">${esc(c.i)} · ${esc(c.ty.replace('/',' · '))}${c.cl?' · '+esc(c.cl.replaceAll('/',' · ')):''}</span></div>
       <div class="stats">${stats.join('')}</div>
       ${c.tx?`<div class="rules">${rulesHTML(c.tx)}</div>`:''}
@@ -1579,7 +1581,7 @@ function renderDeckEdit(keepScroll){
 }
 function deckRowHTML(nv, q, d){
   const c = repOf(nv); const own = freeNV(nv,d.id); const short = Math.max(0,q-own); const held = heldBy(nv,d.id);
-  return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:esc(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">${held.length?'free':'own'} ${own} of ${q}</span>`:`${held.length?'free':'own'} ${own}`}${held.length?` · in ${esc(held.join(', '))}`:''}</div></div>
+  return `<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${LORCANA?`${c.co} cost · ${c.ik?'inkable':'not inkable'}`:pips(G.rowMeta(c))} · ${short?`<span style="color:var(--warn)">${held.length?'free':'own'} ${own} of ${q}</span>`:`${held.length?'free':'own'} ${own}`}${held.length?` · in ${esc(held.join(', '))}`:''}</div></div>
     <div class="acts">${deckRules(d).commander&&G.canCommand(c)?(()=>{const on=deckCommanders(d).includes(nv);return `<button data-act="cmd" data-nv="${esc(nv)}" aria-pressed="${on}" aria-label="${on?'Remove as commander':'Make commander'}" title="${on?'Remove as commander':'Make commander'}">★</button>`;})():''}<button data-act="dq" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer">−</button><output>${q}</output><button data-act="dq" data-nv="${esc(nv)}" data-d="1" aria-label="One more" ${q>=(LORCANA?4:(G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:(deckRules(d).key&&legalIn(c,deckRules(d).key)==='restricted'?1:deckRules(d).maxCopies)))?'disabled':''}>+</button></div></div></div>`;
 }
 function renderDeckList(d){

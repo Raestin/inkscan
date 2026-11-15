@@ -409,3 +409,7 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;appeara
 .advsheet .chat-form{display:flex;gap:8px;align-items:flex-end;padding:8px 0 calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 .advsheet .chat-form textarea{flex:1;font-family:var(--body);min-height:48px;max-height:140px;font-size:16px;padding:8px 12px;border-radius:var(--rc);border:1px solid var(--line2);background:var(--surface);color:var(--fg);resize:none}
 .advsheet .chat-form .btn{min-width:48px;min-height:48px;padding:0}
+
+/* mana cost symbols (v50): a small pill per symbol until the real symbol loads */
+.pip{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:var(--pill);background:var(--surface3);color:var(--fg);font-size:12px;font-style:normal;font-weight:700;line-height:1;vertical-align:-2px}
+.pip + .pip{margin-left:2px}

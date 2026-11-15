@@ -170,7 +170,9 @@
 [data-game] body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--pattern);
   -webkit-mask:var(--pattern-art) 0 0/var(--pattern-size) repeat;mask:var(--pattern-art) 0 0/var(--pattern-size) repeat}
 /* hero emblem, on top of each game's hero background */
-[data-game] .hero{background:var(--hero-art) var(--hero-art-pos,right 16px center)/auto var(--hero-art-size,88%) no-repeat,var(--hero-shine),var(--grad-hero)}
+[data-game] .hero{background:var(--hero-art) var(--hero-art-pos,right 16px center)/var(--hero-art-size,auto 88%) no-repeat,var(--hero-plate,none),var(--hero-shine),var(--grad-hero)}
+/* the game's real logo under the portal's game picker, when themes.js could load it */
+.game-logo{display:none;height:56px;border-radius:var(--r-sm);background:var(--logo) center/contain no-repeat;background-origin:content-box;padding:8px}
 @media (min-width:1100px){[data-game] .shell .hero{--hero-art-pos:right 380px center}}
 /* themed icons on the stat cards: one drawing per card, in the card's own colour */
 [data-game] :is(.tiles>.tile,.statcard)::after{display:block;content:'';position:absolute;right:12px;top:12px;width:40px;height:40px;border-radius:0;filter:none;opacity:1;background:var(--tone);pointer-events:none;

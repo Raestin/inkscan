@@ -228,7 +228,7 @@
 
   /* ---------- boot ---------- */
   $('game').value = game; document.documentElement.dataset.game = game;
-  $('game').onchange = () => { game = $('game').value; D.lsSet('portal.game', game); document.documentElement.dataset.game = game; loaded = false; cardReg.clear(); cvClose(true); workshop.colors = [];
+  $('game').onchange = () => { game = $('game').value; D.lsSet('portal.game', game); document.documentElement.dataset.game = game; self.InkThemes?.apply(game); loaded = false; cardReg.clear(); cvClose(true); workshop.colors = [];
     buy.sel = new Set(D.lsGet('portal.buy.' + game, [])); Object.assign(workshop, {id: null, draft: null, dirty: false, compare: '', addQ: ''}); Object.assign(sim, {deck: null, keys: [], oddsKeys: [], result: null});
     boot(); };
   $('reload').onclick = () => { loaded = false; boot(); };
