@@ -4,8 +4,9 @@
    All four themes are original: they take a mood and a palette from each game, never its logos, frames,
    card art or typefaces.
 
-   Magic: The Gathering  bold and mana-driven. Parchment and ink neutrals, a five-colour mana band on the
-                         hero, mana-coloured glows, chiselled capitals (Cinzel), mana-blue actions.
+   Magic: The Gathering  bold, solid mana colours and no gradients at all (Brian, 2026-11-15): parchment and
+                         ink neutrals, a solid black hero with a five-colour mana band, flat mana-blue actions,
+                         stat cards edged in solid mana colours, chiselled capitals (Cinzel).
    Lorcana               storybook pastels. Lavender, rose and sky, gold actions, a soft serif (Fraunces)
                          and slow twinkling glitter.
    One Piece             high-seas adventure. Sun-bleached chart paper with a faint grid, deep-sea hero
@@ -19,17 +20,14 @@
   --line:rgba(36,26,12,.10); --line2:rgba(36,26,12,.17);
   --fg:#1A1611; --muted:#5D5448; --faint:#6C6357;
   --accent:#1660A8; --accent-fg:#FFFFFF; --accent-ink:#13579A; --accent-soft:rgba(22,96,168,.12);
-  --grad-accent:linear-gradient(135deg,#2177C6,#124F8E); --glow-accent:0 6px 20px rgba(22,96,168,.30);
+  --grad-accent:var(--accent); --glow-accent:none;
   --mana-w:#E9DCA6; --mana-u:#1C6FB8; --mana-b:#2B2430; --mana-r:#D13A2E; --mana-g:#1F7F47;
   --mana-band:linear-gradient(90deg,var(--mana-w) 0 20%,var(--mana-u) 20% 40%,var(--mana-b) 40% 60%,var(--mana-r) 60% 80%,var(--mana-g) 80% 100%);
-  --g0:#15111F; --g1:#4A2370; --g2:#B3302A;
-  --hero-shine:var(--mana-band) top/100% 6px no-repeat,radial-gradient(640px 320px at 88% -30%,rgba(255,255,255,.22),transparent 62%);
-  --glow-a:rgba(28,111,184,.16); --glow-b:rgba(209,58,46,.13); --glow-c:rgba(31,127,71,.12);
-  --page:radial-gradient(900px 560px at 0% 0%,rgba(233,220,166,.42),transparent 60%),radial-gradient(900px 560px at 100% 0%,var(--glow-a),transparent 60%),
-    radial-gradient(900px 620px at 100% 100%,var(--glow-b),transparent 62%),radial-gradient(900px 620px at 0% 100%,var(--glow-c),transparent 62%);
-  --grad-rail:linear-gradient(180deg,rgba(28,111,184,.10),rgba(28,111,184,0) 46%);
-  --grad-active:linear-gradient(90deg,rgba(28,111,184,.18),rgba(209,58,46,.10));
-  --grad-progress:linear-gradient(90deg,var(--mana-u),var(--mana-r));
+  --g0:#17131F; --g1:#17131F; --g2:#17131F;
+  /* the mana band is five solid blocks with hard edges, not a blend */
+  --grad-hero:var(--g0); --hero-shine:var(--mana-band) top/100% 8px no-repeat;
+  --page:none; --grad-card:none; --grad-rail:none;
+  --grad-active:var(--accent-soft); --grad-progress:var(--mana-u);
   --tone-1:#1C6FB8; --tone-2:#B8862A; --tone-3:#1F7F47; --tone-4:#C2352B;
   --glow-card:0 12px 32px rgba(21,17,31,.24),0 2px 8px rgba(20,16,10,.10);
   --chart-1:#1C6FB8; --chart-2:#C2352B;
@@ -40,15 +38,16 @@
   --line:rgba(255,245,225,.08); --line2:rgba(255,245,225,.14);
   --fg:#F4EFE6; --muted:#B3AA9C; --faint:#958C7F;
   --accent:#4A9BE8; --accent-fg:#06121F; --accent-ink:#6BB0F0; --accent-soft:rgba(74,155,232,.16);
-  --grad-accent:linear-gradient(135deg,#6BB0F0,#3A86D6); --glow-accent:0 6px 24px rgba(74,155,232,.30);
-  --glow-a:rgba(28,111,184,.24); --glow-b:rgba(209,58,46,.16); --glow-c:rgba(31,127,71,.14);
-  --page:radial-gradient(900px 560px at 0% 0%,rgba(233,220,166,.10),transparent 60%),radial-gradient(900px 560px at 100% 0%,var(--glow-a),transparent 60%),
-    radial-gradient(900px 620px at 100% 100%,var(--glow-b),transparent 62%),radial-gradient(900px 620px at 0% 100%,var(--glow-c),transparent 62%);
-  --grad-rail:linear-gradient(180deg,rgba(74,155,232,.14),rgba(74,155,232,0) 46%);
-  --grad-active:linear-gradient(90deg,rgba(74,155,232,.26),rgba(209,58,46,.14));
+  --grad-accent:var(--accent); --glow-accent:none;
+  --g0:#221C2B; --g1:#221C2B; --g2:#221C2B; --grad-hero:var(--g0);
+  --grad-active:var(--accent-soft);
   --tone-1:#5AA2E6; --tone-2:#E0B354; --tone-3:#4CC07D; --tone-4:#F06A5C;
   --chart-1:#5AA2E6; --chart-2:#F06A5C;
 }}
+
+/* no soft blurred blobs on the stat cards: a solid mana-colour edge instead */
+[data-game="mtg"] :is(.statcard,.tile)::after{display:none}
+[data-game="mtg"] :is(.statcard,.tile){border-top:4px solid var(--tone)}
 
 /* ============================== Lorcana ============================== */
 [data-game="lorcana"]{

@@ -1669,6 +1669,55 @@ $('sheetBody').addEventListener('click', async e=>{
 });
 
 /* sample hand */
+/* ---------- the advisor, in a sheet over the open deck ----------
+   The same advisor as the portal (portal/advisor.js), loaded the first time it opens. It works on the cloud copy,
+   so this phone sends its own changes first, and pulls each change the advisor makes straight back. */
+let advLoad=null, advLoadedAt=0;
+function loadScript(src){ return new Promise((ok,fail)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>fail(Error('The advisor could not load. Check your connection.')); document.head.append(s); }); }
+async function advScripts(){
+  if(self.PortalAdvisor) return;
+  self.PORTAL_ROOT='./';
+  for(const f of ['sim','data','advisor-kit','advisor']) await loadScript(`portal/${f}.js?v=${APP_VERSION||0}`);
+}
+const advPending=()=>InkSafety.pending(InkSafety.maps({inv,wish,decks}),base?.uid===owner()?base:noBase()).total;
+async function advSettle(){ for(let i=0;i<75&&syncState.busy;i++) await new Promise(r=>setTimeout(r,200)); }
+// Before the advisor changes anything: everything this phone changed must already be in the cloud.
+async function advFlush(){
+  await advSettle();
+  if(!advPending()) return;
+  if(!autoSyncReady()) throw Error("This phone has changes that haven't reached the cloud yet. Tap the cloud button to send them, then ask again.");
+  await sync('auto'); await advSettle();
+  if(advPending()) throw Error("This phone's latest changes couldn't be sent to the cloud just now, so nothing was changed. Tap the cloud button, then ask again.");
+}
+// After the advisor changed a deck or a count in the cloud: bring it onto this phone now.
+async function advPull(){ await advSettle(); if(autoSyncReady()){ await sync('auto'); await advSettle(); } if(curDeck) renderDeckEdit(true); }
+async function openAdvisor(){
+  const d=getDeck(); if(!d) return;
+  if(!session){ toast('Sign in under Cloud & family to use the advisor.'); return; }
+  if(!navigator.onLine){ toast('The advisor needs a connection.'); return; }
+  if(!base?.uid){ toast('Tap Update once in Cloud & family first, then the advisor can see your cards.'); return; }
+  openSheet('Advisor', '<div class="advsheet" id="advHost"><p class="note">Getting your cards and decks…</p></div>', ()=>$('sheet').classList.remove('adv'));
+  $('sheet').classList.add('adv');
+  const host=$('advHost');
+  try{
+    await advScripts();
+    PortalData.attach(token);
+    if(!advLoad||Date.now()-advLoadedAt>120000||PortalData.state.game!==GAME_ID){
+      await advFlush().catch(()=>{});
+      advLoad=PortalData.load(GAME_ID); advLoadedAt=Date.now();
+    }
+    await advLoad;
+    if(!host.isConnected) return;
+    const kit=PortalAdvisorKit.make(GAME_ID);
+    PortalAdvisor.mount(host,{...kit,toast,
+      focus:()=>{ const x=getDeck(); return x?{id:x.id,name:x.name,dirty:false}:null; },
+      beforeWrite:advFlush,
+      onDeckChanged:()=>{ advPull(); },
+      onDeckSaved:()=>{ advPull(); },
+      onClose:()=>closeSheet()},{sheet:true});
+  }catch(e){ advLoad=null; if(host.isConnected) host.innerHTML=`<p class="note">${esc(e.message||'The advisor could not start.')}</p>`; }
+}
+$('deckAdvBtn').onclick=openAdvisor;
 $('deckHandBtn').onclick = ()=>{
   const d=getDeck(); if(!d) return;
   const pool=[]; for (const [nv,q] of Object.entries(d.cards)) for (let i=0;i<q;i++) pool.push(nv);

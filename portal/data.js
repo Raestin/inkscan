@@ -8,6 +8,8 @@
   const SB_URL = 'https://fzavmefambwdhnzmbvxv.supabase.co';
   const SB_KEY = 'sb_publishable_biFosNnFXZK8xSUiJOk0xw_wLrKGrD6';
   const SCRYFALL = 'https://api.scryfall.com';
+  // Where the app's catalog files live: one folder up from the portal; the phone app sets PORTAL_ROOT to './'.
+  const ROOT = root.PORTAL_ROOT || '../';
   const G = root.InkGames, norm = G.norm;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } };
@@ -30,7 +32,11 @@
     session = {access: j.access_token, refresh: j.refresh_token, exp: Date.now() + (j.expires_in || 3600) * 1000, uid: j.user?.id || session?.uid, email: j.user?.email || session?.email};
     lsSet('inkscan.session', session);
   }
+  // The phone app lends its own token function, so the two never refresh the same session separately.
+  let lent = null;
+  function attach(tokenFn){ lent = tokenFn; session = lsGet('inkscan.session', null); household = null; }
   async function token(){
+    if (lent) return lent();
     if (!session) return null;
     if (Date.now() > session.exp - 60000){
       try { keep(await authCall('token?grant_type=refresh_token', {refresh_token: session.refresh})); }
@@ -95,7 +101,7 @@
   async function baseCatalog(game){
     if (catalogs[game]) return catalogs[game];
     const cat = new Catalog(game);
-    const file = game === 'lorcana' ? '../cards.json' : G.get(game).catalog ? '../' + G.get(game).catalog : null;
+    const file = game === 'lorcana' ? ROOT + 'cards.json' : G.get(game).catalog ? ROOT + G.get(game).catalog : null;
     if (file){
       const d = await (await fetch(file)).json();
       for (const s of d.sets || []) cat.sets.set(s.code, s.name);
@@ -318,5 +324,5 @@
   }
 
   root.PortalData = {state, session: () => session, signIn, signOut, owner, load, deckStats, ownedNV, freeNV, committedNV, cheapest, ownedValue,
-    saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
+    attach, saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
 })(self);
