@@ -34,7 +34,7 @@
     power: c.st ?? undefined, toughness: ctx.game === 'mtg' ? c.wp ?? undefined : undefined, text: c.tx || undefined,
     legal: ctx.game === 'mtg' && c.lgs ? Object.entries(c.lgs).filter(([, v]) => v === 'legal').map(([k]) => k) : undefined,
     price_usd: money(c.p ?? c.pf)}, extra || {}) : null;
-  function deckSummary(d){ const st = D.deckStats(d); return {id: d.id, name: d.name, format: d.format || (d.commanders.length ? 'commander' : undefined), cards: st.total, size: st.size, built: d.built || undefined, still_to_add: d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).map(([nv, n]) => [ctx.nvName(nv), n])) : undefined, favorite: d.fav || undefined, missing: st.missing, cost_to_finish_usd: money(st.missCost), still_loading: st.unknown || undefined}; }
+  function deckSummary(d){ const st = D.deckStats(d); return {id: d.id, name: d.name, format: d.format || (d.commanders.length ? 'commander' : undefined), cards: st.total, size: st.size, built: d.built || undefined, still_to_add: d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).map(([nv, n]) => [ctx.nvName(nv), n])) : undefined, favorite: d.fav || undefined, missing: st.missing, cost_to_finish_usd: st.unknown ? undefined : money(st.missCost), cost_note: st.unknown ? 'Not priced yet: get_deck or buy_plan on this deck gives its cost.' : undefined}; }
   async function cardsFromNames(list){
     const cards = {}, unresolved = [];
     for (const {name, qty} of list || []){ const nv = await D.resolveName(ctx.game, name); if (nv) cards[nv] = (cards[nv] || 0) + Math.max(1, qty | 0); else unresolved.push(name); }
@@ -53,6 +53,7 @@
     async list_decks({game}){ if (!sameGame(game)) return otherGame(game); return {game: ctx.game, decks: S().decks.map(deckSummary)}; },
     async get_deck({deck_id}){
       const d = S().decks.find(x => x.id === deck_id); if (!d) return {error: 'No deck with that id. Use list_decks.'};
+      await D.needDecks([d.id]);
       const st = D.deckStats(d);
       return {...deckSummary(d), commanders: d.commanders.map(ctx.nvName), guide: d.guide || undefined,
         list: st.rows.map(r => r.c ? {qty: r.q, ...cardInfo(r.c, {owned_free: r.free, need_to_buy: r.need || undefined}), legal: undefined, set: undefined} : {qty: r.q, name: ctx.nvName(r.nv), note: 'card data still loading'})};
@@ -66,6 +67,7 @@
       if (!sameGame(game)) return otherGame(game);
       let d = deck_id ? S().decks.find(x => x.id === deck_id) : null, unresolved = [];
       if (!d){ if (!cards?.length) return {error: 'Give deck_id or cards.'}; const r = await cardsFromNames(cards); unresolved = r.unresolved; d = {id: 'draft', name: 'Draft', cards: r.cards, commanders: [], format: null}; }
+      if (deck_id && d) await D.needDecks([d.id]);
       const keyNVs = []; for (const n of key_cards || []){ const nv = await D.resolveName(ctx.game, n); if (nv && d.cards[nv]) keyNVs.push(nv); }
       const opts = {mode: kind, onPlay: on_play !== false, turns: Math.max(4, Math.min(15, turns || 10)), keys: keyNVs.slice(0, 4), oddsKeys: keyNVs.slice(0, 4), oddsNeed: 1};
       if (kind === 'goldfish' && !['mtg', 'lorcana'].includes(ctx.game)) return {error: 'Goldfish runs for Magic and Lorcana only.'};
@@ -76,6 +78,7 @@
     },
     async buy_plan({deck_ids}){
       const ids = (deck_ids || []).filter(id => S().decks.some(d => d.id === id)); if (!ids.length) return {error: 'No matching decks. Use list_decks for ids.'};
+      await D.needDecks(ids);
       const p = ctx.buyPlan(ids, false);
       return {decks: ids.map(id => S().decks.find(d => d.id === id).name), total_usd: money(p.total), cards_to_buy: p.cards, unpriced_cards: p.unpriced, list: p.rows.slice(0, 200).map(r => ({qty: r.qty, name: ctx.nvName(r.nv), each_usd: money(r.price), for: r.decks}))};
     },

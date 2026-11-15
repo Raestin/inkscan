@@ -1700,15 +1700,21 @@ async function openAdvisor(){
   if(!base?.uid){ toast('Tap Update once in Cloud & family first, then the advisor can see your cards.'); return; }
   openSheet('Advisor', '<div class="advsheet" id="advHost"><p class="note">Getting your cards and decks…</p></div>', ()=>$('sheet').classList.remove('adv'));
   $('sheet').classList.add('adv');
-  const host=$('advHost');
+  advStart($('advHost'), d);
+}
+async function advStart(host, d){
   try{
     await advScripts();
-    PortalData.attach(token);
+    PortalData.attach(token, scryfall);
+    const note=(done,total)=>{ const n=host.isConnected&&host.querySelector('.note'); if(n&&total) n.textContent=`Getting card details: ${done.toLocaleString()} of ${total.toLocaleString()}…`; };
     if(!advLoad||Date.now()-advLoadedAt>120000||PortalData.state.game!==GAME_ID){
       await advFlush().catch(()=>{});
-      advLoad=PortalData.load(GAME_ID); advLoadedAt=Date.now();
+      // Magic: start from the cards this phone already knows, and fetch only this deck's; the advisor gets other decks as it opens them.
+      if(G.live) await PortalData.seed(GAME_ID, DB?.cards);
+      advLoad=PortalData.load(GAME_ID, note, {decks:[d.id]}).then(x=>{ advLoadedAt=Date.now(); return x; });
     }
     await advLoad;
+    await PortalData.needDecks([d.id], note);
     if(!host.isConnected) return;
     const kit=PortalAdvisorKit.make(GAME_ID);
     PortalAdvisor.mount(host,{...kit,toast,
@@ -1717,7 +1723,11 @@ async function openAdvisor(){
       onDeckChanged:()=>{ advPull(); },
       onDeckSaved:()=>{ advPull(); },
       onClose:()=>closeSheet()},{sheet:true});
-  }catch(e){ advLoad=null; if(host.isConnected) host.innerHTML=`<p class="note">${esc(e.message||'The advisor could not start.')}</p>`; }
+  }catch(e){
+    advLoad=null; if(!host.isConnected) return;
+    host.innerHTML=`<p class="note">${esc(e.message&&!/^Failed to fetch|^Load failed|NetworkError/i.test(e.message)?e.message:"The advisor couldn't reach the cloud just now. Check your connection and try again.")}</p><p><button class="btn" id="advRetry" type="button">Try again</button></p>`;
+    $('advRetry').onclick=()=>{ host.innerHTML='<p class="note">Getting your cards and decks…</p>'; advStart(host, d); };
+  }
 }
 $('deckAdvBtn').onclick=openAdvisor;
 $('deckHandBtn').onclick = ()=>{

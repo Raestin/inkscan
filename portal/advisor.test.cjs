@@ -30,7 +30,7 @@ function world(){
     wishlist: [],
     decks: [{user_id: UID, game: 'mtg', id: 'dskies', name: 'Selesnya Skies', cards: {'hovermyr|': 4, 'plains|': 16}, commanders: [], meta: {format: 'pauper', built: true, fav: true}, deleted: false, updated_at: tick()}],
   };
-  const writes = [];
+  const writes = [], asked = [];
   const parse = q => q.split('&').filter(Boolean).map(p => { const i = p.indexOf('='); return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))]; });
   const matches = (row, filters) => filters.every(([k, v]) => {
     if (['select', 'order', 'limit', 'offset'].includes(k)) return true;
@@ -42,6 +42,7 @@ function world(){
   async function fetch(url, opts = {}){
     const u = new URL(url), method = opts.method || 'GET', body = opts.body ? JSON.parse(opts.body) : null;
     if (u.host === 'api.scryfall.com'){
+      if (u.pathname === '/cards/collection') asked.push(...body.identifiers.map(x => x.name).filter(Boolean));
       if (u.pathname === '/cards/collection') return res(200, {data: body.identifiers.map(x => CARDS.find(c => x.id ? c.id === x.id : c.name === x.name)).filter(Boolean)});
       if (u.pathname === '/cards/named'){ const c = CARDS.find(c => c.name.toLowerCase() === u.searchParams.get('fuzzy').toLowerCase()); return c ? res(200, c) : res(404, {}); }
       if (u.pathname === '/catalog/card-names') return res(200, {data: [...new Set(CARDS.map(c => c.name))]});
@@ -82,7 +83,7 @@ function world(){
   const cloudDeck = id => db.decks.find(d => d.id === id);
   const cloudCount = id => { const r = db.collection.find(r => r.card_id === id); return r ? r.q + r.f + r.rainbow_foil : 0; };
   const btn = () => ({disabled: false, textContent: ''});
-  return {D, A, db, writes, toasts, changed, cloudDeck, cloudCount, btn, tick, load: () => D.load('mtg')};
+  return {D, A, db, writes, asked, toasts, changed, cloudDeck, cloudCount, btn, tick, load: () => D.load('mtg')};
 }
 
 test('edit_deck swaps a card in the cloud straight away, keeps the deck size, and records an Undo', async () => {
@@ -188,4 +189,18 @@ test('edit_deck leaves a deck alone while it has unsaved edits open in the works
   const out = await w.A._tools.edit_deck({deck_id: 'dskies', remove: [{name: 'Hovermyr', qty: 1}], add: [{name: 'War Screecher', qty: 1}]}, 'tu9');
   assert.match(out.error, /unsaved edits/);
   assert.equal(w.writes.length, 0);
+});
+
+test('the phone loads card data for the open deck only; the advisor fetches another deck when it opens it', async () => {
+  const w = world();
+  w.db.decks.push({user_id: UID, game: 'mtg', id: 'dother', name: 'Other', cards: {'warscreecher|': 2, 'korskyfisher|': 10}, commanders: [], meta: {}, deleted: false, updated_at: w.tick()});
+  await w.D.load('mtg', null, {decks: ['dskies']});
+  assert.deepEqual(w.asked, ['Plains'], 'only the open deck was looked up');
+  const list = await w.A._tools.list_decks({});
+  const other = list.decks.find(d => d.id === 'dother');
+  assert.equal(other.missing, 10, 'counts are right before the card data is in');
+  assert.equal(other.cost_to_finish_usd, undefined);
+  const deck = await w.A._tools.get_deck({deck_id: 'dother'});
+  assert.deepEqual(w.asked, ['Plains', 'Kor Skyfisher']);
+  assert.ok(deck.list.every(r => !r.note), 'every card is known once the deck is opened');
 });
