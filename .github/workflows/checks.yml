@@ -33,7 +33,7 @@ jobs:
       - name: Syntax check every script
         run: for f in app.js safety.js sw.js catalog.js legality.js games.js family.js shell.js portal/*.js; do node --check "$f"; done
       - name: App-level tests (family helpers, Portal simulator)
-        run: node --test family.test.cjs portal/sim.test.cjs
+        run: node --test family.test.cjs portal/sim.test.cjs portal/advisor.test.cjs
       - name: Unit and contract tests on an isolated copy
         working-directory: .github/qa
         run: |
