@@ -9,12 +9,15 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
   const money = v => v == null ? null : Math.round(v * 100) / 100;
   const MAX_STEPS = 16;
+  const CTX_TAG = '[Workshop context]';
+  let compact = false;
   let ctx = null, host = null, busy = false, live = null;
   const key = () => `portal.chat.${ctx.game}`;
   const chat = () => D.lsGet(key(), {messages: [], saved: {}});
   const store = c => { if (!D.lsSet(key(), c)) ctx.toast('This conversation is too big to keep in the browser. Start a new one.'); };
 
   const TOOL_LABEL = {get_collection: 'Read your collection', list_decks: 'Listed your decks', get_deck: 'Opened a deck', search_cards: 'Searched cards', simulate: 'Ran a simulation', buy_plan: 'Priced a shopping list', propose_deck: 'Drafted a deck', edit_deck: 'Changed a deck', set_owned: 'Corrected a card count'};
+  const DECK_SUGGEST = ["I'm missing a card for this deck.", "What's the weakest card in this deck?", 'Goldfish this deck and tell me where it stumbles.'];
   const SUGGEST = {
     mtg: ['Which of my decks are closest to finished, and what should I buy first?', 'Build a Pauper deck using only cards I own (lands aside).', 'Goldfish my Voja deck and tell me where it stumbles.', 'What in my collection is worth trading away?'],
     lorcana: ['Build the best 60-card deck I can from what I own.', 'Which two inks does my collection support best?', 'Simulate my strongest deck and tell me how fast it reaches 20 lore.', 'What should I buy next to make my best deck stronger?'],
@@ -121,6 +124,7 @@
   function lineText(lines){ return lines.map(l => `${l.n > 0 ? '+' : '−'}${Math.abs(l.n)} ${ctx.nvName(l.nv)}`).join(', '); }
 
   async function editDeck(input, id){
+    const busyMsg = ctx.editBlocked?.(input.deck_id); if (busyMsg) return {error: busyMsg};
     const d = await D.refreshDeck(input.deck_id); if (!d) return {error: 'No deck with that id. Use list_decks.'};
     if (!(input.remove || []).length && !(input.add || []).length) return {error: 'Give cards to remove, to add, or both.'};
     const {next, lines, problems} = await applyEdit(d, input);
@@ -206,7 +210,9 @@
   async function ask(text){
     if (busy || !text.trim()) return;
     busy = true; const c = chat();
-    c.messages.push({role: 'user', content: [{type: 'text', text: text.trim()}]}); store(c); paint();
+    const f = ctx.focus?.(), content = [{type: 'text', text: text.trim()}];
+    if (f) content.push({type: 'text', text: `${CTX_TAG} The user is in the deck workshop with "${f.name}" open${f.id ? ` (deck_id ${f.id})` : ' (a new deck, not saved yet, so edit_deck cannot change it)'}${f.dirty && f.id ? ', with unsaved edits' : ''}. "This deck" means that one.`});
+    c.messages.push({role: 'user', content}); store(c); paint();
     try {
       for (let step = 0; step < MAX_STEPS; step++){
         live = {text: '', status: 'Thinking…'}; paintLive();
@@ -265,7 +271,7 @@
     const c = chat(), log = host.querySelector('#chatLog'); if (!log) return;
     const parts = [];
     c.messages.forEach((m, i) => {
-      if (m.role === 'user'){ const t = m.content.filter(b => b.type === 'text').map(b => b.text).join('\n'); if (t) parts.push(`<div class="msg-u">${esc(t)}</div>`); }
+      if (m.role === 'user'){ const t = m.content.filter(b => b.type === 'text' && !b.text.startsWith(CTX_TAG)).map(b => b.text).join('\n'); if (t) parts.push(`<div class="msg-u">${esc(t)}</div>`); }
       else {
         const bits = [];
         for (const b of m.content){
@@ -278,12 +284,15 @@
       }
       if (c.notes?.[i + 1]) parts.push(`<div class="msg-note">${esc(c.notes[i + 1])}</div>`);
     });
-    if (!c.messages.length) parts.push(`<div class="chat-empty"><h2>Ask about your ${esc(ctx.gameDef().name)} cards</h2><p class="muted">The advisor reads your collection and decks, checks real card data, runs simulations and can draft decks for you to save. Tell it when a card is missing or a count is wrong and it fixes the deck or collection on the spot, with an Undo.</p><div class="suggest">${(SUGGEST[ctx.game] || []).map(s => `<button type="button" class="chip-btn" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`);
+    const f = ctx.focus?.();
+    if (!c.messages.length && compact) parts.push(`<div class="chat-empty"><p class="muted">${f ? `Ask about <b>${esc(f.name)}</b>: tell it a card is missing and it swaps in one you own, with an Undo.` : 'Open a deck, then ask about it.'}</p><div class="suggest">${(f ? DECK_SUGGEST : []).map(s => `<button type="button" class="chip-btn" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`);
+    else if (!c.messages.length) parts.push(`<div class="chat-empty"><h2>Ask about your ${esc(ctx.gameDef().name)} cards</h2><p class="muted">The advisor reads your collection and decks, checks real card data, runs simulations and can draft decks for you to save. Tell it when a card is missing or a count is wrong and it fixes the deck or collection on the spot, with an Undo.</p><div class="suggest">${(SUGGEST[ctx.game] || []).map(s => `<button type="button" class="chip-btn" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`);
     log.innerHTML = parts.join('') + '<div id="liveMsg"></div>';
     for (const b of log.querySelectorAll('[data-suggest]')) b.onclick = () => ask(b.dataset.suggest);
     for (const b of log.querySelectorAll('[data-save]')) b.onclick = () => saveProposal(b.dataset.save, b);
     for (const b of log.querySelectorAll('[data-undo]')) b.onclick = () => undo(b.dataset.undo, b);
     paintLive();
+    const fl = host.querySelector('#advFocus'); if (fl) fl.textContent = f ? f.name : '';
     host.querySelector('#chatSend').disabled = busy;
     log.scrollTop = log.scrollHeight;
   }
@@ -299,9 +308,12 @@
     catch(err){ ctx.toast(err.message); btn.disabled = false; btn.textContent = 'Save to InkScan'; }
   }
 
-  function mount(v, context){
-    ctx = context; host = v;
-    v.innerHTML = `
+  function mount(v, context, opts){
+    ctx = context; host = v; compact = !!opts?.compact;
+    v.innerHTML = compact ? `
+      <header class="adv-head"><div><b>Advisor</b> <span class="muted small" id="advFocus"></span></div><div class="adv-acts"><button class="btn sm" id="chatNew" type="button">New</button><button class="btn sm icon" id="advClose" type="button" aria-label="Close the advisor"><svg class="ic"><use href="#i-x"/></svg></button></div></header>
+      <div id="chatLog" class="chat-log" aria-live="polite"></div>
+      <form id="chatForm" class="chat-form"><textarea id="chatIn" rows="2" placeholder="I'm missing a card…"></textarea><button class="btn primary" id="chatSend" type="submit" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button></form>` : `
       <header class="page-head"><div><h1 class="page-title">Advisor</h1><p class="muted">Claude, with your ${esc(ctx.gameDef().name)} collection and decks in reach.</p></div><button class="btn" id="chatNew" type="button">New conversation</button></header>
       <section class="card chat"><div id="chatLog" class="chat-log" aria-live="polite"></div>
         <form id="chatForm" class="chat-form"><textarea id="chatIn" rows="2" placeholder="Ask anything: deck ideas, cuts, rules, what to buy…"></textarea><button class="btn primary" id="chatSend" type="submit" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg>Send</button></form></section>`;
@@ -309,7 +321,8 @@
     v.querySelector('#chatForm').onsubmit = e => { e.preventDefault(); const q = input.value; input.value = ''; ask(q); };
     input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); v.querySelector('#chatForm').requestSubmit(); } };
     v.querySelector('#chatNew').onclick = () => { if (busy) return; if (chat().messages.length && !confirm('Start a new conversation? This one will be cleared.')) return; D.lsSet(key(), {messages: [], saved: {}}); paint(); };
+    const close = v.querySelector('#advClose'); if (close) close.onclick = () => ctx.onClose?.();
     paint(); input.focus();
   }
-  root.PortalAdvisor = {mount, ask, _tools: TOOLS, _md: md, _undo: undo, _chat: () => chat(), _ctx: c => { ctx = c; }};
+  root.PortalAdvisor = {mount, ask, refresh: () => paint(), busy: () => busy, _tools: TOOLS, _md: md, _undo: undo, _chat: () => chat(), _ctx: c => { ctx = c; }};
 })(self);

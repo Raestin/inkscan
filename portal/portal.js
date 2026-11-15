@@ -259,6 +259,7 @@
     C.hideTip(); peekHide();
     const fn = {home: renderHome, collection: renderCollection, decks: renderDecks, simulate: renderSim, buy: renderBuy, advisor: renderAdvisor}[view] || renderHome;
     fn($('view'));
+    syncWsAdv();
     document.title = `${{home: 'Overview', collection: 'Collection', decks: 'Deck workshop', simulate: 'Simulator', buy: 'Buy planner', advisor: 'Advisor'}[view] || 'Overview'} · InkScan Portal`;
   }
 
@@ -426,7 +427,7 @@
     if (!workshop.draft || workshop.draft.id !== workshop.id) { workshop.draft = base ? structuredClone(base) : workshop.draft; workshop.dirty = workshop.draft && !workshop.draft.updated_at; }
     const formats = game === 'mtg' ? Object.entries(gameDef().formats) : [];
     v.innerHTML = `
-      <header class="page-head"><div><h1 class="page-title">Deck workshop</h1><p class="muted">${plural(all.length, 'deck')}</p></div><button class="btn" id="newDeck" type="button"><svg class="ic"><use href="#i-plus"/></svg>New deck</button></header>
+      <header class="page-head"><div><h1 class="page-title">Deck workshop</h1><p class="muted">${plural(all.length, 'deck')}</p></div><div class="head-acts"><button class="btn" id="advToggle" type="button" aria-pressed="${wsAdv.open}"><svg class="ic"><use href="#i-spark"/></svg>Advisor</button><button class="btn" id="newDeck" type="button"><svg class="ic"><use href="#i-plus"/></svg>New deck</button></div></header>
       <div class="workshop">
         <aside class="card deck-list">
           <div class="search"><svg class="ic"><use href="#i-search"/></svg><input id="dq" placeholder="Search decks" value="${esc(workshop.q)}"></div>
@@ -451,7 +452,9 @@
       workshop.draft = {id: D.newId(), name: 'New deck', cards: {}, commanders: [], meta: {}, format: game === 'mtg' ? 'pauper' : null, built: false, fav: false};
       workshop.id = workshop.draft.id; workshop.dirty = true; renderDecks(v);
     };
+    $('advToggle').onclick = () => toggleWsAdv(!wsAdv.open);
     renderDeckPane($('deckPane'), v);
+    if (wsAdv.mounted && wsAdv.open) PortalAdvisor.refresh();
   }
   function renderDeckPane(p, v){
     const d = workshop.draft;
@@ -544,7 +547,8 @@
     }, 350);
     $('addQ').oninput = () => { workshop.addQ = $('addQ').value; runAdd(); };
     if (workshop.addQ) runAdd();
-    if ($('stratAsk')) $('stratAsk').onclick = () => { pendingAsk = $('stratAsk').dataset.ask; location.hash = 'advisor'; };
+    // Asked right here, in the advisor beside the deck, instead of leaving the workshop.
+    if ($('stratAsk')) $('stratAsk').onclick = () => { const q = $('stratAsk').dataset.ask; if (!wsAdv.open) toggleWsAdv(true); if (!PortalAdvisor.busy()) PortalAdvisor.ask(q); };
     if ($('stratSim')) $('stratSim').onclick = () => { if (!S().decks.some(x => x.id === d.id)){ toast('Save the deck first, then run it in the Simulator.'); return; } sim.deck = d.id; sim.result = null; sim.mode = 'opening'; location.hash = 'simulate'; };
     $('cmpSel').onchange = () => { workshop.compare = $('cmpSel').value; renderCompare(d); };
     renderCompare(d);
@@ -861,12 +865,42 @@
 
   /* ---------- Advisor ---------- */
   let pendingAsk = '';
+  const advBase = () => ({game, gameDef, nvName, cardName, toast, buyPlan, runSim: (d, opts) => runSim(d, opts), simDeck,
+    onDeckSaved: d => { workshop.id = d.id; workshop.draft = null; },
+    // The advisor changed a deck or a card count in the cloud: drop any stale, unedited workshop copy.
+    onDeckChanged: d => { if (!workshop.dirty && (!d || workshop.id === d.id)) workshop.draft = null; }});
   function renderAdvisor(v){
-    PortalAdvisor.mount(v, {game, gameDef, nvName, cardName, toast, buyPlan, runSim: (d, opts) => runSim(d, opts), simDeck,
-      onDeckSaved: d => { workshop.id = d.id; workshop.draft = null; },
-      // The advisor changed a deck or a card count in the cloud: drop any stale, unedited workshop copy.
-      onDeckChanged: d => { if (!workshop.dirty && (!d || workshop.id === d.id)) workshop.draft = null; }});
+    wsAdv.mounted = false;
+    PortalAdvisor.mount(v, advBase());
     if (pendingAsk){ const q = pendingAsk; pendingAsk = ''; PortalAdvisor.ask(q); }
+  }
+
+  /* ---------- the advisor docked beside the deck workshop ---------- */
+  // One chat with the Advisor page; here it also knows which deck is open, and its changes redraw the deck.
+  const wsAdv = {open: !!D.lsGet('portal.wsAdvisor', false), el: null, mounted: false};
+  const wsView = () => view === 'decks' ? $('view') : null;
+  function wsCtx(){
+    const base = advBase();
+    return {...base,
+      focus: () => view === 'decks' && workshop.draft ? {id: workshop.draft.updated_at ? workshop.draft.id : null, name: workshop.draft.name, dirty: workshop.dirty} : null,
+      editBlocked: id => view === 'decks' && workshop.dirty && workshop.id === id ? `The user has unsaved edits to ${workshop.draft.name} in the workshop. Ask them to save or discard those first, then make the change.` : null,
+      onDeckSaved: d => { base.onDeckSaved(d); if (wsView()) renderDecks(wsView()); },
+      onDeckChanged: d => { const before = workshop.draft; base.onDeckChanged(d); if (wsView() && workshop.draft !== before) renderDecks(wsView()); },
+      onClose: () => toggleWsAdv(false)};
+  }
+  function syncWsAdv(){
+    const show = wsAdv.open && view === 'decks' && loaded;
+    if (show){
+      if (!wsAdv.el){ wsAdv.el = document.createElement('aside'); wsAdv.el.className = 'card ws-adv'; wsAdv.el.setAttribute('aria-label', 'Advisor'); document.body.append(wsAdv.el); }
+      if (!wsAdv.mounted){ PortalAdvisor.mount(wsAdv.el, wsCtx(), {compact: true}); wsAdv.mounted = true; } else PortalAdvisor.refresh();
+    }
+    if (wsAdv.el) wsAdv.el.hidden = !show;
+    document.body.classList.toggle('adv-open', show);
+    const b = $('advToggle'); if (b) b.setAttribute('aria-pressed', String(wsAdv.open));
+  }
+  function toggleWsAdv(on){
+    wsAdv.open = on; D.lsSet('portal.wsAdvisor', on); syncWsAdv();
+    if (on) wsAdv.el?.querySelector('#chatIn')?.focus(); else $('advToggle')?.focus();
   }
 
   boot();

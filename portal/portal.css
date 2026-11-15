@@ -246,6 +246,19 @@ svg .mark{pointer-events:none}
 .proposal details{margin-top:12px}
 .proposal summary{cursor:pointer;color:var(--accent-ink);font-weight:600;font-size:13px}
 .proposal ul{margin-top:8px}
+.head-acts{display:flex;gap:12px;flex-wrap:wrap}
+.btn[aria-pressed="true"]{background:var(--surface2);border-color:var(--accent-ink)}
+.btn.icon{width:36px;padding:0}
+.ws-adv{position:fixed;top:16px;right:16px;bottom:16px;width:min(420px,calc(100vw - 32px));z-index:40;display:flex;flex-direction:column;padding:0;overflow:hidden;box-shadow:var(--shadow-overlay)}
+.ws-adv[hidden]{display:none}
+.ws-adv .chat-log{padding:16px;gap:12px}
+.ws-adv .chat-form{padding:12px;gap:8px}
+.ws-adv .chat-empty{margin:24px auto 0}
+.adv-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.adv-head b{font-size:16px}
+.adv-acts{display:flex;gap:8px}
+@media (min-width:1600px){body.adv-open .main{max-width:none;padding-right:460px}}
+@media (min-width:1100px) and (max-width:1599px){.ws-adv{width:372px}body.adv-open .main{max-width:none;padding-right:404px}body.adv-open .workshop{grid-template-columns:minmax(0,1fr)}body.adv-open .deck-list{position:static;max-height:460px}body.adv-open .dl{min-height:0}}
 .change{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--line2);border-left:3px solid var(--ok);border-radius:var(--rc);padding:8px 12px;margin:0 0 12px;background:var(--surface);font-size:14px}
 .change.undone{border-left-color:var(--line2);color:var(--muted)}
 .change.undone b{font-weight:600}

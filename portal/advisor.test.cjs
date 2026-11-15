@@ -181,3 +181,11 @@ test('saving a deck from a stale copy is refused, because every write moves upda
   await assert.rejects(w.D.saveDeck({...stale, cards: {...stale.cards, 'plains|': 15}}), /changed somewhere else/);
   assert.equal(w.cloudDeck('dskies').cards['plains|'], 17);
 });
+
+test('edit_deck leaves a deck alone while it has unsaved edits open in the workshop', async () => {
+  const w = world(); await w.load();
+  w.A._ctx({game: 'mtg', gameDef: () => ({name: 'Magic'}), nvName: nv => nv, cardName: c => c.n, toast: () => {}, editBlocked: id => id === 'dskies' ? 'The user has unsaved edits.' : null});
+  const out = await w.A._tools.edit_deck({deck_id: 'dskies', remove: [{name: 'Hovermyr', qty: 1}], add: [{name: 'War Screecher', qty: 1}]}, 'tu9');
+  assert.match(out.error, /unsaved edits/);
+  assert.equal(w.writes.length, 0);
+});
