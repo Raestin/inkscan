@@ -20,7 +20,7 @@ main.wrap{padding-block:8px calc(var(--tabh) + 32px + env(safe-area-inset-bottom
 .note{font-size:13px;color:var(--muted);margin:0}
 .footnote{font-size:12px;color:var(--faint);margin:4px 0 0;line-height:1.45}
 .tiny{font-size:12px}
-.h2{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.2;margin:0}
+.h2{font-family:var(--display);font-weight:var(--display-wt);font-size:20px;line-height:1.2;margin:0}
 .h3{font-size:17px;font-weight:700;line-height:1.2;margin:0}
 .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .banner{padding:12px 16px;border-radius:var(--rc);background:var(--surface2);font-size:13px;color:var(--muted);margin-bottom:12px}
@@ -30,7 +30,7 @@ main.wrap{padding-block:8px calc(var(--tabh) + 32px + env(safe-area-inset-bottom
 /* app bar */
 header.top{position:sticky;top:0;z-index:5;background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid var(--line)}
 .appbar{display:flex;align-items:center;gap:12px;height:56px}
-.logo{font-family:var(--display);font-weight:400;font-size:22px;margin:0;letter-spacing:.02em;flex:1}
+.logo{font-family:var(--display);font-weight:var(--display-wt);font-size:22px;margin:0;letter-spacing:.02em;flex:1}
 .logo b{font-weight:400;color:var(--accent-ink)}
 .gamepill{position:relative}
 .gamesel{appearance:none;-webkit-appearance:none;height:36px;padding:0 32px 0 16px;font-size:15px;font-weight:600;border-radius:var(--pill);border:1px solid var(--line2);background:var(--surface);color:var(--fg);cursor:pointer;
@@ -40,7 +40,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--glass);-webkit-backd
 
 /* page heads */
 .pagehead{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;margin-top:8px}
-.title{font-family:var(--display);font-weight:400;font-size:28px;line-height:1.2;margin:0;letter-spacing:-.01em}
+.title{font-family:var(--display);font-weight:var(--display-wt);font-size:28px;line-height:1.2;margin:0;letter-spacing:-.01em}
 .sectionhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px}
 .sectionhead h3{margin:0;font-size:17px;font-weight:700;line-height:1.2}
 .countline{margin:0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -176,7 +176,7 @@ textarea{height:auto;min-height:180px;padding:12px;font-family:ui-monospace,Cons
 .group span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .item+.group,.group+.item::before{border:0}
 .empty{padding:32px 20px;text-align:center;color:var(--muted);font-size:15px}
-.empty strong{display:block;color:var(--fg);font-family:var(--display);font-weight:400;font-size:20px;margin-bottom:8px}
+.empty strong{display:block;color:var(--fg);font-family:var(--display);font-weight:var(--display-wt);font-size:20px;margin-bottom:8px}
 .res{display:flex;gap:12px;align-items:center;padding:12px 16px;border:0;border-top:1px solid var(--line);background:none;width:100%;text-align:left;cursor:pointer;color:inherit}
 .res:first-child{border-top:0}
 .indent{padding:0 16px 12px 64px}
@@ -201,7 +201,7 @@ textarea{height:auto;min-height:180px;padding:12px;font-family:ui-monospace,Cons
 .fav .ic,.favbtn .ic{width:20px;height:20px}
 .fav[aria-pressed="true"],.favbtn[aria-pressed="true"]{color:var(--fav)}
 .fav[aria-pressed="true"] .ic,.favbtn[aria-pressed="true"] .ic{fill:currentColor}
-input.deckname{font-family:var(--display);font-size:28px;letter-spacing:-.01em;height:auto;padding:4px 0;border:1px solid transparent;background:transparent;border-radius:var(--rc)}
+input.deckname{font-family:var(--display);font-weight:var(--display-wt);font-size:28px;letter-spacing:-.01em;height:auto;padding:4px 0;border:1px solid transparent;background:transparent;border-radius:var(--rc)}
 input.deckname:hover,input.deckname:focus{border-color:var(--line2);background:var(--surface);padding-inline:12px}
 .deckmeta:empty{display:none}
 .pillselect{display:inline-flex;align-items:center;gap:0;height:36px;padding-left:16px;border-radius:var(--pill);background:var(--surface2);font-size:13px;font-weight:600;color:var(--muted)}
