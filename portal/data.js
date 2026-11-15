@@ -33,8 +33,9 @@
     lsSet('inkscan.session', session);
   }
   // The phone app lends its own token function, so the two never refresh the same session separately.
-  let lent = null;
-  function attach(tokenFn){ lent = tokenFn; session = lsGet('inkscan.session', null); household = null; }
+  // It lends its Scryfall caller as well, so both keep to the one pace Scryfall allows.
+  let lent = null, lentScryfall = null;
+  function attach(tokenFn, scryfallFn){ lent = tokenFn; lentScryfall = scryfallFn || null; session = lsGet('inkscan.session', null); household = null; }
   async function token(){
     if (lent) return lent();
     if (!session) return null;
@@ -71,16 +72,20 @@
       async putMany(list){ const db = await open(); return new Promise((res, rej) => { const tx = db.transaction('cards', 'readwrite'); const s = tx.objectStore('cards'); for (const c of list) s.put(c, c.id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
     };
   })();
+  // Scryfall allows about two bulk lookups a second, and its "slow down" replies carry no CORS header, so the
+  // browser reports them as network failures. Pace collection calls at 600 ms and retry with a growing wait.
   let sfLast = 0;
+  const SF_BUSY = 'Scryfall, the Magic card database, is busy or out of reach. Give it a minute and try again.';
   async function scryfall(path, opts){
-    const gap = path.startsWith('/cards/collection') ? 300 : 110;
+    if (lentScryfall) return lentScryfall(path, opts);
+    const gap = path.startsWith('/cards/collection') ? 600 : 120;
     for (let attempt = 0; ; attempt++){
       const wait = sfLast + gap - Date.now(); if (wait > 0) await sleep(wait); sfLast = Date.now();
       let r = null;
       try { r = await fetch(SCRYFALL + path, {headers: {Accept: 'application/json', ...(opts?.body ? {'Content-Type': 'application/json'} : {})}, ...(opts || {})}); }
-      catch(e){ if (attempt >= 3) throw e; }
-      if (r){ if (r.status === 404) return null; if (r.ok) return r.json(); if (!(r.status === 429 || r.status >= 500) || attempt >= 3) throw Error(`Scryfall answered ${r.status}`); }
-      await sleep([1500, 4000, 9000][attempt]);
+      catch(e){ if (attempt >= 4 || root.navigator?.onLine === false) throw Error(SF_BUSY); }
+      if (r){ if (r.status === 404) return null; if (r.ok) return r.json(); if (!(r.status === 429 || r.status >= 500) || attempt >= 4) throw Error(r.status === 429 || r.status >= 500 ? SF_BUSY : `Scryfall answered ${r.status}`); }
+      await sleep([2000, 4000, 8000, 15000][attempt]);
     }
   }
 
@@ -114,8 +119,9 @@
   let nameIndex = null;
   // MTG: fetch any card we hold or a deck names that isn't cached yet. Ids by id, deck keys by name.
   async function fillMtg(cat, ids, nvs, progress){
+    // Each batch is kept as it arrives, so a load that is cut short picks up where it stopped.
     const now = Date.now(), fresh = [];
-    const take = list => { for (const raw of list || []){ const c = G.get('mtg').fromScryfall(raw); c._at = now; if (cat.add(c)) fresh.push(c); } };
+    const take = list => { const got = []; for (const raw of list || []){ const c = G.get('mtg').fromScryfall(raw); c._at = now; if (cat.add(c)){ fresh.push(c); got.push(c); } } if (got.length) idb.putMany(got).catch(() => {}); };
     const needIds = [...new Set(ids)].filter(id => id.startsWith('sf_') && !cat.byId.has(id));
     let done = 0; const total = needIds.length + nvs.filter(nv => !cat.byNV.has(nv)).length;
     for (let i = 0; i < needIds.length; i += 75){
@@ -140,7 +146,6 @@
         take((j?.data || []).slice(0, 1));
       }
     }
-    if (fresh.length) await idb.putMany(fresh).catch(() => {});
     return fresh.length;
   }
 
@@ -159,7 +164,8 @@
     return {id: r.id, name: r.name, cards: r.cards || {}, commanders: r.commanders || [], meta: m, updated_at: r.updated_at,
       built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, owner: typeof m.owner === 'string' && m.owner ? m.owner : null, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null};
   }
-  async function load(game, progress){
+  // opts.decks: only fetch card data for these decks now (the phone); needDecks fetches the others when asked.
+  async function load(game, progress, opts){
     const own = await owner();
     const [inv, wish, decks, cat, fam] = await Promise.all([pullAll('collection', game, own), pullAll('wishlist', game, own), pullAll('decks', game, own), baseCatalog(game),
       rest('POST', 'rpc/inkscan_ownership', {game}).catch(() => null)]);
@@ -169,13 +175,22 @@
     state.wish = new Map(wish.filter(r => r.qty > 0).map(r => [r.card_id, r.qty]));
     state.decks = decks.filter(r => !r.deleted).map(deckFromRow);
     if (game === 'mtg'){
-      const nvs = state.decks.flatMap(d => Object.keys(d.cards));
+      const nvs = state.decks.flatMap(d => !opts?.decks || opts.decks.includes(d.id) ? Object.keys(d.cards) : Object.keys(d.todo || {}));
       await fillMtg(cat, [...state.inv.keys(), ...state.wish.keys()], nvs, progress);
     }
     state.loadedAt = Date.now();
     rebuildOwnership();
     return state;
   }
+
+  // Card data for some decks (every deck when no ids are given). Nothing to do once they are known.
+  async function needDecks(ids, progress){
+    if (state.game !== 'mtg' || !state.cat) return;
+    const nvs = state.decks.filter(d => !ids || ids.includes(d.id)).flatMap(d => Object.keys(d.cards)).filter(nv => !state.cat.byNV.has(nv));
+    if (nvs.length && await fillMtg(state.cat, [], nvs, progress)) rebuildOwnership();
+  }
+  // Card data the phone app already holds, so it isn't fetched a second time.
+  async function seed(game, cards){ const cat = await baseCatalog(game); for (const c of cards || []) if (c?.id && !cat.byId.has(c.id)) cat.add({...c}); }
 
   /* ---------- who in the family has which copies ---------- */
   // Off (null) until the cloud answers for a family of two or more; the Portal then hides every owner control.
@@ -324,5 +339,5 @@
   }
 
   root.PortalData = {state, session: () => session, signIn, signOut, owner, load, deckStats, ownedNV, freeNV, committedNV, cheapest, ownedValue,
-    attach, saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
+    attach, seed, needDecks, saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
 })(self);
