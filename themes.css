@@ -1,0 +1,175 @@
+/* InkScan game themes (v49). Each card game gets its own look, switched by data-game on <html>, which both
+   the phone app and the portal set as soon as the page starts. Everything here overrides tokens from
+   tokens.css, plus one decoration layer per game (body::after). Status and data colors stay as they are.
+   All four themes are original: they take a mood and a palette from each game, never its logos, frames,
+   card art or typefaces.
+
+   Magic: The Gathering  bold, solid mana colours and no gradients at all (Brian, 2026-11-15): parchment and
+                         ink neutrals, a solid black hero with a five-colour mana band, flat mana-blue actions,
+                         stat cards edged in solid mana colours, chiselled capitals (Cinzel).
+   Lorcana               storybook pastels. Lavender, rose and sky, gold actions, a soft serif (Fraunces)
+                         and slow twinkling glitter.
+   One Piece             high-seas adventure. Sun-bleached chart paper with a faint grid, deep-sea hero
+                         with a sunset edge, red actions, punchy manga capitals (Bangers).
+   Pokémon               bright and friendly. Clean cool whites, energy-type colours, a halftone corner,
+                         electric-yellow actions, rounded type (Fredoka). */
+
+/* ======================= Magic: The Gathering ======================= */
+[data-game="mtg"]{
+  --bg:#F2EEE6; --surface:#FFFDF8; --surface2:#E9E3D7; --surface3:#DDD5C5; --sheet:#F7F3EC;
+  --line:rgba(36,26,12,.10); --line2:rgba(36,26,12,.17);
+  --fg:#1A1611; --muted:#5D5448; --faint:#6C6357;
+  --accent:#1660A8; --accent-fg:#FFFFFF; --accent-ink:#13579A; --accent-soft:rgba(22,96,168,.12);
+  --grad-accent:var(--accent); --glow-accent:none;
+  --mana-w:#E9DCA6; --mana-u:#1C6FB8; --mana-b:#2B2430; --mana-r:#D13A2E; --mana-g:#1F7F47;
+  --mana-band:linear-gradient(90deg,var(--mana-w) 0 20%,var(--mana-u) 20% 40%,var(--mana-b) 40% 60%,var(--mana-r) 60% 80%,var(--mana-g) 80% 100%);
+  --g0:#17131F; --g1:#17131F; --g2:#17131F;
+  /* the mana band is five solid blocks with hard edges, not a blend */
+  --grad-hero:var(--g0); --hero-shine:var(--mana-band) top/100% 8px no-repeat;
+  --page:none; --grad-card:none; --grad-rail:none;
+  --grad-active:var(--accent-soft); --grad-progress:var(--mana-u);
+  --tone-1:#1C6FB8; --tone-2:#B8862A; --tone-3:#1F7F47; --tone-4:#C2352B;
+  --glow-card:0 12px 32px rgba(21,17,31,.24),0 2px 8px rgba(20,16,10,.10);
+  --chart-1:#1C6FB8; --chart-2:#C2352B;
+  --display:"Cinzel","Trajan Pro","Palatino Linotype",Georgia,serif; --display-wt:700;
+}
+@media (prefers-color-scheme: dark){[data-game="mtg"]{
+  --bg:#0E0C10; --surface:#18151B; --surface2:#221E26; --surface3:#2D2832; --sheet:#141116;
+  --line:rgba(255,245,225,.08); --line2:rgba(255,245,225,.14);
+  --fg:#F4EFE6; --muted:#B3AA9C; --faint:#958C7F;
+  --accent:#4A9BE8; --accent-fg:#06121F; --accent-ink:#6BB0F0; --accent-soft:rgba(74,155,232,.16);
+  --grad-accent:var(--accent); --glow-accent:none;
+  --g0:#221C2B; --g1:#221C2B; --g2:#221C2B; --grad-hero:var(--g0);
+  --grad-active:var(--accent-soft);
+  --tone-1:#5AA2E6; --tone-2:#E0B354; --tone-3:#4CC07D; --tone-4:#F06A5C;
+  --chart-1:#5AA2E6; --chart-2:#F06A5C;
+}}
+
+/* no soft blurred blobs on the stat cards: a solid mana-colour edge instead */
+[data-game="mtg"] :is(.statcard,.tile)::after{display:none}
+[data-game="mtg"] :is(.statcard,.tile){border-top:4px solid var(--tone)}
+
+/* ============================== Lorcana ============================== */
+[data-game="lorcana"]{
+  --bg:#F8F3FB; --surface:#FFFFFF; --surface2:#F1E8F6; --surface3:#E7DAF0; --sheet:#FCF8FE;
+  --line:rgba(52,30,80,.08); --line2:rgba(52,30,80,.14);
+  --fg:#241A3B; --muted:#675B80; --faint:#75698E;
+  --accent:#C99027; --accent-fg:#1B1305; --accent-ink:#8A5D08; --accent-soft:rgba(201,144,39,.14);
+  --g0:#CDBDF2; --g1:#F4C4DC; --g2:#BEE2F5;
+  --on-hero:#2A1B45; --on-hero-muted:rgba(42,27,69,.76); --hero-line:rgba(42,27,69,.16); --hero-chip:rgba(255,255,255,.55);
+  --sparkle-1:rgba(201,144,39,.55); --sparkle-2:rgba(214,112,166,.45); --sparkle-3:rgba(84,150,206,.45);
+  --hero-shine:radial-gradient(circle,rgba(255,255,255,.95) 0 1px,transparent 1.6px) 0 0/29px 31px,radial-gradient(circle,rgba(255,255,255,.75) 0 1.4px,transparent 2px) 11px 17px/47px 43px,
+    radial-gradient(640px 320px at 88% -30%,rgba(255,255,255,.55),transparent 62%);
+  --glow-a:rgba(173,140,230,.22); --glow-b:rgba(240,160,200,.20); --glow-c:rgba(140,200,235,.20);
+  --page:radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%),radial-gradient(1000px 700px at 70% 100%,var(--glow-c),transparent 62%);
+  --grad-rail:linear-gradient(180deg,rgba(173,140,230,.16),rgba(240,160,200,0) 50%);
+  --grad-active:linear-gradient(90deg,rgba(173,140,230,.26),rgba(240,160,200,.18));
+  --grad-progress:linear-gradient(90deg,#A98BE0,#E79BC2,#C99027);
+  --tone-1:#8A64C8; --tone-2:#C99027; --tone-3:#3E9C8A; --tone-4:#D0609A;
+  --glow-card:0 12px 32px rgba(173,140,230,.30),0 2px 8px rgba(52,30,80,.08);
+  --chart-1:#8A64C8; --chart-2:#2F8F80;
+  --display:"Fraunces","Marcellus",Georgia,serif; --display-wt:600;
+}
+@media (prefers-color-scheme: dark){[data-game="lorcana"]{
+  --bg:#110E1C; --surface:#1A162B; --surface2:#241E3A; --surface3:#2F2849; --sheet:#151223;
+  --line:rgba(255,240,255,.08); --line2:rgba(255,240,255,.14);
+  --fg:#F6F0FF; --muted:#B8AED4; --faint:#9A90B8;
+  --accent:#F0C25C; --accent-fg:#1B1305; --accent-ink:#F0C25C; --accent-soft:rgba(240,194,92,.15);
+  --g0:#2C1E55; --g1:#5E3C9C; --g2:#B0588F;
+  --on-hero:#FFFFFF; --on-hero-muted:rgba(255,255,255,.80); --hero-line:rgba(255,255,255,.18); --hero-chip:rgba(255,255,255,.14);
+  --sparkle-1:rgba(255,214,120,.70); --sparkle-2:rgba(255,170,215,.55); --sparkle-3:rgba(160,210,255,.60);
+  --hero-shine:radial-gradient(circle,rgba(255,240,200,.45) 0 1px,transparent 1.6px) 0 0/29px 31px,radial-gradient(circle,rgba(255,255,255,.32) 0 1.2px,transparent 1.8px) 11px 17px/47px 43px,
+    radial-gradient(640px 320px at 88% -30%,rgba(255,255,255,.22),transparent 62%);
+  --glow-a:rgba(150,110,240,.24); --glow-b:rgba(230,120,180,.14); --glow-c:rgba(100,170,230,.12);
+  --grad-rail:linear-gradient(180deg,rgba(150,110,240,.18),rgba(150,110,240,0) 50%);
+  --grad-active:linear-gradient(90deg,rgba(150,110,240,.32),rgba(230,120,180,.16));
+  --tone-1:#A98BF0; --tone-2:#F0C25C; --tone-3:#4FC6B2; --tone-4:#F08CC0;
+  --glow-card:0 12px 36px rgba(150,110,240,.34),0 2px 10px rgba(0,0,0,.5);
+  --chart-1:#A98BF0; --chart-2:#4FC6B2;
+}}
+/* glitter: three drifting layers of tiny dots that slowly twinkle; still when reduced motion is asked for */
+[data-game="lorcana"] body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,var(--sparkle-1) 0 1px,transparent 1.6px) 0 0/97px 89px,
+    radial-gradient(circle,var(--sparkle-2) 0 1.2px,transparent 1.8px) 41px 23px/131px 113px,
+    radial-gradient(circle,var(--sparkle-3) 0 1px,transparent 1.6px) 73px 61px/151px 139px;
+  animation:inkscan-twinkle 6s ease-in-out infinite alternate}
+@keyframes inkscan-twinkle{from{opacity:.35}to{opacity:1}}
+
+/* ============================= One Piece ============================= */
+[data-game="onepiece"]{
+  --bg:#F5EEE1; --surface:#FFFCF5; --surface2:#ECE2CE; --surface3:#E0D3BA; --sheet:#F9F3E8;
+  --line:rgba(40,30,12,.10); --line2:rgba(40,30,12,.17);
+  --fg:#16202C; --muted:#585145; --faint:#686155;
+  --accent:#D0262C; --accent-fg:#FFFFFF; --accent-ink:#B01F24; --accent-soft:rgba(208,38,44,.12);
+  --grad-accent:linear-gradient(135deg,#E23B36,#B81E24); --glow-accent:0 6px 20px rgba(208,38,44,.30);
+  --g0:#0A2742; --g1:#0E6A88; --g2:#E0742A;
+  --hero-shine:linear-gradient(0deg,rgba(255,255,255,.07) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px) 0 0/32px 32px,
+    radial-gradient(640px 320px at 88% -30%,rgba(255,220,160,.30),transparent 62%);
+  --glow-a:rgba(14,106,136,.16); --glow-b:rgba(224,116,42,.14); --glow-c:rgba(10,39,66,.12);
+  --page:linear-gradient(0deg,rgba(60,45,20,.035) 1px,transparent 1px) 0 0/48px 48px,linear-gradient(90deg,rgba(60,45,20,.035) 1px,transparent 1px) 0 0/48px 48px,
+    radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%),radial-gradient(1000px 700px at 70% 100%,var(--glow-c),transparent 62%);
+  --grad-rail:linear-gradient(180deg,rgba(14,106,136,.12),rgba(14,106,136,0) 46%);
+  --grad-active:linear-gradient(90deg,rgba(14,106,136,.18),rgba(208,38,44,.10));
+  --grad-progress:linear-gradient(90deg,#0E6A88,#D0262C);
+  --tone-1:#0E6A88; --tone-2:#D0262C; --tone-3:#C98A1A; --tone-4:#2E7D4F;
+  --glow-card:0 12px 32px rgba(10,39,66,.26),0 2px 8px rgba(20,16,10,.10);
+  --chart-1:#0E6A88; --chart-2:#D0262C;
+  --display:"Bangers","Impact","Arial Narrow",sans-serif; --display-wt:400;
+}
+@media (prefers-color-scheme: dark){[data-game="onepiece"]{
+  --bg:#09111A; --surface:#101B27; --surface2:#172535; --surface3:#203245; --sheet:#0D1620;
+  --line:rgba(225,240,255,.08); --line2:rgba(225,240,255,.14);
+  --fg:#EEF3F8; --muted:#A3B3C4; --faint:#8798AA;
+  --accent:#FF5450; --accent-fg:#1E0505; --accent-ink:#FF7470; --accent-soft:rgba(255,84,80,.16);
+  --grad-accent:linear-gradient(135deg,#FF726D,#E8413D); --glow-accent:0 6px 24px rgba(255,84,80,.28);
+  --glow-a:rgba(20,140,180,.22); --glow-b:rgba(224,116,42,.12); --glow-c:rgba(60,120,200,.10);
+  --page:linear-gradient(0deg,rgba(200,230,255,.03) 1px,transparent 1px) 0 0/48px 48px,linear-gradient(90deg,rgba(200,230,255,.03) 1px,transparent 1px) 0 0/48px 48px,
+    radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%),radial-gradient(1000px 700px at 70% 100%,var(--glow-c),transparent 62%);
+  --grad-rail:linear-gradient(180deg,rgba(20,140,180,.16),rgba(20,140,180,0) 46%);
+  --grad-active:linear-gradient(90deg,rgba(20,140,180,.26),rgba(255,84,80,.14));
+  --tone-1:#3BB0D6; --tone-2:#FF6E6A; --tone-3:#F0B848; --tone-4:#55C384;
+  --chart-1:#3BB0D6; --chart-2:#FF6E6A;
+}}
+/* One Piece headings are manga capitals: a touch more letter spacing reads better at small sizes */
+[data-game="onepiece"] :is(.page-title,.title,.h2,.hero-v,.cv-n,.peek-n,.brand-n,.logo,.rail-brand,.empty strong){letter-spacing:.03em}
+
+/* ============================== Pokémon ============================== */
+[data-game="pokemon"]{
+  --bg:#F3F6FB; --surface:#FFFFFF; --surface2:#E8EEF7; --surface3:#DAE3F0; --sheet:#F8FAFD;
+  --line:rgba(18,32,64,.08); --line2:rgba(18,32,64,.14);
+  --fg:#121A2B; --muted:#54607A; --faint:#636F89;
+  --accent:#FFCB05; --accent-fg:#1A1600; --accent-ink:#7A5C00; --accent-soft:rgba(255,203,5,.20);
+  --grad-accent:linear-gradient(135deg,#FFD83D,#F5B800); --glow-accent:0 6px 20px rgba(245,184,0,.36);
+  --g0:#16337A; --g1:#2A6FD6; --g2:#E0400F;
+  --energy-fire:#E0400F; --energy-water:#2A6FD6; --energy-grass:#3A9E4A; --energy-lightning:#F2B705; --energy-psychic:#9A4FC0;
+  --dots:rgba(42,111,214,.14);
+  --hero-shine:radial-gradient(circle,rgba(255,255,255,.16) 1.6px,transparent 2.2px) 0 0/16px 16px,radial-gradient(640px 320px at 88% -30%,rgba(255,255,255,.28),transparent 62%);
+  --glow-a:rgba(42,111,214,.16); --glow-b:rgba(255,203,5,.18); --glow-c:rgba(224,64,15,.10);
+  --page:radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%),radial-gradient(1000px 700px at 70% 100%,var(--glow-c),transparent 62%);
+  --grad-rail:linear-gradient(180deg,rgba(42,111,214,.12),rgba(42,111,214,0) 46%);
+  --grad-active:linear-gradient(90deg,rgba(42,111,214,.18),rgba(255,203,5,.18));
+  --grad-progress:linear-gradient(90deg,var(--energy-water),var(--energy-grass),var(--energy-lightning),var(--energy-fire));
+  --tone-1:#2A6FD6; --tone-2:#E0400F; --tone-3:#3A9E4A; --tone-4:#9A4FC0;
+  --glow-card:0 12px 32px rgba(42,111,214,.26),0 2px 8px rgba(18,32,64,.10);
+  --chart-1:#2A6FD6; --chart-2:#E0400F;
+  --display:"Fredoka","Figtree",system-ui,sans-serif; --display-wt:600;
+}
+@media (prefers-color-scheme: dark){[data-game="pokemon"]{
+  --bg:#0B1020; --surface:#131A2D; --surface2:#1B2440; --surface3:#253052; --sheet:#0F1526;
+  --line:rgba(220,232,255,.08); --line2:rgba(220,232,255,.14);
+  --fg:#F1F5FF; --muted:#A6B1CC; --faint:#8A95B0;
+  --accent:#FFD23F; --accent-fg:#1A1600; --accent-ink:#FFD23F; --accent-soft:rgba(255,210,63,.16);
+  --grad-accent:linear-gradient(135deg,#FFE070,#F5C21B); --glow-accent:0 6px 24px rgba(255,210,63,.28);
+  --dots:rgba(120,170,255,.14);
+  --glow-a:rgba(60,130,240,.24); --glow-b:rgba(255,210,63,.10); --glow-c:rgba(240,90,40,.10);
+  --grad-rail:linear-gradient(180deg,rgba(60,130,240,.16),rgba(60,130,240,0) 46%);
+  --grad-active:linear-gradient(90deg,rgba(60,130,240,.28),rgba(255,210,63,.14));
+  --tone-1:#5B9BFF; --tone-2:#FF7A45; --tone-3:#5CCB6B; --tone-4:#C38BF0;
+  --chart-1:#5B9BFF; --chart-2:#FF7A45;
+}}
+/* a halftone corner, top right, fading out */
+[data-game="pokemon"] body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,var(--dots) 1.8px,transparent 2.4px) 0 0/18px 18px;
+  -webkit-mask-image:radial-gradient(640px 440px at 100% 0%,#000 20%,transparent 75%);mask-image:radial-gradient(640px 440px at 100% 0%,#000 20%,transparent 75%)}
+
+@media (prefers-reduced-motion: reduce){[data-game] body::after{animation:none}}

@@ -20,7 +20,7 @@ main.wrap{padding-block:8px calc(var(--tabh) + 32px + env(safe-area-inset-bottom
 .note{font-size:13px;color:var(--muted);margin:0}
 .footnote{font-size:12px;color:var(--faint);margin:4px 0 0;line-height:1.45}
 .tiny{font-size:12px}
-.h2{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.2;margin:0}
+.h2{font-family:var(--display);font-weight:var(--display-wt);font-size:20px;line-height:1.2;margin:0}
 .h3{font-size:17px;font-weight:700;line-height:1.2;margin:0}
 .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .banner{padding:12px 16px;border-radius:var(--rc);background:var(--surface2);font-size:13px;color:var(--muted);margin-bottom:12px}
@@ -30,7 +30,7 @@ main.wrap{padding-block:8px calc(var(--tabh) + 32px + env(safe-area-inset-bottom
 /* app bar */
 header.top{position:sticky;top:0;z-index:5;background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid var(--line)}
 .appbar{display:flex;align-items:center;gap:12px;height:56px}
-.logo{font-family:var(--display);font-weight:400;font-size:22px;margin:0;letter-spacing:.02em;flex:1}
+.logo{font-family:var(--display);font-weight:var(--display-wt);font-size:22px;margin:0;letter-spacing:.02em;flex:1}
 .logo b{font-weight:400;color:var(--accent-ink)}
 .gamepill{position:relative}
 .gamesel{appearance:none;-webkit-appearance:none;height:36px;padding:0 32px 0 16px;font-size:15px;font-weight:600;border-radius:var(--pill);border:1px solid var(--line2);background:var(--surface);color:var(--fg);cursor:pointer;
@@ -40,7 +40,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--glass);-webkit-backd
 
 /* page heads */
 .pagehead{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;margin-top:8px}
-.title{font-family:var(--display);font-weight:400;font-size:28px;line-height:1.2;margin:0;letter-spacing:-.01em}
+.title{font-family:var(--display);font-weight:var(--display-wt);font-size:28px;line-height:1.2;margin:0;letter-spacing:-.01em}
 .sectionhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px}
 .sectionhead h3{margin:0;font-size:17px;font-weight:700;line-height:1.2}
 .countline{margin:0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -176,7 +176,7 @@ textarea{height:auto;min-height:180px;padding:12px;font-family:ui-monospace,Cons
 .group span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .item+.group,.group+.item::before{border:0}
 .empty{padding:32px 20px;text-align:center;color:var(--muted);font-size:15px}
-.empty strong{display:block;color:var(--fg);font-family:var(--display);font-weight:400;font-size:20px;margin-bottom:8px}
+.empty strong{display:block;color:var(--fg);font-family:var(--display);font-weight:var(--display-wt);font-size:20px;margin-bottom:8px}
 .res{display:flex;gap:12px;align-items:center;padding:12px 16px;border:0;border-top:1px solid var(--line);background:none;width:100%;text-align:left;cursor:pointer;color:inherit}
 .res:first-child{border-top:0}
 .indent{padding:0 16px 12px 64px}
@@ -201,7 +201,7 @@ textarea{height:auto;min-height:180px;padding:12px;font-family:ui-monospace,Cons
 .fav .ic,.favbtn .ic{width:20px;height:20px}
 .fav[aria-pressed="true"],.favbtn[aria-pressed="true"]{color:var(--fav)}
 .fav[aria-pressed="true"] .ic,.favbtn[aria-pressed="true"] .ic{fill:currentColor}
-input.deckname{font-family:var(--display);font-size:28px;letter-spacing:-.01em;height:auto;padding:4px 0;border:1px solid transparent;background:transparent;border-radius:var(--rc)}
+input.deckname{font-family:var(--display);font-weight:var(--display-wt);font-size:28px;letter-spacing:-.01em;height:auto;padding:4px 0;border:1px solid transparent;background:transparent;border-radius:var(--rc)}
 input.deckname:hover,input.deckname:focus{border-color:var(--line2);background:var(--surface);padding-inline:12px}
 .deckmeta:empty{display:none}
 .pillselect{display:inline-flex;align-items:center;gap:0;height:36px;padding-left:16px;border-radius:var(--pill);background:var(--surface2);font-size:13px;font-weight:600;color:var(--muted)}
@@ -376,3 +376,36 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;appeara
   .sheet.settling{transition:none}
   *{transition-duration:.01ms!important}
 }
+
+/* ---------- the advisor sheet (v49): the portal's chat, sized for a phone ---------- */
+.sheet.adv{height:92vh}
+.sheet.adv .sheet-body{flex:1;min-height:0;overflow:hidden;padding-bottom:0}
+.advsheet{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
+.advsheet .adv-sub{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.advsheet .adv-sub .link{font-size:13px}
+.advsheet .chat-log{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 0 12px;font-size:15px;line-height:1.45}
+.advsheet .msg-u{align-self:flex-end;max-width:85%;background:var(--surface2);border-radius:var(--r);padding:8px 12px;white-space:pre-wrap}
+.advsheet .msg-a p{margin:0 0 8px}
+.advsheet .msg-a h4{font-size:15px;margin:12px 0 4px}
+.advsheet .msg-a ul,.advsheet .msg-a ol{margin:0 0 8px;padding-left:20px}
+.advsheet .msg-a code{font-size:13px;background:var(--surface2);border-radius:var(--r-xs);padding:0 4px}
+.advsheet .msg-a table{border-collapse:collapse;font-size:13px;margin:0 0 8px}
+.advsheet .msg-a td,.advsheet .msg-a th{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left}
+.advsheet .msg-note{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:var(--rc);padding:8px 12px}
+.advsheet .tool-chip{display:inline-flex;margin:0 8px 8px 0;padding:4px 8px;border-radius:var(--r-xs);background:var(--surface2);color:var(--muted);font-size:12px;font-weight:600}
+.advsheet .typing{font-size:13px;color:var(--muted)}
+.advsheet .change,.advsheet .proposal{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line2);border-left:4px solid var(--ok);border-radius:var(--rc);padding:8px 12px;margin:0 0 8px;background:var(--surface);font-size:13px}
+.advsheet .change.undone{border-left-color:var(--line2);color:var(--muted)}
+.advsheet .proposal{display:block;border-left-color:var(--accent)}
+.advsheet .proposal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.advsheet .proposal-n{font-weight:600;font-size:15px}
+.advsheet .proposal summary{cursor:pointer;color:var(--accent-ink);font-weight:600;margin-top:8px}
+.advsheet .plain{list-style:none;margin:8px 0 0;padding:0;columns:2;column-gap:16px}
+.advsheet .need{color:var(--warn);font-weight:600}
+.advsheet .btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.advsheet .chat-empty{margin:24px 0 0;text-align:center}
+.advsheet .suggest{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.advsheet .chip-btn{min-height:44px;padding:8px 16px;border-radius:var(--rc);border:1px solid var(--line2);background:var(--surface);font-size:15px;text-align:left;color:var(--fg)}
+.advsheet .chat-form{display:flex;gap:8px;align-items:flex-end;padding:8px 0 calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.advsheet .chat-form textarea{flex:1;font-family:var(--body);min-height:48px;max-height:140px;font-size:16px;padding:8px 12px;border-radius:var(--rc);border:1px solid var(--line2);background:var(--surface);color:var(--fg);resize:none}
+.advsheet .chat-form .btn{min-width:48px;min-height:48px;padding:0}

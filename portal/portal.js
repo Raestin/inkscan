@@ -222,7 +222,9 @@
   const nameBtn = (c, label) => c ? `<button type="button" class="cardlink">${esc(label ?? cardName(c))}</button>` : `<span class="cn">${esc(label || '')}</span>`;
   const cardChip = (c, q) => `<button type="button" class="cchip"${cardAttr(c)}>${q ? `<b>${q}</b>` : ''}${esc(cardName(c))}</button>`;
   // a deck's own colours as a list, for the edge of its row and the band over its header
-  const deckGrad = d => { const cs = deckColors(d).map(colorVar); return cs.length > 1 ? cs.join(',') : cs.length ? `${cs[0]},${cs[0]}` : 'var(--chart-1),var(--chart-2)'; };
+  // Magic decks get solid, hard-edged colour stripes; the other games blend their colours.
+  const deckGrad = d => { const cs = deckColors(d).map(colorVar); if (!cs.length) cs.push('var(--chart-1)', 'var(--chart-2)'); if (cs.length === 1) cs.push(cs[0]);
+    return game === 'mtg' ? cs.map((c, i) => `${c} ${100 * i / cs.length}% ${100 * (i + 1) / cs.length}%`).join(',') : cs.join(','); };
 
   /* ---------- boot ---------- */
   $('game').value = game; document.documentElement.dataset.game = game;
@@ -719,7 +721,7 @@
 
   /* ---------- Simulator ---------- */
   const sim = {deck: null, mode: 'opening', onPlay: true, keys: [], turns: 10, oddsKeys: [], oddsNeed: 1, result: null, running: false};
-  function simDeck(d){ return Object.entries(d.cards).map(([nv, q]) => ({card: S().cat.rep(nv), qty: q, key: nv})).filter(x => x.card); }
+  function simDeck(d){ return kit().simDeck(d); }
   function renderSim(v){
     const decks = S().decks.slice().sort((a, b) => (b.fav - a.fav) || a.name.localeCompare(b.name, undefined, {numeric: true}));
     if (!sim.deck || !decks.some(d => d.id === sim.deck)) sim.deck = workshop.id && decks.some(d => d.id === workshop.id) ? workshop.id : decks[0]?.id;
@@ -760,16 +762,9 @@
     };
     if (sim.result && sim.result.deck === sim.deck && sim.result.mode === sim.mode) showSim($('sOut'), sim.result, d);
   }
-  function runSim(d, o){
-    const deck = simDeck(d), g = game, onPlay = o.onPlay, seed = Date.now() % 1e9;
-    if (o.mode === 'opening') return {mode: 'opening', deck: d.id, r: InkSim.openingHands(deck, {game: g, onPlay, seed, handSize: gameDef().deck.handSize})};
-    if (o.mode === 'goldfish') return {mode: 'goldfish', deck: d.id, r: InkSim.goldfish(deck, {game: g, onPlay, seed, turns: o.turns, keyCards: o.keys.map(nv => S().cat.rep(nv)?.n).filter(Boolean), life: d.commanders.length || d.format === 'commander' ? 40 : 20})};
-    const keys = o.oddsKeys.length ? o.oddsKeys : [];
-    if (!keys.length) throw Error('Pick at least one card to draw.');
-    const handSize = gameDef().deck.handSize, total = Object.values(d.cards).reduce((s, q) => s + q, 0);
-    if (keys.length === 1) return {mode: 'odds', deck: d.id, single: true, label: nvName(keys[0]), r: InkSim.drawOdds({deckSize: total, copies: d.cards[keys[0]], handSize, onPlay, turns: 10, atLeast: o.oddsNeed})};
-    return {mode: 'odds', deck: d.id, label: keys.map(nvName).join(' + '), r: InkSim.comboOdds(Object.entries(d.cards).map(([key, qty]) => ({key, qty})), keys.map(k => ({label: nvName(k), keys: [k], need: o.oddsNeed})), {turns: 10, handSize, onPlay, seed})};
-  }
+  // simulations, the shopping math and card names are shared with the phone app's advisor (advisor-kit.js)
+  const kit = () => PortalAdvisorKit.make(game);
+  function runSim(d, o){ return kit().runSim(d, o); }
   function showSim(host, res, d){
     if (res.error){ host.innerHTML = `<section class="card"><p class="bad-t">${esc(res.error)}</p></section>`; return; }
     const r = res.r, c1 = C.token('--chart-1');
@@ -825,20 +820,7 @@
 
   /* ---------- Buy planner ---------- */
   const buy = {sel: new Set(D.lsGet('portal.buy.' + game, [])), shared: false};
-  function buyPlan(ids, shared){
-    const need = new Map();
-    const chosen = S().decks.filter(d => ids.includes(d.id));
-    for (const d of chosen) for (const [nv, q] of Object.entries(d.cards)){
-      const e = need.get(nv) || {nv, want: 0, decks: []}; e.want = shared ? Math.max(e.want, q) : e.want + q; e.decks.push(d.name); need.set(nv, e);
-    }
-    const rows = [];
-    for (const e of need.values()){
-      const free = D.freeNV(e.nv), qty = Math.max(0, e.want - free); if (!qty) continue;
-      const price = D.cheapest(e.nv); rows.push({...e, free, qty, price, line: price == null ? null : price * qty});
-    }
-    rows.sort((a, b) => (b.line ?? -1) - (a.line ?? -1));
-    return {rows, total: rows.reduce((s, r) => s + (r.line || 0), 0), unpriced: rows.filter(r => r.price == null).reduce((s, r) => s + r.qty, 0), cards: rows.reduce((s, r) => s + r.qty, 0)};
-  }
+  function buyPlan(ids, shared){ return kit().buyPlan(ids, shared); }
   function renderBuy(v){
     const all = allStats().filter(r => !r.d.built).sort((a, b) => a.st.missCost - b.st.missCost);
     for (const id of [...buy.sel]) if (!all.some(r => r.d.id === id)) buy.sel.delete(id);

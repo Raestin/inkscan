@@ -99,6 +99,8 @@
   function remember(id, change){ const c = chat(); c.changes = c.changes || {}; c.changes[id] = change; store(c); }
   function deckChanged(d){ ctx.onDeckChanged?.(d); }
   // Apply removals and additions to a copy of a deck's shape; also used by Undo's checks.
+  // The phone app first sends its own unsent changes, so the cloud copy an edit starts from is current.
+  async function ready4write(){ try { await ctx.beforeWrite?.(); return null; } catch(err){ return err.message; } }
   async function applyEdit(d, input){
     const next = deckShape(d), lines = [], problems = [];
     for (const {name, qty} of input.remove || []){
@@ -125,6 +127,7 @@
 
   async function editDeck(input, id){
     const busyMsg = ctx.editBlocked?.(input.deck_id); if (busyMsg) return {error: busyMsg};
+    const ready = await ready4write(); if (ready) return {error: ready};
     const d = await D.refreshDeck(input.deck_id); if (!d) return {error: 'No deck with that id. Use list_decks.'};
     if (!(input.remove || []).length && !(input.add || []).length) return {error: 'Give cards to remove, to add, or both.'};
     const {next, lines, problems} = await applyEdit(d, input);
@@ -139,6 +142,7 @@
 
   async function setOwned(input, id){
     if (!sameGame(input.game)) return otherGame(input.game);
+    const ready = await ready4write(); if (ready) return {error: ready};
     const want = input.owned | 0; if (want < 0 || want > 999) return {error: 'owned must be 0 to 999.'};
     const nv = await D.resolveName(ctx.game, input.name); if (!nv) return {error: `No card found named ${input.name}.`};
     const ids = () => [...S().inv.keys()].filter(k => S().cat.byId.get(k)?.nv === nv);
@@ -211,7 +215,7 @@
     if (busy || !text.trim()) return;
     busy = true; const c = chat();
     const f = ctx.focus?.(), content = [{type: 'text', text: text.trim()}];
-    if (f) content.push({type: 'text', text: `${CTX_TAG} The user is in the deck workshop with "${f.name}" open${f.id ? ` (deck_id ${f.id})` : ' (a new deck, not saved yet, so edit_deck cannot change it)'}${f.dirty && f.id ? ', with unsaved edits' : ''}. "This deck" means that one.`});
+    if (f) content.push({type: 'text', text: `${CTX_TAG} The user has the deck "${f.name}" open${f.id ? ` (deck_id ${f.id})` : ' (a new deck, not saved yet, so edit_deck cannot change it)'}${f.dirty && f.id ? ', with unsaved edits' : ''}. "This deck" means that one.`});
     c.messages.push({role: 'user', content}); store(c); paint();
     try {
       for (let step = 0; step < MAX_STEPS; step++){
@@ -309,8 +313,11 @@
   }
 
   function mount(v, context, opts){
-    ctx = context; host = v; compact = !!opts?.compact;
-    v.innerHTML = compact ? `
+    ctx = context; host = v; compact = !!(opts?.compact || opts?.sheet);
+    v.innerHTML = opts?.sheet ? `
+      <div class="adv-sub"><span class="note" id="advFocus"></span><button class="link" id="chatNew" type="button">New conversation</button></div>
+      <div id="chatLog" class="chat-log" aria-live="polite"></div>
+      <form id="chatForm" class="chat-form"><textarea id="chatIn" rows="2" placeholder="I'm missing a card…"></textarea><button class="btn primary" id="chatSend" type="submit" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button></form>` : compact ? `
       <header class="adv-head"><div><b>Advisor</b> <span class="muted small" id="advFocus"></span></div><div class="adv-acts"><button class="btn sm" id="chatNew" type="button">New</button><button class="btn sm icon" id="advClose" type="button" aria-label="Close the advisor"><svg class="ic"><use href="#i-x"/></svg></button></div></header>
       <div id="chatLog" class="chat-log" aria-live="polite"></div>
       <form id="chatForm" class="chat-form"><textarea id="chatIn" rows="2" placeholder="I'm missing a card…"></textarea><button class="btn primary" id="chatSend" type="submit" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button></form>` : `
@@ -322,7 +329,7 @@
     input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); v.querySelector('#chatForm').requestSubmit(); } };
     v.querySelector('#chatNew').onclick = () => { if (busy) return; if (chat().messages.length && !confirm('Start a new conversation? This one will be cleared.')) return; D.lsSet(key(), {messages: [], saved: {}}); paint(); };
     const close = v.querySelector('#advClose'); if (close) close.onclick = () => ctx.onClose?.();
-    paint(); input.focus();
+    paint(); if (!opts?.sheet) input.focus();
   }
   root.PortalAdvisor = {mount, ask, refresh: () => paint(), busy: () => busy, _tools: TOOLS, _md: md, _undo: undo, _chat: () => chat(), _ctx: c => { ctx = c; }};
 })(self);
