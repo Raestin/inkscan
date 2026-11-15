@@ -407,6 +407,13 @@ body.cv-open{overflow:hidden}
 .deck-top > .deck-art{position:absolute;inset:-48px;background-size:cover;background-position:center 20%;filter:blur(40px) saturate(1.5);opacity:.24;pointer-events:none}
 
 /* how the deck plays */
+.strat-sum{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none;border-radius:var(--r-sm)}
+.strat-sum::-webkit-details-marker{display:none}
+.strat-sum .sec{margin:0;flex:1}
+.strat-chev{color:var(--muted);transition:transform var(--t-quick) var(--ease)}
+details[open]>.strat-sum .strat-chev{transform:rotate(90deg)}
+details.strategy[open]>.strat-sum{margin-bottom:12px}
+details.strategy[open]>.strat-sum .plan-kind{display:none}
 .strat-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:16px}
 .strat-head .sec{margin-bottom:4px}
 .strat-head p{margin:0}

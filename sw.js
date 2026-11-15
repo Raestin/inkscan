@@ -1,6 +1,6 @@
-const CACHE = 'inkscan-v49';
+const CACHE = 'inkscan-v50';
 const IMGS = 'inkscan-img';
-const SHELL = ['./','index.html','safety.js?v=49','family.js?v=49','catalog.js?v=49','legality.js?v=49','games.js?v=49','app.js?v=49','tokens.css?v=49','app.css?v=49','shell.css?v=49','themes.css?v=49','shell.js?v=49','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
+const SHELL = ['./','index.html','safety.js?v=50','family.js?v=50','catalog.js?v=50','legality.js?v=50','games.js?v=50','app.js?v=50','tokens.css?v=50','app.css?v=50','shell.css?v=50','themes.css?v=50','themes.js?v=50','themes/lorcana-hero.svg','themes/lorcana-icons.svg','themes/lorcana-pattern.svg','themes/mtg-hero.svg','themes/mtg-icons.svg','themes/mtg-pattern.svg','themes/onepiece-hero.svg','themes/onepiece-icons.svg','themes/onepiece-pattern.svg','themes/pokemon-hero.svg','themes/pokemon-icons.svg','themes/pokemon-pattern.svg','shell.js?v=50','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
   'tesseract.min.js','worker.min.js','tesseract-core-simd-lstm.wasm.js','tesseract-core-lstm.wasm.js','eng.traineddata.gz'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); });
 // No forced takeover of open scanning tabs. A new worker waits for the normal browser lifecycle.
@@ -9,7 +9,7 @@ self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   // card art: keep every image you've looked at, so it shows offline next time
-  if (u.hostname === 'cards.lorcast.io' || u.hostname === 'cards.scryfall.io' || (u.hostname === 'optcgapi.com' && u.pathname.startsWith('/media/')) || u.hostname === 'images.pokemontcg.io') {
+  if (u.hostname === 'cards.lorcast.io' || u.hostname === 'cards.scryfall.io' || (u.hostname === 'optcgapi.com' && u.pathname.startsWith('/media/')) || u.hostname === 'images.pokemontcg.io' || u.hostname === 'svgs.scryfall.io' || u.hostname === 'upload.wikimedia.org' || u.hostname === 'i0.wp.com') {
     e.respondWith(caches.open(IMGS).then(c => c.match(e.request).then(hit => hit || fetch(e.request).then(r => { if (r.ok || r.type === 'opaque') c.put(e.request, r.clone()); return r; }))));
     return;
   }

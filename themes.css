@@ -1,4 +1,4 @@
-/* InkScan game themes (v49). Each card game gets its own look, switched by data-game on <html>, which both
+/* InkScan game themes (v49, made bolder in v50; see the second half of this file). Each card game gets its own look, switched by data-game on <html>, which both
    the phone app and the portal set as soon as the page starts. Everything here overrides tokens from
    tokens.css, plus one decoration layer per game (body::after). Status and data colors stay as they are.
    All four themes are original: they take a mood and a palette from each game, never its logos, frames,
@@ -46,8 +46,6 @@
 }}
 
 /* no soft blurred blobs on the stat cards: a solid mana-colour edge instead */
-[data-game="mtg"] :is(.statcard,.tile)::after{display:none}
-[data-game="mtg"] :is(.statcard,.tile){border-top:4px solid var(--tone)}
 
 /* ============================== Lorcana ============================== */
 [data-game="lorcana"]{
@@ -87,14 +85,6 @@
   --glow-card:0 12px 36px rgba(150,110,240,.34),0 2px 10px rgba(0,0,0,.5);
   --chart-1:#A98BF0; --chart-2:#4FC6B2;
 }}
-/* glitter: three drifting layers of tiny dots that slowly twinkle; still when reduced motion is asked for */
-[data-game="lorcana"] body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:radial-gradient(circle,var(--sparkle-1) 0 1px,transparent 1.6px) 0 0/97px 89px,
-    radial-gradient(circle,var(--sparkle-2) 0 1.2px,transparent 1.8px) 41px 23px/131px 113px,
-    radial-gradient(circle,var(--sparkle-3) 0 1px,transparent 1.6px) 73px 61px/151px 139px;
-  animation:inkscan-twinkle 6s ease-in-out infinite alternate}
-@keyframes inkscan-twinkle{from{opacity:.35}to{opacity:1}}
-
 /* ============================= One Piece ============================= */
 [data-game="onepiece"]{
   --bg:#F5EEE1; --surface:#FFFCF5; --surface2:#ECE2CE; --surface3:#E0D3BA; --sheet:#F9F3E8;
@@ -167,9 +157,109 @@
   --tone-1:#5B9BFF; --tone-2:#FF7A45; --tone-3:#5CCB6B; --tone-4:#C38BF0;
   --chart-1:#5B9BFF; --chart-2:#FF7A45;
 }}
-/* a halftone corner, top right, fading out */
-[data-game="pokemon"] body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:radial-gradient(circle,var(--dots) 1.8px,transparent 2.4px) 0 0/18px 18px;
-  -webkit-mask-image:radial-gradient(640px 440px at 100% 0%,#000 20%,transparent 75%);mask-image:radial-gradient(640px 440px at 100% 0%,#000 20%,transparent 75%)}
 
+/* =====================================================================
+   v50: bolder. Each game now has its own artwork (themes/*.svg, all original drawings), a coloured app bar,
+   side rail and tab bar, a patterned page, themed icons on the stat cards, an emblem on the hero, and its
+   own card and button shapes. Looks are borrowed in spirit from the sites players of each game use; no
+   logos, card frames, symbols or characters from any game are copied.
+   ===================================================================== */
+
+/* ---- shared plumbing ---- */
+/* page pattern: a tiled drawing, coloured by --pattern */
+[data-game] body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--pattern);
+  -webkit-mask:var(--pattern-art) 0 0/var(--pattern-size) repeat;mask:var(--pattern-art) 0 0/var(--pattern-size) repeat}
+/* hero emblem, on top of each game's hero background */
+[data-game] .hero{background:var(--hero-art) var(--hero-art-pos,right 16px center)/var(--hero-art-size,auto 88%) no-repeat,var(--hero-plate,none),var(--hero-shine),var(--grad-hero)}
+/* the game's real logo under the portal's game picker, when themes.js could load it */
+.game-logo{display:none;height:56px;border-radius:var(--r-sm);background:var(--logo) center/contain no-repeat;background-origin:content-box;padding:8px}
+@media (min-width:1100px){[data-game] .shell .hero{--hero-art-pos:right 380px center}}
+/* themed icons on the stat cards: one drawing per card, in the card's own colour */
+[data-game] :is(.tiles>.tile,.statcard)::after{display:block;content:'';position:absolute;right:12px;top:12px;width:40px;height:40px;border-radius:0;filter:none;opacity:1;background:var(--tone);pointer-events:none;
+  -webkit-mask:var(--icons) var(--ico,0%) 0/400% 100% no-repeat;mask:var(--icons) var(--ico,0%) 0/400% 100% no-repeat}
+[data-game] .statcard.statcard::after{right:10px;top:10px;width:24px;height:24px}
+[data-game] :is(.tiles>.tile,.statcard):nth-child(4n+2){--ico:33.333%}
+[data-game] :is(.tiles>.tile,.statcard):nth-child(4n+3){--ico:66.667%}
+[data-game] :is(.tiles>.tile,.statcard):nth-child(4n+4){--ico:100%}
+/* the bars around the page (app bar, tab bar, side rails) take the game's colour in light and dark alike */
+[data-game] :is(header.top,.tabbar,.side,.rail){color-scheme:dark;color:var(--fg);background:var(--chrome);-webkit-backdrop-filter:none;backdrop-filter:none;
+  --fg:#FFFFFF; --muted:rgba(255,255,255,.82); --faint:rgba(255,255,255,.66); --line:rgba(255,255,255,.14); --line2:rgba(255,255,255,.26);
+  --surface:rgba(255,255,255,.12); --surface2:rgba(255,255,255,.18); --surface3:rgba(255,255,255,.26); --accent-ink:var(--chrome-ink); --accent-soft:rgba(255,255,255,.16);
+  --grad-active:rgba(255,255,255,.16); --grad-rail:none}
+[data-game] header.top{border-bottom:4px solid var(--chrome-edge);border-image:var(--chrome-band,none) 1}
+[data-game] .tabbar{border-top:4px solid var(--chrome-edge);border-image:var(--chrome-band,none) 1}
+[data-game] :is(.side,.rail){border-right:6px solid var(--chrome-edge);border-image:var(--chrome-band-v,none) 1}
+[data-game] :is(.side,.rail) select option,[data-game] header.top select option{color:#FFFFFF;background:#1B1B22}
+/* a mark under every page title */
+[data-game] :is(.page-title,.title)::after{content:'';display:block;width:96px;height:6px;margin-top:8px;border-radius:var(--title-mark-r,0);background:var(--title-mark)}
+
+/* ---- Magic: The Gathering: black, parchment and five solid mana colours. Still no gradients. ---- */
+[data-game="mtg"]{
+  --hero-art:url(themes/mtg-hero.svg); --icons:url(themes/mtg-icons.svg);
+  --pattern-art:url(themes/mtg-pattern.svg); --pattern-size:96px; --pattern:rgba(36,26,12,.07);
+  --chrome:#17131F; --chrome-ink:#6BB0F0; --chrome-edge:#1C6FB8; --chrome-band:var(--mana-band);
+  --chrome-band-v:linear-gradient(180deg,var(--mana-w) 0 20%,var(--mana-u) 20% 40%,#5A4E66 40% 60%,var(--mana-r) 60% 80%,var(--mana-g) 80% 100%);
+  --title-mark:var(--mana-band);
+  --edge:#1A1611; --rc:4px; --r:8px; --r-xl:8px; --r-2xl:12px;
+  --shadow-raised:none; --glow-card:none;
+  --tone-1:#B8862A; --tone-2:#1C6FB8; --tone-3:#C2352B; --tone-4:#1F7F47;
+}
+@media (prefers-color-scheme: dark){[data-game="mtg"]{--pattern:rgba(255,245,225,.05); --edge:rgba(244,239,230,.34); --tone-1:#E0B354; --tone-2:#5AA2E6; --tone-3:#F06A5C; --tone-4:#4CC07D}}
+[data-game="mtg"] :is(.card,.statcard,.tiles>.tile,.hero){border:2px solid var(--edge)}
+[data-game="mtg"] :is(.statcard,.tiles>.tile){border-top:6px solid var(--tone)}
+[data-game="mtg"] .btn.primary{border:2px solid var(--edge);text-transform:uppercase;letter-spacing:.04em}
+
+/* ---- Lorcana: a storybook night sky over pastel pages, gold ink and glitter ---- */
+[data-game="lorcana"]{
+  --hero-art:url(themes/lorcana-hero.svg); --icons:url(themes/lorcana-icons.svg);
+  --pattern-art:url(themes/lorcana-pattern.svg); --pattern-size:220px; --pattern:#D9A93A;
+  --chrome:linear-gradient(160deg,#2A1B5C,#5B3A9E 60%,#8A4FA8); --chrome-ink:#FFD979; --chrome-edge:#E7B94E;
+  --chrome-band:linear-gradient(90deg,#C98F1F,#FFE9A8,#C98F1F); --chrome-band-v:linear-gradient(180deg,#C98F1F,#FFE9A8,#C98F1F);
+  --title-mark:linear-gradient(90deg,#C98F1F,#FFE9A8,#E79BC2); --title-mark-r:999px;
+  --g0:#2A1B5C; --g1:#6A3FB0; --g2:#D46AA6;
+  --on-hero:#FFFFFF; --on-hero-muted:rgba(255,255,255,.84); --hero-line:rgba(255,233,168,.5); --hero-chip:rgba(255,255,255,.16);
+  --glow-a:rgba(173,140,230,.34); --glow-b:rgba(240,160,200,.32); --glow-c:rgba(140,200,235,.30);
+  --r:20px; --r-xl:24px; --r-2xl:24px;
+  --glow-card:0 16px 40px rgba(122,74,190,.40),0 0 0 2px rgba(231,185,78,.75);
+  --shadow-raised:0 1px 2px rgba(52,30,80,.06),0 8px 24px rgba(122,74,190,.14);
+}
+@media (prefers-color-scheme: dark){[data-game="lorcana"]{--pattern:#F0C25C; --glow-a:rgba(150,110,240,.34); --glow-b:rgba(230,120,180,.22); --glow-c:rgba(100,170,230,.18)}}
+[data-game="lorcana"] body::after{animation:inkscan-twinkle 5s ease-in-out infinite alternate}
+@keyframes inkscan-twinkle{from{opacity:.25}to{opacity:.9}}
+[data-game="lorcana"] :is(.card,.statcard,.tiles>.tile){border:1px solid rgba(217,169,58,.45)}
+[data-game="lorcana"] .btn.primary{border-radius:var(--pill)}
+
+/* ---- One Piece: navy seas, treasure-map paper, red ink and comic-panel edges ---- */
+[data-game="onepiece"]{
+  --hero-art:url(themes/onepiece-hero.svg); --icons:url(themes/onepiece-icons.svg);
+  --pattern-art:url(themes/onepiece-pattern.svg); --pattern-size:300px; --pattern:rgba(90,60,20,.16);
+  --chrome:#0A2742; --chrome-ink:#FFB05C; --chrome-edge:#D0262C;
+  --title-mark:#D0262C;
+  --g0:#0A2742; --g1:#0E6A88; --g2:#E0742A;
+  --edge:#16202C; --shadow-raised:4px 4px 0 var(--edge); --glow-card:6px 6px 0 var(--edge); --glow-accent:3px 3px 0 var(--edge);
+  --page:radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%);
+}
+@media (prefers-color-scheme: dark){[data-game="onepiece"]{--pattern:rgba(200,230,255,.08); --edge:#01060C;
+  --page:radial-gradient(1100px 620px at 0% 0%,var(--glow-a),transparent 62%),radial-gradient(900px 560px at 100% 0%,var(--glow-b),transparent 60%)}}
+[data-game="onepiece"] :is(.card,.statcard,.tiles>.tile,.hero,.btn.primary){border:2px solid var(--edge)}
+[data-game="onepiece"] :is(.page-title,.title)::after{transform:skewX(-24deg);transform-origin:left;width:120px;height:8px}
+[data-game="onepiece"] .btn.primary{text-transform:uppercase;letter-spacing:.04em}
+
+/* ---- Pokémon: bright blue and electric yellow, chunky rounded shapes ---- */
+[data-game="pokemon"]{
+  --hero-art:url(themes/pokemon-hero.svg); --icons:url(themes/pokemon-icons.svg);
+  --pattern-art:url(themes/pokemon-pattern.svg); --pattern-size:200px; --pattern:rgba(42,111,214,.10);
+  --chrome:#2463C4; --chrome-ink:#FFD23F; --chrome-edge:#FFCB05;
+  --title-mark:linear-gradient(90deg,#E0400F 0 25%,#FFCB05 25% 50%,#3A9E4A 50% 75%,#2A6FD6 75% 100%); --title-mark-r:999px;
+  --g0:#1B49A8; --g1:#2A6FD6; --g2:#2A6FD6;
+  --hero-shine:repeating-linear-gradient(-45deg,rgba(255,255,255,.07) 0 14px,transparent 14px 28px);
+  --edge:#0E1F52; --rc:16px; --r:20px; --r-xl:24px; --r-2xl:24px;
+  --glow-accent:0 4px 0 var(--edge); --glow-card:0 6px 0 var(--edge);
+  --tone-1:#D9A400; --tone-2:#E0400F; --tone-3:#2A6FD6; --tone-4:#3A9E4A;
+}
+@media (prefers-color-scheme: dark){[data-game="pokemon"]{--pattern:rgba(120,170,255,.10); --edge:#04091C; --chrome:#1B49A8; --tone-1:#FFD23F; --tone-2:#FF7A45; --tone-3:#5B9BFF; --tone-4:#5CCB6B}}
+[data-game="pokemon"] :is(.statcard,.tiles>.tile){border-bottom:4px solid var(--tone)}
+[data-game="pokemon"] .btn{border-radius:var(--pill)}
+[data-game="pokemon"] .btn.primary{border:2px solid var(--edge)}
+[data-game="pokemon"] .hero{border:3px solid var(--edge)}
 @media (prefers-reduced-motion: reduce){[data-game] body::after{animation:none}}

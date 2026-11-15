@@ -228,7 +228,7 @@
 
   /* ---------- boot ---------- */
   $('game').value = game; document.documentElement.dataset.game = game;
-  $('game').onchange = () => { game = $('game').value; D.lsSet('portal.game', game); document.documentElement.dataset.game = game; loaded = false; cardReg.clear(); cvClose(true); workshop.colors = [];
+  $('game').onchange = () => { game = $('game').value; D.lsSet('portal.game', game); document.documentElement.dataset.game = game; self.InkThemes?.apply(game); loaded = false; cardReg.clear(); cvClose(true); workshop.colors = [];
     buy.sel = new Set(D.lsGet('portal.buy.' + game, [])); Object.assign(workshop, {id: null, draft: null, dirty: false, compare: '', addQ: ''}); Object.assign(sim, {deck: null, keys: [], oddsKeys: [], result: null});
     boot(); };
   $('reload').onclick = () => { loaded = false; boot(); };
@@ -549,6 +549,7 @@
     }, 350);
     $('addQ').oninput = () => { workshop.addQ = $('addQ').value; runAdd(); };
     if (workshop.addQ) runAdd();
+    if ($('strategy')) $('strategy').ontoggle = () => D.lsSet('portal.stratOpen', $('strategy').open);
     // Asked right here, in the advisor beside the deck, instead of leaving the workshop.
     if ($('stratAsk')) $('stratAsk').onclick = () => { const q = $('stratAsk').dataset.ask; if (!wsAdv.open) toggleWsAdv(true); if (!PortalAdvisor.busy()) PortalAdvisor.ask(q); };
     if ($('stratSim')) $('stratSim').onclick = () => { if (!S().decks.some(x => x.id === d.id)){ toast('Save the deck first, then run it in the Simulator.'); return; } sim.deck = d.id; sim.result = null; sim.mode = 'opening'; location.hash = 'simulate'; };
@@ -698,8 +699,9 @@
     const saved = g.overview || g.early || g.middle || g.late || g.tip || (Array.isArray(g.win) && g.win.length) || (Array.isArray(g.keys) && g.keys.length);
     if (!P && !saved) return '';
     const ask = `Write me a full strategy guide for my deck “${d.name}”: the game plan turn by turn, what to keep and mulligan, the key cards and combos, how to play against aggro and control, and the first three changes you would make.`;
-    return `<section class="card strategy" id="strategy">
-      <div class="strat-head"><div><h2 class="sec">How this deck plays</h2>${P ? `<p class="muted small">Read from this list’s curve and card text. Card-text matching is approximate.</p>` : ''}</div><button type="button" class="btn" id="stratAsk" data-ask="${esc(ask)}"><svg class="ic"><use href="#i-spark"/></svg>Ask the advisor for a full guide</button></div>
+    return `<details class="card strategy" id="strategy" ${D.lsGet('portal.stratOpen', true) ? 'open' : ''}>
+      <summary class="strat-sum"><h2 class="sec">How this deck plays</h2>${P ? `<span class="plan-kind">${esc(P.kind)}</span>` : ''}<svg class="ic strat-chev"><use href="#i-right"/></svg></summary>
+      <div class="strat-head"><div>${P ? `<p class="muted small">Read from this list’s curve and card text. Card-text matching is approximate.</p>` : ''}</div><button type="button" class="btn" id="stratAsk" data-ask="${esc(ask)}"><svg class="ic"><use href="#i-spark"/></svg>Ask the advisor for a full guide</button></div>
       ${P ? `<div class="plan"><span class="plan-kind">${esc(P.kind)}</span><p>${esc(P.plan)}</p></div>` : ''}
       ${Array.isArray(g.themes) && g.themes.length ? `<div class="chips">${g.themes.slice(0, 8).map(x => `<span class="chip">${t(x)}</span>`).join('')}</div>` : ''}
       ${g.overview ? `<div class="guide-note"><span class="mini">Saved guide</span><p>${t(g.overview)}</p></div>` : ''}
@@ -716,7 +718,7 @@
       ${g.tip ? `<h3 class="grp">Tip</h3><p>${t(g.tip)}</p>` : ''}
       ${Array.isArray(g.sideboard) && g.sideboard.length ? `<h3 class="grp">Sideboard</h3>${g.sideboard_plan ? `<p>${t(g.sideboard_plan)}</p>` : ''}<ul class="bullets">${g.sideboard.map(x => `<li>${+x?.[0] || 1} ${t(String(x?.[1] || ''))}</li>`).join('')}</ul>` : ''}
       ${saved && g.source ? `<p class="muted small">${t(g.source)}</p>` : ''}
-    </section>`;
+    </details>`;
   }
 
   /* ---------- Simulator ---------- */

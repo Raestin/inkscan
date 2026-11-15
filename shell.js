@@ -240,7 +240,7 @@ document.addEventListener('mouseover', e => {
     if (peekEl !== el || !el.isConnected) return;
     const url = A.imgUrl(c, 'normal'), f = A.cardFacts(c), p = A.priceOf(c);
     peek.innerHTML = `<div class="peek-art">${url ? `<img src="${esc(url)}" alt="">` : `<span class="peek-ph">${esc(c.n)}</span>`}</div>
-      <div class="peek-info"><b class="peek-n">${esc(c.n)}</b><span class="peek-t">${esc(f.type)}${f.cost ? ` · ${esc(f.cost)}` : ''}</span>
+      <div class="peek-info"><b class="peek-n">${esc(c.n)}</b><span class="peek-t">${esc(f.type)}${f.cost ? ` · ${esc(f.cost).replace(/\{([^}]+)\}/g, (_, x) => `<i class="pip pip-${x.replace(/[^A-Za-z0-9]/g, '').toLowerCase()}">${x}</i>`)}` : ''}</span>
       ${f.stats.length ? `<div class="pstats">${f.stats.slice(0, 6).map(([l, v]) => `<span class="pstat"><b>${esc(v)}</b>${esc(l)}</span>`).join('')}</div>` : ''}
       ${f.rules ? `<div class="peek-tx">${f.rules}</div>` : ''}
       <span class="peek-foot"><b>${p != null ? money(p) : 'No price'}</b>${f.owned ? `You own ${f.owned}` : 'Not in your collection'} · ${esc(c.sn || '')}</span></div>`;
