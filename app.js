@@ -1730,6 +1730,7 @@ async function advStart(host, d){
   }
 }
 $('deckAdvBtn').onclick=openAdvisor;
+$('deckPlayBtn').onclick=()=>self.InkPlay?.open({game:GAME_ID,deck:getDeck()});
 $('deckHandBtn').onclick = ()=>{
   const d=getDeck(); if(!d) return;
   const pool=[]; for (const [nv,q] of Object.entries(d.cards)) for (let i=0;i<q;i++) pool.push(nv);
