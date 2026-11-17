@@ -58,6 +58,7 @@ function renderHome(){
       <button class="btn" data-home="new">${ic('plus')}New deck</button>
       <button class="btn" data-home="import">${ic('import')}Import</button>
       <button class="btn" data-tab="browse">${ic('search')}Browse</button>
+      <button class="btn" data-home="play">${ic('play')}Track a game</button>
     </div>
     ${decks.length ? `<div class="home-cols">
       <section class="home-sec hdeck"><header><h3>Jump back in</h3><button class="seeall" data-tab="decks">All decks</button></header><div class="list">${recent.map(x => deckRow(x)).join('')}</div></section>
@@ -79,6 +80,7 @@ const HOME_ACTS = {
   cloud: () => $('manualUpdate').click(),
   tools: () => $('toolsBtn').click(),
   keys: () => showKeys(),
+  play: () => window.InkPlay?.open({game: A.game}),
 };
 $('homeBody').addEventListener('click', e => {
   const d = e.target.closest('[data-home-deck]'); if (d) return A.openDeck(d.dataset.homeDeck);
@@ -106,6 +108,7 @@ function actions(){
     {icon: 'heart', n: 'Wishlist', run: HOME_ACTS.wish},
     {icon: 'grid', n: 'Sets', m: 'How much of each set you own', run: HOME_ACTS.sets},
     {icon: 'help', n: 'How to play', run: () => A.showTab('help')},
+    {icon: 'play', n: 'Game tracker', m: 'Life, lore, counters and tokens', run: HOME_ACTS.play},
     {icon: 'save', n: 'Tools and backup', run: HOME_ACTS.tools},
     {icon: 'cloud', n: 'Cloud & family', run: HOME_ACTS.cloud},
     {icon: 'chart', n: 'Deck workshop', m: 'Portal', run: () => { location.href = 'portal/#decks'; }},
@@ -188,6 +191,7 @@ function showKeys(){
   </dl>`);
 }
 $('railKeys').onclick = showKeys;
+$('railPlay').onclick = HOME_ACTS.play;
 let goT = 0;
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('pal').hidden ? palOpen() : palClose(); return; }
