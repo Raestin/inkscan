@@ -1,0 +1,47 @@
+name: Refresh One Piece and Pokémon cards and prices
+
+# Rebuilds onepiece-cards.json and pokemon-cards.json once a week. Main only takes pull requests, so the
+# new files go to the catalog-auto branch and a pull request is opened for the owner to approve.
+# Opening the pull request needs the repository setting "Allow GitHub Actions to create and approve pull
+# requests"; without it the branch is still pushed and the pull request is opened by hand.
+
+on:
+  schedule:
+    - cron: '41 9 * * 1'   # Mondays, 09:41 UTC (about 4 AM Central)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Build the catalogs
+        run: |
+          node tools/build-onepiece.cjs
+          node tools/build-pokemon.cjs
+      - name: Push the branch and open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- onepiece-cards.json pokemon-cards.json; then echo "No changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B catalog-auto
+          git add onepiece-cards.json pokemon-cards.json
+          git commit -m "Refresh One Piece and Pokémon cards and prices"
+          git push --force origin catalog-auto
+          if [ -n "$(gh pr list --head catalog-auto --state open --json number --jq '.[].number')" ]; then echo "Pull request already open"; exit 0; fi
+          gh pr create --base main --head catalog-auto --title "Refresh One Piece and Pokémon cards and prices" --body "Weekly rebuild of the card files. Merging puts the new cards and prices live." || echo "::warning::Branch catalog-auto is pushed, but this job is not allowed to open the pull request."
