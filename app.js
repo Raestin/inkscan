@@ -189,7 +189,7 @@ function indexCards(d){
     c.inks = (c.i||'').split('/').filter(Boolean);
     c.num = parseInt(c.c,10) || 0;
     byId.set(c.id,c);
-    bySetNum.set(norm(c.s)+'|'+norm(c.c), c);
+    { const k=norm(c.s)+'|'+norm(c.c); if(!c.la||!bySetNum.has(k)) bySetNum.set(k, c); }   // the English printing stands for a set and number
     const printingKey=printingToken(c.s)+'|'+(LORCANA?printingToken(c.c):collectorToken(c.c));
     (byPrinting.get(printingKey)||byPrinting.set(printingKey,[]).get(printingKey)).push(c);
     (byNV.get(c.nv) || byNV.set(c.nv,[]).get(c.nv)).push(c);
@@ -365,8 +365,8 @@ async function fillDeckCards(){
 }
 async function livePrinting(ref){
   if(!G.live||!ref?.set||!ref.collector||!navigator.onLine) return null;
-  const absentKey=printingToken(ref.set)+'|'+collectorToken(ref.collector); if(sfAbsent.has(absentKey)) return null;
-  try{ const card=await scryfall(`/cards/${encodeURIComponent(ref.set.toLowerCase())}/${encodeURIComponent(ref.collector.toLowerCase())}`); if(!card){ sfAbsent.add(absentKey); return null; } const c=G.fromScryfall(card); addLiveCards([c]); return byId.get(c.id)||null; }
+  const absentKey=printingToken(ref.set)+'|'+collectorToken(ref.collector)+(ref.lang?'|'+ref.lang:''); if(sfAbsent.has(absentKey)) return null;
+  try{ const card=await scryfall(`/cards/${encodeURIComponent(ref.set.toLowerCase())}/${encodeURIComponent(ref.collector.toLowerCase())}${ref.lang?'/'+encodeURIComponent(ref.lang):''}`); if(!card){ sfAbsent.add(absentKey); return null; } const c=G.fromScryfall(card); addLiveCards([c]); return byId.get(c.id)||null; }
   catch(e){ return null; }
 }
 async function livePrints(card){
@@ -795,11 +795,12 @@ const printingToken=value=>String(value??'').trim().toUpperCase();
 const collectorToken=value=>printingToken(value).replace(/^0+(?=\d)/,'');
 const isSpecialPrinting=card=>!!card && (LORCANA ? (card.r==='Promo'||!/^\d+$/.test(String(card.s))) : isSpecialCard(card));
 const printingAllowed=(card,scope)=>scope!=='promo'||isSpecialPrinting(card);
-function exactPrinting(set,collector,scope='all'){
-  const reference={set:printingToken(set),collector:collectorToken(collector)};
-  const matches=byPrinting?.get(reference.set+'|'+reference.collector)||[];
+// A set and number name one printing per language; without a language it is the English one.
+function exactPrinting(set,collector,scope='all',lang){
+  const reference={set:printingToken(set),collector:collectorToken(collector),...(lang?{lang}:{})};
+  const matches=(byPrinting?.get(reference.set+'|'+reference.collector)||[]).filter(card=>(card.la||'')===(lang||''));
   const candidates=matches.filter(card=>printingAllowed(card,scope));
-  const label=`${reference.set} #${reference.collector}`;
+  const label=`${reference.set}${lang?' · '+lang.toUpperCase():''} #${reference.collector}`;
   if(!matches.length)return {status:'missing',card:null,candidates:[],reference,message:`${label} is not in this catalog. Nothing was added. Choose the exact printing manually; do not substitute its regular-set version.`};
   if(!candidates.length)return {status:'blocked',card:null,candidates:[],reference,message:`${label} is a regular-set printing. Promo / special only is selected, so nothing was added. Search for the exact promo printing or switch printing scope.`};
   if(candidates.length!==1)return {status:'ambiguous',card:null,candidates,reference,message:`${label} matches multiple catalog printings. Nothing was added. Review and select the exact printing manually.`};
@@ -833,12 +834,12 @@ function resolveOldFrame(ref,scope='all'){
 }
 function resolveNumberLine(text,scope='all'){
   if(!LORCANA){
-    const refs=[...new Map(G.parseCode(text).map(r=>[printingToken(r.set)+'|'+collectorToken(r.collector),r])).values()];
+    const refs=[...new Map(G.parseCode(text).map(r=>[printingToken(r.set)+'|'+collectorToken(r.collector)+'|'+(r.lang||''),r])).values()];
     const old=!refs.length&&G.parseOldCode?.(text);
     if(old)return resolveOldFrame(old,scope);
     if(!refs.length)return {status:'unrecognized',card:null,candidates:[],reference:null,message:'The card code could not be read. Nothing was added. Search by its printed code or card name.'};
-    if(refs.length>1){const candidates=[...new Map(refs.flatMap(r=>exactPrinting(r.set,r.collector,scope).candidates).map(c=>[c.id,c])).values()];return {status:'ambiguous',card:null,candidates,reference:null,message:'More than one card code was read. Nothing was added. Choose the exact printing.'};}
-    return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope));
+    if(refs.length>1){const candidates=[...new Map(refs.flatMap(r=>exactPrinting(r.set,r.collector,scope,r.lang).candidates).map(c=>[c.id,c])).values()];return {status:'ambiguous',card:null,candidates,reference:null,message:'More than one card code was read. Nothing was added. Choose the exact printing.'};}
+    return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope,refs[0].lang));
   }
   const source=String(text||'').replace(/\n/g,' '),references=[];
   // Full alphanumeric tokens are retained. A promo denominator is authoritative;
@@ -860,11 +861,19 @@ function parseLine(text){const result=resolveNumberLine(text,scanPrintingScope);
 function searchPrintings(query,scope=scanPrintingScope){
   const q=String(query||'').trim();
   if(!DB)return {candidates:[],reference:null,message:''};
+  // Typed with "ja" (or "jp", "japanese") on the end, a search is for the Japanese printing: "MKM 432 ja", "voja ja".
+  const ja=G.live&&/^(.*\S)\s+(?:ja|jp|japanese)$/i.exec(q);
+  if(ja){
+    const rest=ja[1].trim(), code=/^([A-Za-z0-9]{2,6})\s*[#\s]\s*#?([0-9]{1,4}[A-Za-z★]?)$/.exec(rest);
+    if(code&&/[A-Za-z]/.test(code[1]))return exactPrinting(code[1],code[2],scope,'ja');
+    const want=norm(rest), candidates=want.length>=2?DB.cards.filter(c=>c.la==='ja'&&printingAllowed(c,scope)&&norm(c.n).includes(want)):[];
+    return {status:'search',candidates,reference:null,lang:'ja',name:rest,message:candidates.length?'':'Looking for Japanese printings. Type more of the name, or the set and number, for example MKM 432 ja.'};
+  }
   if(!LORCANA&&q){
     const typedOld=/^\s*\d{1,3}\s*\/\s*\d{2,3}\s+(?:©\s*)?(?:19|20)\d\d\s*$/.test(q)&&G.parseOldCode?.(q.replace(/(\d{4})\s*$/,'© $1'));
     if(typedOld)return resolveOldFrame(typedOld,scope);
     const refs=G.parseCode(q);
-    if(refs.length===1)return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope));
+    if(refs.length===1)return regularPrinting(exactPrinting(refs[0].set,refs[0].collector,scope,refs[0].lang));
     const pair=/^([A-Za-z0-9]{2,6})\s*[#\s]\s*#?([0-9]{1,4}[A-Za-z★]?)$/.exec(q);
     if(G.live&&pair&&/[A-Za-z]/.test(pair[1]))return exactPrinting(pair[1],pair[2],scope);
   }
@@ -892,7 +901,8 @@ $('q').addEventListener('input',()=>{quickVisible=30;clearTimeout(qT);qT=setTime
 function renderQuick(){
   if(G.live){
     const q=$('q').value.trim(), pre=searchPrintings(q);
-    if(pre.status==='missing'&&pre.reference) Promise.all((pre.references||[pre.reference]).map(livePrinting)).then(found=>{ if(found.some(Boolean)||(pre.references||[]).every(r=>sfAbsent.has(r.set+'|'+r.collector))) renderQuick(); });
+    if(pre.status==='missing'&&pre.reference) Promise.all((pre.references||[pre.reference]).map(livePrinting)).then(found=>{ if(found.some(Boolean)||(pre.references||[]).every(r=>sfAbsent.has(r.set+'|'+r.collector+(r.lang?'|'+r.lang:'')))) renderQuick(); });
+    else if(pre.lang) liveSearch(`${pre.name} lang:${pre.lang}`,'prints').then(added=>{ if(added) renderQuick(); });
     else liveSearch(q).then(added=>{ if(added) renderQuick(); });
   }
   const result=searchPrintings($('q').value),res=result.candidates.slice(0,quickVisible),el=$('qres');

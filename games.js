@@ -168,7 +168,8 @@
     guide: 'bottom-left',
     deckFormatNote: 'Decklists use one card per line, like "1 Sol Ring". Set and number in parentheses are ignored when importing. Cards under a "Commander" heading become the commander.',
     nvKey: c => norm(c.n) + '|',
-    setLabel: c => String(c.s || '').toUpperCase(),
+    // A printing in another language says so beside its set: "MKM · JA".
+    setLabel: c => String(c.s || '').toUpperCase() + (c.la ? ' · ' + c.la.toUpperCase() : ''),
     imgUrl: (c, size) => size === 'normal' ? (c.imgN || c.img || '') : (c.img || ''),
     displayVersion: c => c.pv || '',
     stats: c => [['Mana value', c.co], ['Power', c.st], ['Toughness', c.wp], ['Loyalty', c.lo]],
@@ -185,9 +186,10 @@
       const t = String(text || '').toUpperCase().replace(/&\s*\S{0,2}\s*(?:19|20)\d\d\s+W[A-Z]+.*$/gm, ' ').replace(/[•·]/g, ' ')
         .replace(/\b([A-Z]{2,3}) (\d)(?=[^A-Z0-9\n]{0,3}EN\b)/g, '$1$2');
       const refs = [];
-      const set = /\b([A-Z0-9]{3,5})[^A-Z0-9\n]{1,4}EN\b/.exec(t) || /\b([A-Z0-9]{3,5})\s*[★☆*]/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
+      // English and Japanese are tracked. A Japanese card prints "MKM • JA" (older ones "JP"); its card number is the same as the English one.
+      const set = /\b([A-Z0-9]{3,5})[^A-Z0-9\n]{1,4}(EN|JA|JP)\b/.exec(t) || /\b([A-Z0-9]{3,5})\s*[★☆*]/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);
       const num = /\b0*(\d{1,4}[A-Z★]?)\s*(?:\/\s*\d{1,4})?\s+[CURMSLTP]\b/.exec(t) || /\b0*(\d{1,4})\s*\/\s*\d{1,4}\b/.exec(t) || /\b[CURMSLTP]\s+0*(\d{1,4}[A-Z★]?)\b/.exec(t);
-      if (set && num && /[A-Z]/.test(set[1])) refs.push({set: set[1], collector: num[1]});
+      if (set && num && /[A-Z]/.test(set[1])) refs.push({set: set[1], collector: num[1], ...(/^J/.test(set[2] || '') ? {lang: 'ja'} : {})});
       return refs;
     },
     // Frames before Magic 2015 print no set code, only "™ & © 1993-2011 Wizards of the Coast LLC 109/175".
@@ -216,7 +218,7 @@
       if (card.full_art && !/Basic/.test(card.type_line || '')) labels.push('Full Art');
       if (card.promo) labels.push('Promo');
       return {
-        id: 'sf_' + card.id, n: card.name, v: '', s: card.set, sn: card.set_name, c: String(card.collector_number),
+        id: 'sf_' + card.id, n: card.name, v: '', ...(card.lang && card.lang !== 'en' ? {la: card.lang, pn: card.printed_name || face.printed_name || ''} : {}), s: card.set, sn: card.set_name, c: String(card.collector_number),
         r: card.rarity || '', pv: labels.join(', '), i: (colors.length ? colors : ['Colorless']).join('/'),
         co: card.cmc ?? null, ik: 1, ty: card.type_line || face.type_line || '', cl: '',
         st: num(card.power ?? face.power), wp: num(card.toughness ?? face.toughness), lo: num(card.loyalty ?? face.loyalty),
