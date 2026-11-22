@@ -55,6 +55,7 @@
       const rect = trim(luma, w, dark, x0, y0, x1 + 1, y1 + 1), bw = Math.round(rect.w * w), bh = Math.round(rect.h * h), ratio = Math.min(bw, bh) / Math.max(bw, bh);
       if (ratio < CARD * 0.9 || ratio > CARD * 1.1) continue;
       if (Math.max(bw / w, bh / h) < 0.12 || count < bw + bh) continue;      // too small to be a card, or a few stray specks
+      if (count > bw * bh * 0.92) continue;                                  // dark all through: a shadow or an empty tray, not a card's border round its face
       // A shape clear of the picture's edges is trusted first. One that touches an edge is used only when there
       // is no other and it fills most of the picture (a card zoomed right in, or cards stacked under it): a
       // corner of dark table can be card-shaped too.
@@ -98,14 +99,20 @@
   }
   /* How different two small frames are: the average brightness change per pixel, 0 to 255. With a card's
      place given (fractions of the frame), only that part is compared: a card that fills a small part of the
-     picture would otherwise barely move the average when it is swapped. */
+     picture would otherwise barely move the average when it is swapped. The whole part getting
+     brighter or darker together (the camera adjusting its exposure) is taken out first: that is not a new card. */
   function change(a, b, w, rect){
     if (!a.length || a.length !== b.length) return 255;
-    if (!rect || !w){ let sum = 0; for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]); return sum / a.length; }
-    const h = a.length / w, x0 = Math.max(0, Math.floor(rect.x * w)), x1 = Math.min(w, Math.ceil((rect.x + rect.w) * w)), y0 = Math.max(0, Math.floor(rect.y * h)), y1 = Math.min(h, Math.ceil((rect.y + rect.h) * h));
-    let sum = 0, n = 0;
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++, n++) sum += Math.abs(a[y * w + x] - b[y * w + x]);
-    return n ? sum / n : 0;
+    const h = w ? a.length / w : 1, cols = w || a.length;
+    const x0 = rect && w ? Math.max(0, Math.floor(rect.x * w)) : 0, x1 = rect && w ? Math.min(w, Math.ceil((rect.x + rect.w) * w)) : cols;
+    const y0 = rect && w ? Math.max(0, Math.floor(rect.y * h)) : 0, y1 = rect && w ? Math.min(h, Math.ceil((rect.y + rect.h) * h)) : h;
+    let shift = 0, n = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++, n++) shift += a[y * cols + x] - b[y * cols + x];
+    if (!n) return 0;
+    shift /= n;
+    let sum = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) sum += Math.abs(a[y * cols + x] - b[y * cols + x] - shift);
+    return sum / n;
   }
   const api = {CARD, REGIONS, NUDGE, findCard, zoomFor, turns, cleanTitle, change};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
