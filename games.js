@@ -167,7 +167,8 @@
     scanHint: 'Fit the card\'s bottom-left corner into the corner guide. The set code and number go in the gold box; on cards from before 2014, that\'s the © line with the number.',
     guide: 'bottom-left',
     deckFormatNote: 'Decklists use one card per line, like "1 Sol Ring". Set and number in parentheses are ignored when importing. Cards under a "Commander" heading become the commander.',
-    nvKey: c => norm(c.n) + '|',
+    // Decks go by card name. A Japanese printing is collected and valued but is not a deck copy, so it keys apart.
+    nvKey: c => norm(c.n) + '|' + (c.la || ''),
     // A printing in another language says so beside its set: "MKM · JA".
     setLabel: c => String(c.s || '').toUpperCase() + (c.la ? ' · ' + c.la.toUpperCase() : ''),
     imgUrl: (c, size) => size === 'normal' ? (c.imgN || c.img || '') : (c.img || ''),
@@ -218,7 +219,7 @@
       if (card.full_art && !/Basic/.test(card.type_line || '')) labels.push('Full Art');
       if (card.promo) labels.push('Promo');
       return {
-        id: 'sf_' + card.id, n: card.name, v: '', ...(card.lang && card.lang !== 'en' ? {la: card.lang, pn: card.printed_name || face.printed_name || ''} : {}), s: card.set, sn: card.set_name, c: String(card.collector_number),
+        id: 'sf_' + card.id, n: card.name, v: '', ...(card.lang && card.lang !== 'en' ? {la: card.lang, v: card.lang === 'ja' ? 'Japanese' : card.lang.toUpperCase(), pn: card.printed_name || face.printed_name || ''} : {}), s: card.set, sn: card.set_name, c: String(card.collector_number),
         r: card.rarity || '', pv: labels.join(', '), i: (colors.length ? colors : ['Colorless']).join('/'),
         co: card.cmc ?? null, ik: 1, ty: card.type_line || face.type_line || '', cl: '',
         st: num(card.power ?? face.power), wp: num(card.toughness ?? face.toughness), lo: num(card.loyalty ?? face.loyalty),
