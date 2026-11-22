@@ -63,3 +63,38 @@ test('change: the same frame is 0, a card taken out is large', () => {
   assert.equal(S.change(card, card), 0);
   assert.ok(S.change(card, empty) > 18);
 });
+test('a small card in a pale stand on a dark table is found, not the table', () => {
+  const w = 240, h = 320, l = new Uint8Array(w * h).fill(45);                      // dark wood everywhere
+  for (let y = 100; y < 300; y++) for (let x = 40; x < 230; x++) l[y * w + x] = 225;   // the pale stand
+  const card = {x: 75, y: 135, w: 66, h: 92};
+  for (let y = card.y; y < card.y + card.h; y++) for (let x = card.x; x < card.x + card.w; x++){
+    const b = 3, rim = x < card.x + b || x >= card.x + card.w - b || y < card.y + b || y >= card.y + card.h - b;
+    l[y * w + x] = rim ? 25 : 140;
+  }
+  const r = S.findCard(l, w, h);
+  assert.ok(r); assert.equal(r.sideways, false);
+  assert.ok(near(r.x, 75 / 240) && near(r.y, 135 / 320) && near(r.w, 66 / 240) && near(r.h, 92 / 320));
+});
+test('a picture that is dark all over has no card', () => {
+  assert.equal(S.findCard(new Uint8Array(160 * 213).fill(40), 160, 213), null);
+});
+test('zoomFor: fills the picture, limited by the farthest edge, the camera range and small changes', () => {
+  assert.equal(S.zoomFor({x: 0.36, y: 0.4, w: 0.28, h: 0.2}, 1, 1, 8), 3.1);       // centred small card: 0.44 / 0.14
+  assert.equal(S.zoomFor({x: 0.15, y: 0.4, w: 0.28, h: 0.2}, 1, 1, 8), 1.3);       // off to one side: little room
+  assert.equal(S.zoomFor({x: 0.36, y: 0.4, w: 0.28, h: 0.2}, 1, 1, 2), 2);         // camera stops at 2x
+  assert.equal(S.zoomFor({x: 0.07, y: 0.1, w: 0.86, h: 0.8}, 3, 1, 8), 3);         // already fills it
+});
+test('a card-shaped corner of dark table is not a card', () => {
+  const w = 240, h = 320, l = new Uint8Array(w * h).fill(225);
+  for (let y = 0; y < 105; y++) for (let x = 165; x < 240; x++) l[y * w + x] = 45;
+  assert.equal(S.findCard(l, w, h), null);
+});
+test('change looks only at the card when told where it is', () => {
+  const w = 240, h = 320, rect = {x: 0.3, y: 0.4, w: 0.28, h: 0.29};
+  const scene = shade => { const l = new Uint8Array(w * h).fill(200); for (let y = 128; y < 221; y++) for (let x = 72; x < 139; x++) l[y * w + x] = shade; return l; };
+  const one = scene(60), other = scene(150);
+  assert.ok(S.change(one, other) < 18, 'a small card barely moves the whole-picture average');
+  assert.ok(S.change(one, other, w, rect) > 60, 'but its own place changes a lot');
+  assert.equal(S.change(one, one, w, rect), 0);
+  assert.equal(S.change(one, new Uint8Array(10)), 255);
+});
