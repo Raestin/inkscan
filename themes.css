@@ -173,6 +173,8 @@
 [data-game] .hero{background:var(--hero-art) var(--hero-art-pos,right 16px center)/var(--hero-art-size,auto 88%) no-repeat,var(--hero-plate,none),var(--hero-shine),var(--grad-hero)}
 /* the game's real logo under the portal's game picker, when themes.js could load it */
 .game-logo{display:none;height:56px;border-radius:var(--r-sm);background:var(--logo) center/contain no-repeat;background-origin:content-box;padding:8px}
+/* The text keeps clear of the logo on the right: it wraps before it reaches it. */
+@media (max-width:1099px){html[data-real] .hero .hero-main{max-width:calc(100% - min(44%,220px) - 12px)}}
 @media (min-width:1100px){[data-game] .shell .hero{--hero-art-pos:right 380px center}}
 /* themed icons on the stat cards: one drawing per card, in the card's own colour */
 [data-game] :is(.tiles>.tile,.statcard)::after{display:block;content:'';position:absolute;right:12px;top:12px;width:40px;height:40px;border-radius:0;filter:none;opacity:1;background:var(--tone);pointer-events:none;
