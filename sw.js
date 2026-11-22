@@ -1,6 +1,6 @@
-const CACHE = 'inkscan-v52';
+const CACHE = 'inkscan-v53';
 const IMGS = 'inkscan-img';
-const SHELL = ['./','index.html','safety.js?v=52','family.js?v=52','catalog.js?v=52','legality.js?v=52','games.js?v=52','app.js?v=52','tokens.css?v=52','app.css?v=52','shell.css?v=52','play.css?v=52','play.js?v=52','themes.css?v=52','themes.js?v=52','themes/lorcana-hero.svg','themes/lorcana-icons.svg','themes/lorcana-pattern.svg','themes/mtg-hero.svg','themes/mtg-icons.svg','themes/mtg-pattern.svg','themes/onepiece-hero.svg','themes/onepiece-icons.svg','themes/onepiece-pattern.svg','themes/pokemon-hero.svg','themes/pokemon-icons.svg','themes/pokemon-pattern.svg','shell.js?v=52','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
+const SHELL = ['./','index.html','safety.js?v=53','family.js?v=53','catalog.js?v=53','legality.js?v=53','games.js?v=53','stand.js?v=53','app.js?v=53','tokens.css?v=53','app.css?v=53','shell.css?v=53','play.css?v=53','play.js?v=53','themes.css?v=53','themes.js?v=53','themes/lorcana-hero.svg','themes/lorcana-icons.svg','themes/lorcana-pattern.svg','themes/mtg-hero.svg','themes/mtg-icons.svg','themes/mtg-pattern.svg','themes/onepiece-hero.svg','themes/onepiece-icons.svg','themes/onepiece-pattern.svg','themes/pokemon-hero.svg','themes/pokemon-icons.svg','themes/pokemon-pattern.svg','shell.js?v=53','manifest.webmanifest','icon-192.png','icon-512.png','cards.json','finish-quotes.json','promo-catalog.json','core-rules.json','no-image.svg',
   'tesseract.min.js','worker.min.js','tesseract-core-simd-lstm.wasm.js','tesseract-core-lstm.wasm.js','eng.traineddata.gz'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); });
 // No forced takeover of open scanning tabs. A new worker waits for the normal browser lifecycle.
@@ -14,7 +14,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (u.origin !== location.origin) return; // Lorcast API and fonts go straight to the network
-  if (e.request.mode === 'navigate' || /\/(index\.html|app\.js|app\.css|shell\.js|shell\.css|play\.js|play\.css|tokens\.css|catalog\.js|legality\.js|games\.js|onepiece-cards\.json|pokemon-cards\.json|help\/[a-z]+\.json|core-rules\.json|finish-quotes\.json|promo-catalog\.json)$/.test(u.pathname)) {
+  if (e.request.mode === 'navigate' || /\/(index\.html|app\.js|app\.css|shell\.js|shell\.css|play\.js|play\.css|tokens\.css|catalog\.js|legality\.js|games\.js|stand\.js|onepiece-cards\.json|pokemon-cards\.json|help\/[a-z]+\.json|core-rules\.json|finish-quotes\.json|promo-catalog\.json)$/.test(u.pathname)) {
     // no-cache: always revalidate with the server, so a fresh release is never hidden behind the 10-minute HTTP cache
     e.respondWith(fetch(e.request, {cache: 'no-cache'}).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
     return;
