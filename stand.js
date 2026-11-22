@@ -35,9 +35,8 @@
     const h = luma.length / w;
     return {x: x0 / w, y: y0 / h, w: (x1 - x0) / w, h: (y1 - y0) / h, sideways: x1 - x0 > y1 - y0};
   }
-  function findCard(luma, w, h, dark = 80){
-    const seen = new Uint8Array(w * h), stack = new Int32Array(w * h);
-    let best = null, bestArea = 0, spare = null, spareArea = 0;
+  function findCards(luma, w, h, dark = 80, solidToo = false){
+    const seen = new Uint8Array(w * h), stack = new Int32Array(w * h), out = [];
     for (let start = 0; start < w * h; start++){
       if (seen[start] || luma[start] >= dark) continue;
       let top = 0, x0 = w, x1 = 0, y0 = h, y1 = 0, count = 0, edge = false;
@@ -55,14 +54,44 @@
       const rect = trim(luma, w, dark, x0, y0, x1 + 1, y1 + 1), bw = Math.round(rect.w * w), bh = Math.round(rect.h * h), ratio = Math.min(bw, bh) / Math.max(bw, bh);
       if (ratio < CARD * 0.9 || ratio > CARD * 1.1) continue;
       if (Math.max(bw / w, bh / h) < 0.12 || count < bw + bh) continue;      // too small to be a card, or a few stray specks
-      if (count > bw * bh * 0.92) continue;                                  // dark all through: a shadow or an empty tray, not a card's border round its face
-      // A shape clear of the picture's edges is trusted first. One that touches an edge is used only when there
-      // is no other and it fills most of the picture (a card zoomed right in, or cards stacked under it): a
-      // corner of dark table can be card-shaped too.
-      if (!edge){ if (bw * bh > bestArea){ bestArea = bw * bh; best = rect; } }
-      else if (Math.max(bw / w, bh / h) >= 0.6 && bw * bh > spareArea){ spareArea = bw * bh; spare = rect; }
+      if (!solidToo && count > bw * bh * 0.92) continue;                     // dark all through: a shadow or a gap, not a card's border round its face
+      // A shape that touches the picture's edge counts only when it fills most of the picture (a card zoomed
+      // right in): a corner of dark table can be card-shaped too.
+      if (edge && Math.max(bw / w, bh / h) < 0.6) continue;
+      out.push({...rect, edge, area: bw * bh});
     }
-    return best || spare;
+    // Shapes clear of the edges first, then the biggest.
+    return out.sort((a, b) => (a.edge - b.edge) || (b.area - a.area)).map(({edge, area, ...rect}) => rect);
+  }
+  const findCard = (luma, w, h, dark) => findCards(luma, w, h, dark)[0] || null;
+  /* Where a card has just been put: the card-shaped part of the picture that differs from the picture
+     before. Anything that was already there (the table, a gap in the stand, a shadow) cannot be it, however
+     card-like it looks. The camera's own brightening or darkening is taken out first, using the middle value
+     of all the differences, which belongs to the unchanged background. */
+  function changed(base, now, w, by = 28){
+    if (!base.length || base.length !== now.length) return null;
+    const hist = new Uint32Array(511);
+    for (let i = 0; i < now.length; i += 3) hist[now[i] - base[i] + 255]++;
+    let half = Math.ceil(now.length / 3 / 2), shift = 0;
+    for (let v = 0; v < 511; v++){ half -= hist[v]; if (half <= 0){ shift = v - 255; break; } }
+    const mask = new Uint8Array(now.length);
+    for (let i = 0; i < now.length; i++) mask[i] = Math.abs(now[i] - base[i] - shift) > by ? 0 : 255;
+    return findCards(mask, w, now.length / w, 128, true)[0] || null;
+  }
+  // How much of two places is shared: 1 when they are the same, 0 when they don't touch.
+  function overlap(a, b){
+    const x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), y = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    const both = x * y, either = a.w * a.h + b.w * b.h - both;
+    return either > 0 ? both / either : 0;
+  }
+  // Where a place ends up when the camera zooms by k about the middle of the picture.
+  const scale = (r, k) => ({x: 0.5 + (r.x - 0.5) * k, y: 0.5 + (r.y - 0.5) * k, w: r.w * k, h: r.h * k, sideways: r.sideways});
+  // How much light and dark a place holds (the spread of its brightness). An empty tray is flat; a card is not.
+  function contrast(luma, w, r){
+    const h = luma.length / w, x0 = Math.max(0, Math.floor(r.x * w)), x1 = Math.min(w, Math.ceil((r.x + r.w) * w)), y0 = Math.max(0, Math.floor(r.y * h)), y1 = Math.min(h, Math.ceil((r.y + r.h) * h));
+    let n = 0, sum = 0, squares = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++){ const v = luma[y * w + x]; n++; sum += v; squares += v * v; }
+    return n ? Math.sqrt(Math.max(0, squares / n - (sum / n) ** 2)) : 0;
   }
   /* How far to zoom so the card fills the picture. The camera zooms about the middle of the picture, so the
      card's farthest edge sets the limit: it ends up 6% in from the picture's edge. Returns the new zoom
@@ -114,7 +143,7 @@
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) sum += Math.abs(a[y * cols + x] - b[y * cols + x] - shift);
     return sum / n;
   }
-  const api = {CARD, REGIONS, NUDGE, findCard, zoomFor, turns, cleanTitle, change};
+  const api = {CARD, REGIONS, NUDGE, findCard, findCards, changed, overlap, scale, contrast, zoomFor, turns, cleanTitle, change};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.InkStand = api;
 })(typeof self !== 'undefined' ? self : globalThis);
