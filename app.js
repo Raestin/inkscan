@@ -937,7 +937,7 @@ function reviewNumberLine(text){
 function setScanPrintingScope(scope){
   if(!['all','promo'].includes(scope))return;
   scanPrintingScope=scope;$('scanPrintingScope').value=scope;quickVisible=30;lastKey=null;streak=0;cooldownKey=null;clearScanResolution();renderQuick();
-  if(scanning)camMsg(scope==='promo'?'Promo / special only: read the full printed code, or choose the exact printing below.':'Line the number line up in the gold box');
+  if(scanning)camMsg(scope==='promo'?'Promo / special only: read the full printed code, or choose the exact printing below.':idleMsg());
 }
 $('scanPrintingScope').onchange=()=>setScanPrintingScope($('scanPrintingScope').value);
 $('scanManual').onclick=()=>{quickVisible=30;if(lastScanResolution?.query){$('q').value=lastScanResolution.query;}else if(lastScanResolution?.reference){const r=lastScanResolution.reference;$('q').value=r.set+' '+r.collector;}else $('q').value='';renderQuick();$('q').focus?.();$('q').scrollIntoView?.({block:'center',behavior:'smooth'});};
@@ -959,7 +959,7 @@ function getWorker(){
 function camMsg(s){ const el=$('camstate'); el.textContent=s; el.hidden=!s; }
 async function startCam(){
   $('startBtn').disabled = true; $('startBtn').textContent = 'Starting…';
-  try{ stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:2560}, height:{ideal:1440}}}); }
+  try{ stream = await navigator.mediaDevices.getUserMedia({audio:false, video:standMode?{facingMode:{ideal:'environment'}, width:{ideal:2880}, height:{ideal:2160}, aspectRatio:{ideal:4/3}}:{facingMode:{ideal:'environment'}, width:{ideal:2560}, height:{ideal:1440}}}); }
   catch(e){
     $('startBtn').disabled=false; $('startBtn').textContent='Start scanning';
     toast(e && e.name==='NotAllowedError' ? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.' : 'Couldn’t open the camera.');
@@ -969,11 +969,11 @@ async function startCam(){
   const track = stream.getVideoTracks()[0];
   try{ const caps = track.getCapabilities?.() || {}; $('torchBtn').hidden = !caps.torch;
        if (caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
-       setupZoom(track, caps); }catch(e){}
-  $('camstart').hidden = true; $('guide').hidden = false; $('camtools').hidden = false;
+       setupZoom(track, caps); if(standMode){ applyZoom(1, track); $('zoomBtn').hidden=true; } }catch(e){}
+  $('camstart').hidden = true; $('guide').hidden = standMode; $('camtools').hidden = false;
   camMsg('Loading the reader…');
   try{ await getWorker(); }catch(e){ camMsg('The card reader didn’t load. Reload the page and try again.'); return; }
-  scanning = true; camMsg('Line the number line up in the gold box');
+  scanning = true; standMiss=0; camMsg(idleMsg());
   try{ await navigator.wakeLock?.request('screen'); }catch(e){}
   loop();
 }
@@ -997,7 +997,7 @@ function applyZoom(level, track=stream?.getVideoTracks()[0]){
 $('zoomBtn').onclick=()=>{ const i=zoomSteps.indexOf(zoomLevel), next=zoomSteps[(i+1)%zoomSteps.length]; lsSet('inkscan.zoom.'+(zoomNative?'n':'d'),next); applyZoom(next); };
 function stopCam(){
   scanning=false; if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('camtools').hidden=true; camMsg('');
+  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('standBox').hidden=true; $('camtools').hidden=true; camMsg('');
   $('startBtn').disabled=!DB; $('startBtn').textContent='Start scanning';
   $('torchBtn').setAttribute('aria-pressed','false');
 }
@@ -1018,9 +1018,13 @@ function stripRectInVideo(){
 const OCR_WIDTH=800;
 function grabStrip(){
   const r = stripRectInVideo(); if(!r) return null;
-  const s = OCR_WIDTH / r.w;
-  cv.width = Math.round(r.w*s); cv.height = Math.round(r.h*s);
-  ctx.filter = 'grayscale(1)'; ctx.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, cv.width, cv.height); ctx.filter = 'none';
+  return readable(video, r.x, r.y, r.w, r.h);
+}
+// One strip of a picture, made ready for the reader: 800 px wide, grey, full contrast, dark text on light.
+function readable(source, x, y, w, h){
+  const s = OCR_WIDTH / w;
+  cv.width = Math.round(w*s); cv.height = Math.round(h*s);
+  ctx.filter = 'grayscale(1)'; ctx.drawImage(source, x, y, w, h, 0, 0, cv.width, cv.height); ctx.filter = 'none';
   const img = ctx.getImageData(0,0,cv.width,cv.height), d=img.data; let lo=255, hi=0;
   let sum=0, n=0;
   for (let i=0;i<d.length;i+=16){ const v=d[i]; if(v<lo) lo=v; if(v>hi) hi=v; sum+=v; n++; }
@@ -1029,12 +1033,119 @@ function grabStrip(){
   ctx.putImageData(img,0,0);
   return cv;
 }
+/* ---- stand mode: the phone sits on a scanning stand (stand.js) ----
+   Nothing to aim. The app finds the card in the picture by its black border, turns it upright and reads
+   the number line where it always is. A card with no black border is read where the last card sat. If the
+   number line can't be read, the name line is read instead and the printings of that card are offered. */
+const STAND_STILL=4, STAND_SWAP=18;   // average brightness change per pixel, out of 255
+let standPrev=null, standAdded=null, standMoving=false;
+let standMode=lsGet('inkscan.stand',false)===true, standRect=lsGet('inkscan.stand.rect',null), standTurn=lsGet('inkscan.stand.turn',0), standSeen=false, standMiss=0;
+const standCv=document.createElement('canvas'), standCtx=standCv.getContext('2d',{willReadFrequently:true}), cardCv=document.createElement('canvas'), cardCtx=cardCv.getContext('2d');
+const idleMsg=()=>standMode?'Stand mode: drop a card in.':'Line the number line up in the gold box';
+function standLocate(){
+  const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
+  const w=160, h=Math.round(160*vh/vw); standCv.width=w; standCv.height=h;
+  standCtx.filter='grayscale(1)'; standCtx.drawImage(video,0,0,w,h); standCtx.filter='none';
+  const d=standCtx.getImageData(0,0,w,h).data, l=new Uint8Array(w*h); for(let i=0;i<l.length;i++) l[i]=d[i*4];
+  // Reading waits until the picture holds still, so a hand moving a card in is never read half-way.
+  standMoving=!standPrev||standPrev.length!==l.length||InkStand.change(standPrev,l)>STAND_STILL; standPrev=l;
+  // A different picture from the one a card was added from means that card has left: the next one, even another copy, counts.
+  if(standAdded&&(standAdded.length!==l.length||InkStand.change(standAdded,l)>STAND_SWAP)){ standAdded=null; cooldownKey=null; lastKey=null; streak=0; }
+  const found=InkStand.findCard(l,w,h); standSeen=!!found; if(found) standRect=found;
+  showStandBox();
+  return standRect;
+}
+// The outline over the preview: solid where a card was found just now, dashed where the last one sat.
+function showStandBox(){
+  const el=$('standBox'), r=standRect, vw=video.videoWidth, vh=video.videoHeight; el.hidden=!(standMode&&scanning&&r&&vw);
+  if(el.hidden) return;
+  const box=video.getBoundingClientRect(), sc=Math.max(box.width/vw, box.height/vh), ox=(vw*sc-box.width)/2, oy=(vh*sc-box.height)/2;
+  el.style.left=(r.x*vw*sc-ox)+'px'; el.style.top=(r.y*vh*sc-oy)+'px'; el.style.width=(r.w*vw*sc)+'px'; el.style.height=(r.h*vh*sc)+'px';
+  el.classList.toggle('seen',standSeen);
+}
+// One part of the card (the number line or the name line), upright and ready for the reader.
+function grabStand(kind, turn){
+  const r=standRect, vw=video.videoWidth, vh=video.videoHeight; if(!r||!vw) return null;
+  const sx=r.x*vw, sy=r.y*vh, sw=r.w*vw, sh=r.h*vh;
+  const H=Math.round(Math.min(1600,Math.max(sw,sh))), W=Math.round(H*InkStand.CARD);
+  cardCv.width=W; cardCv.height=H; cardCtx.save();
+  if(turn===90){ cardCtx.translate(W,0); cardCtx.rotate(Math.PI/2); cardCtx.drawImage(video,sx,sy,sw,sh,0,0,H,W); }
+  else if(turn===270){ cardCtx.translate(0,H); cardCtx.rotate(-Math.PI/2); cardCtx.drawImage(video,sx,sy,sw,sh,0,0,H,W); }
+  else if(turn===180){ cardCtx.translate(W,H); cardCtx.rotate(Math.PI); cardCtx.drawImage(video,sx,sy,sw,sh,0,0,W,H); }
+  else cardCtx.drawImage(video,sx,sy,sw,sh,0,0,W,H);
+  cardCtx.restore();
+  const g=InkStand.REGIONS[kind];
+  return readable(cardCv, g.x*W, g.y*H, g.w*W, g.h*H);
+}
+// The number line's text, trying the card both ways up. '' when nothing readable is there; undefined while the
+// picture is still moving; null when no card place is known yet.
+async function standRead(){
+  if(!standLocate()) return null;
+  if(standMoving) return undefined;
+  const side=G.guide==='bottom-right'?'right':'left';
+  const order=InkStand.turns(standRect.sideways,standTurn); standLines={};
+  for(const turn of order){
+    const strip=grabStand(side,turn); if(!strip) return null;
+    const {data}=await worker.recognize(strip);
+    if(resolveNumberLine(data.text,scanPrintingScope).status!=='unrecognized'){ standTurn=turn; return data.text; }
+    standLines[turn]=data.text;
+  }
+  return standLines[order[0]]||'';
+}
+/* The number line wouldn't read: read the name line and ask Scryfall which card that is (it forgives a
+   wrong letter or two). One printing is added like any scan; several are listed to choose from. */
+const standNames=new Map(); let standNameAt=0, standLines={};
+async function standName(){
+  if(!G.live||!standSeen) return null;
+  for(const turn of InkStand.turns(standRect.sideways,standTurn)){
+    const strip=grabStand('title',turn); if(!strip) return null;
+    const {data}=await worker.recognize(strip), title=InkStand.cleanTitle(data.text); if(!title) continue;
+    const key=norm(title);
+    if(!standNames.has(key)){
+      if(!navigator.onLine||Date.now()-standNameAt<1500) return null;
+      standNameAt=Date.now(); standNames.set(key,null);
+      try{ const found=await scryfall('/cards/named?fuzzy='+encodeURIComponent(title));
+        if(found?.name){ await liveSearch(`!"${found.name.split(' // ')[0]}"`,'prints'); standNames.set(key,G.fromScryfall(found).n); } }
+      catch(e){ standNames.delete(key); return null; }
+    }
+    const name=standNames.get(key); if(!name) continue;
+    const candidates=DB.cards.filter(c=>c.n===name&&printingAllowed(c,scanPrintingScope)); if(!candidates.length) continue;
+    standTurn=turn;
+    // The card just added is still in the stand: one bad read of its number line is not a new card.
+    const again=candidates.find(c=>c.id===cooldownKey); if(again) return {status:'exact',card:again,candidates:[again],reference:null,query:name,message:''};
+    // Whatever did read on the number line still helps: a collector number or a set code that fits only one printing settles it.
+    const line=String(standLines[turn]||'').toUpperCase(), numbers=new Set([...line.matchAll(/\b0*(\d{1,4})\s*\/\s*\d{2,4}\b/g),...line.matchAll(/\b[CURMSLTP]\s+0*(\d{2,4})\b/g)].map(m=>m[1]));
+    const words=new Set(line.split(/[^A-Z0-9]+/));
+    for(const fits of [c=>numbers.has(collectorToken(c.c))&&words.has(String(c.s).toUpperCase()), c=>numbers.has(collectorToken(c.c))]){
+      const narrowed=candidates.filter(fits); if(narrowed.length===1) return {status:'exact',card:narrowed[0],candidates:narrowed,reference:null,query:name,message:''};
+    }
+    if(candidates.length===1) return {status:'exact',card:candidates[0],candidates,reference:null,query:name,message:''};
+    return {status:'ambiguous',card:null,candidates,reference:null,query:name,message:`Read the name ${name}, but not the number line. Nothing was added. Choose your printing.`};
+  }
+  return null;
+}
+function setStandMode(on){
+  standMode=!!on; lsSet('inkscan.stand',standMode); $('standBtn').setAttribute('aria-pressed',standMode);
+  lastKey=null; streak=0; cooldownKey=null; clearScanResolution();
+  if(stream){ stopCam(); startCam(); }
+  toast(standMode?'Stand mode on: no aiming, just drop each card in the stand.':'Stand mode off.');
+}
+$('standBtn').setAttribute('aria-pressed',standMode);
+$('standBtn').onclick=()=>setStandMode(!standMode);
+// Each start gets its own number: a loop left over from before a quick stop and start ends itself.
+let loopRun=0;
 async function loop(){
-  while (scanning){
+  const mine=++loopRun;
+  while (scanning && mine===loopRun){
     if (document.hidden || !worker){ await sleep(400); continue; }
-    const frame = grabStrip(); if(!frame){ await sleep(200); continue; }
     let card=null,resolution=null;
-    try{const {data}=await worker.recognize(frame);resolution=resolveNumberLine(data.text,scanPrintingScope);card=resolution.card;
+    try{
+      let data;
+      if(standMode){ const text=await standRead(); if(text===undefined){ standMiss=0; await sleep(90); continue; } if(text===null){ if(scanning) camMsg('Stand mode: put a black-bordered card in the stand first, so the app can see where cards sit.'); await sleep(300); continue; } data={text}; }
+      else { const frame = grabStrip(); if(!frame){ await sleep(200); continue; } ({data}=await worker.recognize(frame)); }
+      resolution=resolveNumberLine(data.text,scanPrintingScope);
+      if(standMode&&resolution.status==='unrecognized'){ if(++standMiss>=2) resolution=await standName()||resolution; } else standMiss=0;
+      card=resolution.card;
       if(G.live&&resolution.reference?.set&&!resolution.references) prefetchSet(resolution.reference.set);
       else if(G.live&&card) prefetchSet(card.s);
       if(!card&&G.live&&resolution.status==='missing'&&resolution.reference){ const refs=resolution.references||[resolution.reference], found=await Promise.all(refs.map(livePrinting)); if(found.some(Boolean)||(resolution.references&&refs.every(r=>sfAbsent.has(r.set+'|'+r.collector)))){resolution=resolveNumberLine(data.text,scanPrintingScope);card=resolution.card;} }
@@ -1042,12 +1153,12 @@ async function loop(){
       if(pickedQuery&&resolution.query===pickedQuery){pickedMiss=0;if(scanning)camMsg('Got it. Swap in the next card.');await sleep(250);continue;}
       if(pickedQuery&&++pickedMiss>=2)pickedQuery=null;
     }catch(e){}
-    if (!scanning) break;
+    if (!scanning || mine!==loopRun) break;
     if (!card){
       streak=0; lastKey=null; blankFrames++;
       if (blankFrames>=2) cooldownKey=null;
       if(resolution && ['missing','ambiguous','blocked'].includes(resolution.status)){showScanResolution(resolution);camMsg(resolution.status==='ambiguous'&&resolution.query?'Tap your card below.':'Printing needs manual review. Nothing added.');}
-      else if(Date.now()-lastHitAt>2500)camMsg('Line the number line up in the gold box');
+      else if(Date.now()-lastHitAt>2500)camMsg(idleMsg());
     } else {
       clearScanResolution();blankFrames=0;
       streak = (card.id===lastKey) ? streak+1 : 1; lastKey = card.id;
@@ -1067,6 +1178,7 @@ function beep(){
 function hit(card){
   if(!card || !byId.has(card.id) || !printingAllowed(card,scanPrintingScope))return;
   lastHitAt = Date.now();
+  if(standMode){ standAdded=standPrev; if(standSeen){ lsSet('inkscan.stand.rect',standRect); lsSet('inkscan.stand.turn',standTurn); } }
   logAdd(card, foilMode);
   // A camera hit replaces any manual search that was showing.
   if($('q').value){ $('q').value=''; quickVisible=30; renderQuick(); }
