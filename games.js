@@ -180,7 +180,9 @@
     // Bottom-left collector line, e.g. "0123/0280 R" over "MH3 • EN", or "123 R MH3 EN".
     parseCode(text){
       // "BBD • EN": the dot (★ on foils) comes back as *, %, +, «, "+*" and the like, and "MH1" sometimes as "MH 1".
-      const t = String(text || '').toUpperCase().replace(/[•·]/g, ' ')
+      // The copyright at the end of the line ("™ & © 2026 Wizards of the Coast") is dropped first: its year, read
+      // after a "C" for the ©, would pass for a common card numbered 2026.
+      const t = String(text || '').toUpperCase().replace(/&\s*\S{0,2}\s*(?:19|20)\d\d\s+W[A-Z]+.*$/gm, ' ').replace(/[•·]/g, ' ')
         .replace(/\b([A-Z]{2,3}) (\d)(?=[^A-Z0-9\n]{0,3}EN\b)/g, '$1$2');
       const refs = [];
       const set = /\b([A-Z0-9]{3,5})[^A-Z0-9\n]{1,4}EN\b/.exec(t) || /\b([A-Z0-9]{3,5})\s*[★☆*]/.exec(t) || /\b(?:EN)\s+([A-Z0-9]{3,5})\b/.exec(t);

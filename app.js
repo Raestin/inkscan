@@ -959,7 +959,13 @@ function getWorker(){
 function camMsg(s){ const el=$('camstate'); el.textContent=s; el.hidden=!s; }
 async function startCam(){
   $('startBtn').disabled = true; $('startBtn').textContent = 'Starting…';
-  try{ stream = await navigator.mediaDevices.getUserMedia({audio:false, video:standMode?{facingMode:{ideal:'environment'}, width:{ideal:2880}, height:{ideal:2160}, aspectRatio:{ideal:4/3}}:{facingMode:{ideal:'environment'}, width:{ideal:2560}, height:{ideal:1440}}}); }
+  const size=standMode?{width:{ideal:2880}, height:{ideal:2160}, aspectRatio:{ideal:4/3}}:{width:{ideal:2560}, height:{ideal:1440}};
+  const open=which=>navigator.mediaDevices.getUserMedia({audio:false, video:{...which, ...size}});
+  try{
+    // The camera picked with the Camera button, if it is still there; otherwise the phone's own choice of back camera.
+    try{ stream = await open(camId?{deviceId:{exact:camId}}:{facingMode:{ideal:'environment'}}); }
+    catch(e){ if(!camId||e?.name==='NotAllowedError') throw e; camId=null; lsSet('inkscan.cam',null); stream = await open({facingMode:{ideal:'environment'}}); }
+  }
   catch(e){
     $('startBtn').disabled=false; $('startBtn').textContent='Start scanning';
     toast(e && e.name==='NotAllowedError' ? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.' : 'Couldn’t open the camera.');
@@ -969,7 +975,8 @@ async function startCam(){
   const track = stream.getVideoTracks()[0];
   try{ const caps = track.getCapabilities?.() || {}; $('torchBtn').hidden = !caps.torch;
        if (caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
-       setupZoom(track, caps); if(standMode){ applyZoom(1, track); $('zoomBtn').hidden=true; } }catch(e){}
+       setupZoom(track, caps); if(standMode){ const z=lsGet('inkscan.stand.zoom',1); applyZoom(zoomRange?Math.min(zoomRange.max,Math.max(zoomRange.min,z)):1, track); $('zoomBtn').hidden=true; standProven=false; standUnseen=0; } }catch(e){}
+  listCams();
   $('camstart').hidden = true; $('guide').hidden = standMode; $('camtools').hidden = false;
   camMsg('Loading the reader…');
   try{ await getWorker(); }catch(e){ camMsg('The card reader didn’t load. Reload the page and try again.'); return; }
@@ -980,9 +987,9 @@ async function startCam(){
 /* Zoom so the corner guide can be filled from a normal distance. Phones focus poorly closer than
    about 10 cm; zooming keeps the phone back there while the number line still fills the gold box.
    The camera's own zoom is used when the browser offers it (sharper); otherwise the preview is scaled. */
-let zoomNative=false, zoomSteps=[1], zoomLevel=1;
+let zoomNative=false, zoomSteps=[1], zoomLevel=1, zoomRange=null;
 function setupZoom(track, caps){
-  const z=caps?.zoom; zoomNative=!!(z&&z.max>1);
+  const z=caps?.zoom; zoomNative=!!(z&&z.max>1); zoomRange=zoomNative?{min:z.min||1,max:z.max}:null;
   zoomSteps=zoomNative?[1,1.5,2,2.5,3].filter(v=>v>=(z.min||1)&&v<=z.max):[1,1.25,1.5,2];
   if(zoomNative&&!zoomSteps.includes(z.max)&&z.max<3) zoomSteps.push(z.max);
   const saved=lsGet('inkscan.zoom.'+(zoomNative?'n':'d'),null), def=zoomNative?2:1.5;
@@ -997,7 +1004,7 @@ function applyZoom(level, track=stream?.getVideoTracks()[0]){
 $('zoomBtn').onclick=()=>{ const i=zoomSteps.indexOf(zoomLevel), next=zoomSteps[(i+1)%zoomSteps.length]; lsSet('inkscan.zoom.'+(zoomNative?'n':'d'),next); applyZoom(next); };
 function stopCam(){
   scanning=false; if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('standBox').hidden=true; $('camtools').hidden=true; camMsg('');
+  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('lensBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('standBox').hidden=true; $('camtools').hidden=true; camMsg('');
   $('startBtn').disabled=!DB; $('startBtn').textContent='Start scanning';
   $('torchBtn').setAttribute('aria-pressed','false');
 }
@@ -1038,19 +1045,43 @@ function readable(source, x, y, w, h){
    the number line where it always is. A card with no black border is read where the last card sat. If the
    number line can't be read, the name line is read instead and the printings of that card are offered. */
 const STAND_STILL=4, STAND_SWAP=18;   // average brightness change per pixel, out of 255
-let standPrev=null, standAdded=null, standMoving=false;
+let standPrev=null, standAdded=null, standMoving=false, standProven=false, standUnseen=0;
 let standMode=lsGet('inkscan.stand',false)===true, standRect=lsGet('inkscan.stand.rect',null), standTurn=lsGet('inkscan.stand.turn',0), standSeen=false, standMiss=0;
 const standCv=document.createElement('canvas'), standCtx=standCv.getContext('2d',{willReadFrequently:true}), cardCv=document.createElement('canvas'), cardCtx=cardCv.getContext('2d');
 const idleMsg=()=>standMode?'Stand mode: drop a card in.':'Line the number line up in the gold box';
+// A picture shrunk to 320 px wide, one brightness byte per pixel: enough to find the card and to notice change.
+function standGrid(source, sw, sh){
+  const w=320, h=Math.round(320*sh/sw); standCv.width=w; standCv.height=h;
+  standCtx.filter='grayscale(1)'; standCtx.drawImage(source,0,0,w,h); standCtx.filter='none';
+  const d=standCtx.getImageData(0,0,w,h).data, l=new Uint8Array(w*h); for(let i=0;i<l.length;i++) l[i]=d[i*4];
+  return {l,w,h};
+}
+/* When the live picture is not sharp enough for the number line, the camera takes one full photograph of
+   the card (many times the detail of video) and that is read instead. One photograph per card placed; a
+   camera that can't, or doesn't answer within four seconds twice, is left alone for the rest of the session. */
+let standShot=null, standShotOf=null, standShotTurn=0, standShotFails=0, standShotLines={};
+async function standPhoto(){
+  if(!self.ImageCapture||!standSeen||!standPrev||standShotFails>=2) return null;
+  if(standShotOf) return standShot;
+  standShot?.bmp.close?.(); standShot=null; standShotOf=standPrev; standShotLines={};
+  try{
+    const blob=await Promise.race([new ImageCapture(stream.getVideoTracks()[0]).takePhoto(), sleep(4000).then(()=>{ throw Error('slow'); })]);
+    const bmp=await createImageBitmap(blob), {l,w,h}=standGrid(bmp,bmp.width,bmp.height), rect=InkStand.findCard(l,w,h);
+    if(rect) standShot={bmp,rect}; else bmp.close?.();
+    standShotFails=0;
+  }catch(e){ standShotFails++; }
+  return standShot;
+}
 function standLocate(){
   const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
-  const w=160, h=Math.round(160*vh/vw); standCv.width=w; standCv.height=h;
-  standCtx.filter='grayscale(1)'; standCtx.drawImage(video,0,0,w,h); standCtx.filter='none';
-  const d=standCtx.getImageData(0,0,w,h).data, l=new Uint8Array(w*h); for(let i=0;i<l.length;i++) l[i]=d[i*4];
+  const {l,w,h}=standGrid(video,vw,vh);
   // Reading waits until the picture holds still, so a hand moving a card in is never read half-way.
-  standMoving=!standPrev||standPrev.length!==l.length||InkStand.change(standPrev,l)>STAND_STILL; standPrev=l;
+  // Change is measured where the card sits (the whole picture until a card has been found).
+  standMoving=!standPrev||InkStand.change(standPrev,l,w,standRect)>STAND_STILL; standPrev=l;
   // A different picture from the one a card was added from means that card has left: the next one, even another copy, counts.
-  if(standAdded&&(standAdded.length!==l.length||InkStand.change(standAdded,l)>STAND_SWAP)){ standAdded=null; cooldownKey=null; lastKey=null; streak=0; }
+  if(standAdded&&InkStand.change(standAdded,l,w,standRect)>STAND_SWAP){ standAdded=null; cooldownKey=null; lastKey=null; streak=0; }
+  // Any movement ends the life of the photograph taken of the card that was there.
+  if(standMoving&&standShotOf){ standShot?.bmp.close?.(); standShot=null; standShotOf=null; standShotLines={}; }
   const found=InkStand.findCard(l,w,h); standSeen=!!found; if(found) standRect=found;
   showStandBox();
   return standRect;
@@ -1061,36 +1092,64 @@ function showStandBox(){
   if(el.hidden) return;
   const box=video.getBoundingClientRect(), sc=Math.max(box.width/vw, box.height/vh), ox=(vw*sc-box.width)/2, oy=(vh*sc-box.height)/2;
   el.style.left=(r.x*vw*sc-ox)+'px'; el.style.top=(r.y*vh*sc-oy)+'px'; el.style.width=(r.w*vw*sc)+'px'; el.style.height=(r.h*vh*sc)+'px';
-  el.classList.toggle('seen',standSeen);
+  el.classList.toggle('seen',standSeen); el.dataset.info=`${vw}×${vh} · ${Math.round(zoomLevel*10)/10}×`;
+}
+/* The camera sees far more than the card, so the card is zoomed to fill the picture: small print needs it.
+   The zoom is remembered with the stand. If no card shows for a while at a remembered zoom that has not yet
+   read a card this time, the phone has probably moved: zoom back out and look again. True when the zoom changed. */
+function standZoom(){
+  if(!zoomRange) return false;
+  let want=zoomLevel;
+  if(standSeen){ standUnseen=0; want=InkStand.zoomFor(standRect,zoomLevel,zoomRange.min,zoomRange.max); }
+  else if(!standProven&&zoomLevel>zoomRange.min&&++standUnseen>=10){ standUnseen=0; want=zoomRange.min; standRect=null; }
+  if(want===zoomLevel) return false;
+  applyZoom(want); standPrev=null; return true;
 }
 // One part of the card (the number line or the name line), upright and ready for the reader.
-function grabStand(kind, turn){
-  const r=standRect, vw=video.videoWidth, vh=video.videoHeight; if(!r||!vw) return null;
+function grabStand(kind, turn, source=video, r=standRect, nudge=0){
+  const vw=source.videoWidth||source.width, vh=source.videoHeight||source.height; if(!r||!vw) return null;
   const sx=r.x*vw, sy=r.y*vh, sw=r.w*vw, sh=r.h*vh;
-  const H=Math.round(Math.min(1600,Math.max(sw,sh))), W=Math.round(H*InkStand.CARD);
+  const H=Math.round(Math.min(2200,Math.max(sw,sh))), W=Math.round(H*InkStand.CARD);
   cardCv.width=W; cardCv.height=H; cardCtx.save();
-  if(turn===90){ cardCtx.translate(W,0); cardCtx.rotate(Math.PI/2); cardCtx.drawImage(video,sx,sy,sw,sh,0,0,H,W); }
-  else if(turn===270){ cardCtx.translate(0,H); cardCtx.rotate(-Math.PI/2); cardCtx.drawImage(video,sx,sy,sw,sh,0,0,H,W); }
-  else if(turn===180){ cardCtx.translate(W,H); cardCtx.rotate(Math.PI); cardCtx.drawImage(video,sx,sy,sw,sh,0,0,W,H); }
-  else cardCtx.drawImage(video,sx,sy,sw,sh,0,0,W,H);
+  if(turn===90){ cardCtx.translate(W,0); cardCtx.rotate(Math.PI/2); cardCtx.drawImage(source,sx,sy,sw,sh,0,0,H,W); }
+  else if(turn===270){ cardCtx.translate(0,H); cardCtx.rotate(-Math.PI/2); cardCtx.drawImage(source,sx,sy,sw,sh,0,0,H,W); }
+  else if(turn===180){ cardCtx.translate(W,H); cardCtx.rotate(Math.PI); cardCtx.drawImage(source,sx,sy,sw,sh,0,0,W,H); }
+  else cardCtx.drawImage(source,sx,sy,sw,sh,0,0,W,H);
   cardCtx.restore();
   const g=InkStand.REGIONS[kind];
-  return readable(cardCv, g.x*W, g.y*H, g.w*W, g.h*H);
+  return readable(cardCv, g.x*W, (g.y+nudge)*H, g.w*W, g.h*H);
 }
 // The number line's text, trying the card both ways up. '' when nothing readable is there; undefined while the
 // picture is still moving; null when no card place is known yet.
 async function standRead(){
-  if(!standLocate()) return null;
+  const place=standLocate();
   if(standMoving) return undefined;
+  if(standZoom()) return undefined;
+  if(!place) return null;
   const side=G.guide==='bottom-right'?'right':'left';
   const order=InkStand.turns(standRect.sideways,standTurn); standLines={};
   for(const turn of order){
-    const strip=grabStand(side,turn); if(!strip) return null;
-    const {data}=await worker.recognize(strip);
-    if(resolveNumberLine(data.text,scanPrintingScope).status!=='unrecognized'){ standTurn=turn; return data.text; }
-    standLines[turn]=data.text;
+    standLines[turn]='';
+    for(const nudge of standSeen?InkStand.NUDGE:[0]){
+      const strip=grabStand(side,turn,video,standRect,nudge); if(!strip) return null;
+      const {data}=await worker.recognize(strip);
+      if(resolveNumberLine(data.text,scanPrintingScope).status!=='unrecognized'){ standTurn=turn; return data.text; }
+      standLines[turn]+=data.text+'\n';
+    }
   }
-  return standLines[order[0]]||'';
+  const shot=await standPhoto();
+  if(shot) for(const turn of InkStand.turns(shot.rect.sideways,standShotTurn)){
+    if(standShotLines[turn]!==undefined) continue;                       // this photograph was already read this way up
+    standShotLines[turn]='';
+    for(const nudge of InkStand.NUDGE){
+      const strip=grabStand(side,turn,shot.bmp,shot.rect,nudge); if(!strip) break;
+      const {data}=await worker.recognize(strip);
+      if(resolveNumberLine(data.text,scanPrintingScope).status!=='unrecognized'){ standShotTurn=turn; standShotLines[turn]=data.text; return data.text; }
+      standShotLines[turn]+=data.text+'\n';
+    }
+  }
+  const kept=Object.values(standShotLines).find(text=>resolveNumberLine(text,scanPrintingScope).status!=='unrecognized');
+  return kept||'';
 }
 /* The number line wouldn't read: read the name line and ask Scryfall which card that is (it forgives a
    wrong letter or two). One printing is added like any scan; several are listed to choose from. */
@@ -1114,7 +1173,7 @@ async function standName(){
     // The card just added is still in the stand: one bad read of its number line is not a new card.
     const again=candidates.find(c=>c.id===cooldownKey); if(again) return {status:'exact',card:again,candidates:[again],reference:null,query:name,message:''};
     // Whatever did read on the number line still helps: a collector number or a set code that fits only one printing settles it.
-    const line=String(standLines[turn]||'').toUpperCase(), numbers=new Set([...line.matchAll(/\b0*(\d{1,4})\s*\/\s*\d{2,4}\b/g),...line.matchAll(/\b[CURMSLTP]\s+0*(\d{2,4})\b/g)].map(m=>m[1]));
+    const line=[standLines[turn],...Object.values(standShotLines)].join('\n').toUpperCase(), numbers=new Set([...line.matchAll(/\b0*(\d{1,4})\s*\/\s*\d{2,4}\b/g),...line.matchAll(/\b[CURMSLTP]\s+0*(\d{2,4})\b/g)].map(m=>m[1]));
     const words=new Set(line.split(/[^A-Z0-9]+/));
     for(const fits of [c=>numbers.has(collectorToken(c.c))&&words.has(String(c.s).toUpperCase()), c=>numbers.has(collectorToken(c.c))]){
       const narrowed=candidates.filter(fits); if(narrowed.length===1) return {status:'exact',card:narrowed[0],candidates:narrowed,reference:null,query:name,message:''};
@@ -1132,6 +1191,20 @@ function setStandMode(on){
 }
 $('standBtn').setAttribute('aria-pressed',standMode);
 $('standBtn').onclick=()=>setStandMode(!standMode);
+/* Phones with several back cameras don't always hand the browser the best one for close work (a wide-angle
+   lens makes the card tiny). The Camera button steps through them, and the choice is remembered. */
+let camIds=[], camId=lsGet('inkscan.cam',null);
+async function listCams(){
+  try{ const all=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&d.deviceId), back=all.filter(d=>/back|rear|environment/i.test(d.label)); camIds=(back.length?back:all).map(d=>d.deviceId); }
+  catch(e){ camIds=[]; }
+  $('lensBtn').hidden=!stream||camIds.length<2;
+}
+$('lensBtn').onclick=()=>{
+  if(camIds.length<2) return;
+  const now=camIds.indexOf(stream?.getVideoTracks()[0]?.getSettings?.().deviceId), next=(now+1)%camIds.length;
+  camId=camIds[next]; lsSet('inkscan.cam',camId); lsSet('inkscan.stand.zoom',1); standRect=null;
+  stopCam(); startCam(); toast(`Camera ${next+1} of ${camIds.length}`);
+};
 // Each start gets its own number: a loop left over from before a quick stop and start ends itself.
 let loopRun=0;
 async function loop(){
@@ -1145,6 +1218,7 @@ async function loop(){
       else { const frame = grabStrip(); if(!frame){ await sleep(200); continue; } ({data}=await worker.recognize(frame)); }
       resolution=resolveNumberLine(data.text,scanPrintingScope);
       if(standMode&&resolution.status==='unrecognized'){ if(++standMiss>=2) resolution=await standName()||resolution; } else standMiss=0;
+      if(standMode&&resolution.status==='unrecognized'&&standSeen&&standMiss>=3&&Math.max(standRect.w,standRect.h)<0.7){ camMsg(zoomRange&&zoomLevel<zoomRange.max?'Can’t read this one yet. Slide the phone until the card is in the middle of the picture, so the camera can zoom in closer.':'The card is too small in the picture to read. Try the Camera button, or bring the phone closer.'); await sleep(400); continue; }
       card=resolution.card;
       if(G.live&&resolution.reference?.set&&!resolution.references) prefetchSet(resolution.reference.set);
       else if(G.live&&card) prefetchSet(card.s);
@@ -1178,7 +1252,7 @@ function beep(){
 function hit(card){
   if(!card || !byId.has(card.id) || !printingAllowed(card,scanPrintingScope))return;
   lastHitAt = Date.now();
-  if(standMode){ standAdded=standPrev; if(standSeen){ lsSet('inkscan.stand.rect',standRect); lsSet('inkscan.stand.turn',standTurn); } }
+  if(standMode){ standAdded=standPrev; standProven=true; if(standSeen){ lsSet('inkscan.stand.rect',standRect); lsSet('inkscan.stand.turn',standTurn); lsSet('inkscan.stand.zoom',zoomLevel); } }
   logAdd(card, foilMode);
   // A camera hit replaces any manual search that was showing.
   if($('q').value){ $('q').value=''; quickVisible=30; renderQuick(); }
