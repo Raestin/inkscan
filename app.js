@@ -975,7 +975,7 @@ async function startCam(){
   const track = stream.getVideoTracks()[0];
   try{ const caps = track.getCapabilities?.() || {}; $('torchBtn').hidden = !caps.torch;
        if (caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
-       setupZoom(track, caps); if(standMode){ const z=lsGet('inkscan.stand.zoom',1); applyZoom(zoomRange?Math.min(zoomRange.max,Math.max(zoomRange.min,z)):1, track); $('zoomBtn').hidden=true; standProven=false; standUnseen=0; } }catch(e){}
+       setupZoom(track, caps); if(standMode){ const z=standZoomSet==='auto'?lsGet('inkscan.stand.zoom',1):standZoomSet; applyZoom(zoomRange?Math.min(zoomRange.max,Math.max(zoomRange.min,z)):1, track); $('zoomBtn').hidden=!zoomRange; standProven=false; standUnseen=0; standMovingSince=0; } }catch(e){}
   listCams();
   $('camstart').hidden = true; $('guide').hidden = standMode; $('camtools').hidden = false;
   camMsg('Loading the reader…');
@@ -997,14 +997,23 @@ function setupZoom(track, caps){
   $('zoomBtn').hidden=false;
 }
 function applyZoom(level, track=stream?.getVideoTracks()[0]){
-  zoomLevel=level; $('zoomBtn').textContent=(Math.round(level*100)/100)+'×';
+  zoomLevel=level; $('zoomBtn').textContent=(standMode&&standZoomSet==='auto'?'Auto ':'')+(Math.round(level*100)/100)+'×';
   if(zoomNative) track?.applyConstraints({advanced:[{zoom:level}]}).catch(()=>{});
   else video.style.transform=level>1?`scale(${level})`:'';
 }
-$('zoomBtn').onclick=()=>{ const i=zoomSteps.indexOf(zoomLevel), next=zoomSteps[(i+1)%zoomSteps.length]; lsSet('inkscan.zoom.'+(zoomNative?'n':'d'),next); applyZoom(next); };
+$('zoomBtn').onclick=()=>{
+  // Stand mode: Auto (the app zooms on the card), then fixed levels for when it guesses wrong.
+  if(standMode){
+    if(!zoomRange) return;
+    const levels=['auto',...[1,1.5,2,2.5,3,4,5,6,8].filter(v=>v>=zoomRange.min&&v<=zoomRange.max)], next=levels[(levels.indexOf(standZoomSet)+1)%levels.length];
+    standZoomSet=next; lsSet('inkscan.stand.zoomSet',next); standPrev=null; standUnseen=0; standProven=false;
+    applyZoom(next==='auto'?zoomRange.min:next); if(next==='auto') standRect=null;
+    return;
+  }
+  const i=zoomSteps.indexOf(zoomLevel), next=zoomSteps[(i+1)%zoomSteps.length]; lsSet('inkscan.zoom.'+(zoomNative?'n':'d'),next); applyZoom(next); };
 function stopCam(){
   scanning=false; if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('lensBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('standBox').hidden=true; $('camtools').hidden=true; camMsg('');
+  video.srcObject=null; video.style.transform=''; $('zoomBtn').hidden=true; $('lensBtn').hidden=true; $('camstart').hidden=false; $('guide').hidden=true; $('standBox').hidden=true; $('standInfo').hidden=true; $('camtools').hidden=true; camMsg('');
   $('startBtn').disabled=!DB; $('startBtn').textContent='Start scanning';
   $('torchBtn').setAttribute('aria-pressed','false');
 }
@@ -1044,8 +1053,12 @@ function readable(source, x, y, w, h){
    Nothing to aim. The app finds the card in the picture by its black border, turns it upright and reads
    the number line where it always is. A card with no black border is read where the last card sat. If the
    number line can't be read, the name line is read instead and the printings of that card are offered. */
-const STAND_STILL=4, STAND_SWAP=18;   // average brightness change per pixel, out of 255
-let standPrev=null, standAdded=null, standMoving=false, standProven=false, standUnseen=0;
+/* Average brightness change per pixel, out of 255. A real camera is never perfectly still (grain, focus and
+   exposure all shimmer, more so zoomed in), so 'still' is generous, and a picture that keeps shimmering is
+   read anyway after a second and a half rather than waited on for ever. */
+const STAND_STILL=8, STAND_SWAP=18, STAND_WAIT=1500;
+let standPrev=null, standAdded=null, standMoving=false, standProven=false, standUnseen=0, standMovingSince=0, standChange=0;
+let standZoomSet=lsGet('inkscan.stand.zoomSet','auto');
 let standMode=lsGet('inkscan.stand',false)===true, standRect=lsGet('inkscan.stand.rect',null), standTurn=lsGet('inkscan.stand.turn',0), standSeen=false, standMiss=0;
 const standCv=document.createElement('canvas'), standCtx=standCv.getContext('2d',{willReadFrequently:true}), cardCv=document.createElement('canvas'), cardCtx=cardCv.getContext('2d');
 const idleMsg=()=>standMode?'Stand mode: drop a card in.':'Line the number line up in the gold box';
@@ -1077,28 +1090,32 @@ function standLocate(){
   const {l,w,h}=standGrid(video,vw,vh);
   // Reading waits until the picture holds still, so a hand moving a card in is never read half-way.
   // Change is measured where the card sits (the whole picture until a card has been found).
-  standMoving=!standPrev||InkStand.change(standPrev,l,w,standRect)>STAND_STILL; standPrev=l;
+  standChange=standPrev?InkStand.change(standPrev,l,w,standRect):255; standPrev=l;
+  const shifting=standChange>STAND_STILL; if(!shifting) standMovingSince=0; else if(!standMovingSince) standMovingSince=Date.now();
+  standMoving=shifting&&Date.now()-standMovingSince<STAND_WAIT;
   // A different picture from the one a card was added from means that card has left: the next one, even another copy, counts.
   if(standAdded&&InkStand.change(standAdded,l,w,standRect)>STAND_SWAP){ standAdded=null; cooldownKey=null; lastKey=null; streak=0; }
   // Any movement ends the life of the photograph taken of the card that was there.
-  if(standMoving&&standShotOf){ standShot?.bmp.close?.(); standShot=null; standShotOf=null; standShotLines={}; }
+  if(shifting&&standChange>STAND_SWAP&&standShotOf){ standShot?.bmp.close?.(); standShot=null; standShotOf=null; standShotLines={}; }
   const found=InkStand.findCard(l,w,h); standSeen=!!found; if(found) standRect=found;
   showStandBox();
   return standRect;
 }
 // The outline over the preview: solid where a card was found just now, dashed where the last one sat.
 function showStandBox(){
-  const el=$('standBox'), r=standRect, vw=video.videoWidth, vh=video.videoHeight; el.hidden=!(standMode&&scanning&&r&&vw);
+  const el=$('standBox'), info=$('standInfo'), r=standRect, vw=video.videoWidth, vh=video.videoHeight; el.hidden=!(standMode&&scanning&&r&&vw);
+  // A line for troubleshooting from a screenshot: picture size, zoom, whether a card is seen, how much the picture is changing.
+  info.hidden=!(standMode&&scanning&&vw); info.textContent=`${vw}×${vh} · ${Math.round(zoomLevel*10)/10}× · ${standSeen?'card':'no card'} · ${Math.round(standChange)}`;
   if(el.hidden) return;
   const box=video.getBoundingClientRect(), sc=Math.max(box.width/vw, box.height/vh), ox=(vw*sc-box.width)/2, oy=(vh*sc-box.height)/2;
   el.style.left=(r.x*vw*sc-ox)+'px'; el.style.top=(r.y*vh*sc-oy)+'px'; el.style.width=(r.w*vw*sc)+'px'; el.style.height=(r.h*vh*sc)+'px';
-  el.classList.toggle('seen',standSeen); el.dataset.info=`${vw}×${vh} · ${Math.round(zoomLevel*10)/10}×`;
+  el.classList.toggle('seen',standSeen);
 }
 /* The camera sees far more than the card, so the card is zoomed to fill the picture: small print needs it.
    The zoom is remembered with the stand. If no card shows for a while at a remembered zoom that has not yet
    read a card this time, the phone has probably moved: zoom back out and look again. True when the zoom changed. */
 function standZoom(){
-  if(!zoomRange) return false;
+  if(!zoomRange||standZoomSet!=='auto') return false;
   let want=zoomLevel;
   if(standSeen){ standUnseen=0; want=InkStand.zoomFor(standRect,zoomLevel,zoomRange.min,zoomRange.max); }
   else if(!standProven&&zoomLevel>zoomRange.min&&++standUnseen>=10){ standUnseen=0; want=zoomRange.min; standRect=null; }

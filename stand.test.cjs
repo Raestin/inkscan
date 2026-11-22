@@ -91,10 +91,20 @@ test('a card-shaped corner of dark table is not a card', () => {
 });
 test('change looks only at the card when told where it is', () => {
   const w = 240, h = 320, rect = {x: 0.3, y: 0.4, w: 0.28, h: 0.29};
-  const scene = shade => { const l = new Uint8Array(w * h).fill(200); for (let y = 128; y < 221; y++) for (let x = 72; x < 139; x++) l[y * w + x] = shade; return l; };
-  const one = scene(60), other = scene(150);
+  // Two different cards in the same place: each is dark where the other is light.
+  const scene = flip => { const l = new Uint8Array(w * h).fill(200); for (let y = 128; y < 221; y++) for (let x = 72; x < 139; x++) l[y * w + x] = (y < 175) === flip ? 50 : 170; return l; };
+  const one = scene(true), other = scene(false);
   assert.ok(S.change(one, other) < 18, 'a small card barely moves the whole-picture average');
   assert.ok(S.change(one, other, w, rect) > 60, 'but its own place changes a lot');
   assert.equal(S.change(one, one, w, rect), 0);
   assert.equal(S.change(one, new Uint8Array(10)), 255);
+});
+test('a card-shaped shadow, dark all through, is not a card', () => {
+  const w = 240, h = 320, l = new Uint8Array(w * h).fill(225);
+  for (let y = 100; y < 226; y++) for (let x = 80; x < 170; x++) l[y * w + x] = 50;
+  assert.equal(S.findCard(l, w, h), null);
+});
+test('the camera brightening the whole picture is not a change', () => {
+  const card = frame(160, 213, {x: 6, y: 50, w: 113, h: 158}), brighter = card.map(v => Math.min(255, v + 20));
+  assert.ok(S.change(card, brighter, 160, {x: 0.04, y: 0.23, w: 0.7, h: 0.74}) < 2);
 });
