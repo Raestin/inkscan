@@ -480,7 +480,7 @@ function totals(){
   for (const [id,v] of Object.entries(inv)){ const c=byId.get(id); const n=inventoryCount(v); if(!n) continue; u++; copies+=n; const estimate=InkSafety.valuation([inventoryRows(c,v)]);val+=estimate.value;unpriced+=estimate.unpriced; }
   return {u,copies,val,unpriced};
 }
-function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocaleString(); $('tCopies').textContent=t.copies.toLocaleString(); $('tValue').textContent=money0(t.val)+(t.unpriced?' (partial)':'');$('tValue').title=`Overall collection estimate; ${t.unpriced} copies unpriced. TCGplayer via Lorcast, catalog ${DB?.asof||'unknown'}. ${finishPriceNote()}`; }
+function renderTotals(){ const t=totals(); $('tUnique').textContent=t.u.toLocaleString(); $('tCopies').textContent=t.copies.toLocaleString(); $('tValue').innerHTML=esc(money0(t.val))+(t.unpriced?' <span class="hero-sub">partial</span>':'');$('tValue').title=`Overall collection estimate; ${t.unpriced} copies unpriced. TCGplayer via Lorcast, catalog ${DB?.asof||'unknown'}. ${finishPriceNote()}`; }
 
 /* =========================================================
    Shared rendering
