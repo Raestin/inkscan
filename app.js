@@ -469,7 +469,7 @@ function addQty(id, foil, n, opts){
   const field=finishField(foil), had=v[field]||0, next=Math.max(0,had+n);
   if(!Number.isSafeInteger(next)){toast('Quantity is too large. Nothing was changed.');return;}
   // Family: a copy that is added belongs to the person it is being added for; a copy that is removed comes off the person removing it first.
-  if(famOn() && next!==had) famNote(id, field, next-had, opts?.person||(n>0?famAdder():InkFamily.removalFrom(famShares(id),field,session.uid,household.owner)), n>0||opts?.undo?next-had:0);
+  if(famOn() && next!==had) famNote(id, field, next-had, opts?.person||(n>0?famAdder():InkFamily.removalFrom(famShares(id),field,famMe(),household.owner)), n>0||opts?.undo?next-had:0);
   v[field]=next; if(field==='rf'&&!next)delete v.rf;
   if (!inventoryCount(v)) delete inv[id];
   if (n>0 && wish[id]){ wish[id]=Math.max(0,wish[id]-n); if(!wish[id]) delete wish[id]; saveWish(); }
@@ -784,7 +784,7 @@ $('log').addEventListener('change',e=>{
   const snapshot={...snapshotState(),inv:next,revision:localRevision+1};
   try{InkSafety.save(STORE,snapshot,knownStoredRaw);knownStoredRaw=STORE.getItem(InkSafety.KEY);}
   catch(err){storageError='Finish change could not be confirmed. Keep this tab open and back up before retrying. '+err.message;renderSaveStatus();renderLog();return;}
-  const fp=famOn()?(x.who||InkFamily.removalFrom(famShares(x.cardId),before,session.uid,household.owner)):null;
+  const fp=famOn()?(x.who||InkFamily.removalFrom(famShares(x.cardId),before,famMe(),household.owner)):null;
   inv=next;localRevision=snapshot.revision;storageError=null;x.foil=select.value;
   if(fp){famNote(x.cardId,before,-1,fp,0);famNote(x.cardId,after,1,fp,0);}
   renderSaveStatus();renderSyncBox();renderTotals();renderLog();
@@ -2438,13 +2438,15 @@ const famSave=()=>{ famIndex=null; lsSet(FAM_KEY,fam); };
 const famPeople=()=>session && household?.for===session.uid ? InkFamily.people(household.members,household.owner) : [];
 // On only once the cloud has answered for this family and there is more than one person in it.
 const famOn=()=>!!session && fam.for===owner() && famPeople().length>1;
-const famPerson=id=>famPeople().find(p=>p.id===id);
+// Whose cards mine are: a member who shares the family owner's cards counts as the owner.
+const famMe=()=>InkFamily.self(household?.members,household?.owner,session.uid);
+const famPerson=id=>InkFamily.person(famPeople(),id);
 const famName=id=>famPerson(id)?.name||'Someone';
-const famAdder=()=>famPerson(famFor)?famFor:session.uid;
+const famAdder=()=>famPerson(famFor)?.id||famMe();
 const famHoldings=()=>famIndex||(famIndex=InkFamily.applyDeltas(InkFamily.applyDeltas(InkFamily.index(fam.holdings),fam.sending?.items,household.owner),fam.queue,household.owner));
 const famShares=id=>InkFamily.split(inv[id],famHoldings()[id],household.owner);
-const deckOwner=d=>famPerson(d.owner)?d.owner:household?.owner;
-const famStamp=d=>{ if(famOn() && session.uid!==household.owner) d.owner=session.uid; return d; };
+const deckOwner=d=>famPerson(d.owner)?.id||household?.owner;
+const famStamp=d=>{ if(famOn() && famMe()!==household.owner) d.owner=famMe(); return d; };
 function famNote(id,field,delta,person,scan){
   if(!famOn() || (person===household.owner && !scan) || (!delta && !scan)) return;
   let it=fam.queue.find(x=>x.c===id&&x.p===person); if(!it) fam.queue.push(it={c:id,p:person,q:0,f:0,r:0,s:0});
@@ -2501,12 +2503,13 @@ function famCardHTML(c){
   const people=famPeople(), shares=famShares(c.id), holders=people.filter(p=>shares[p.id]);
   const label={q:finishLabel('normal').toLowerCase(),f:'foil',rf:finishLabel('rainbow').toLowerCase()};
   const split=v=>InkFamily.FIN.filter(k=>v[k]).map(k=>`${v[k]} ${label[k]}`).join(' · ');
-  const added=(fam.scans||[]).filter(x=>x.c===c.id&&x.n>0&&famPerson(x.p)).map(x=>`${esc(famName(x.p))} (${x.n})`);
+  const scanned=new Map(); for(const x of fam.scans||[]){ const p=x.c===c.id&&x.n>0&&famPerson(x.p); if(p) scanned.set(p.id,(scanned.get(p.id)||0)+x.n); }
+  const added=[...scanned].map(([id,n])=>`${esc(famName(id))} (${n})`);
   const pick=(id,list,value)=>`<select id="${id}">${list.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
   let move='';
   if(holders.length){
     if(fm.id!==c.id) fm={id:c.id};
-    const me=session.uid;
+    const me=famMe();
     const from=holders.some(p=>p.id===fm.from)?fm.from:(holders.find(p=>p.id!==me)||holders[0]).id;
     const has=shares[from], fins=InkFamily.FIN.filter(k=>has[k]>0), fin=fins.includes(fm.fin)?fm.fin:fins[0];
     const to=people.some(p=>p.id===fm.to&&p.id!==from)?fm.to:(from!==me&&famPerson(me)?me:people.find(p=>p.id!==from).id);
@@ -2550,15 +2553,27 @@ async function famMoveDeck(d,b){
   toast(`${d.name} now belongs to ${famName(to)}. ${moved} of ${total} cards moved with it. Tap Update to share the change.`);
 }
 function famPeopleHTML(){
-  if(!famOn()) return '';
-  const mine=household.role==='owner';
-  return `<div class="famlist">${famPeople().map(p=>`<div class="famrow">${famTag(p,0,true)}<span class="note grow">${esc(p.email)}</span>${mine||p.id===session.uid?`<button class="btn ghost tiny" data-sync="rename" data-uid="${esc(p.id)}">Rename</button>`:''}</div>`).join('')}</div>`;
+  const h=household?.for===session?.uid?household:null; if(!h||(h.members||[]).length<2) return '';
+  const mine=h.role==='owner', people=InkFamily.people(h.members,h.owner), ownerName=(h.members.find(m=>m.id===h.owner)?.name)||'the owner';
+  return `<div class="famlist">${h.members.map(m=>{
+    const joint=!!m.joint&&m.id!==h.owner, p=InkFamily.person(people,m.id), name=m.name||(m.email||'Member').split('@')[0];
+    return `<div class="famrow fammember"><span class="ptag p${p?.slot||0}">${esc(name)}</span><span class="note grow">${esc(m.email||'')}${joint?` · shares ${esc(ownerName)}’s cards`:''}</span><span class="famacts">${mine||m.id===session.uid?`<button class="btn ghost tiny" data-sync="rename" data-uid="${esc(m.id)}">Rename</button>`:''}${mine&&m.id!==h.owner?`<button class="btn ghost tiny" data-sync="joint" data-uid="${esc(m.id)}" data-on="${joint?'':'1'}">${joint?'Separate cards':'Share my cards'}</button>`:''}</span></div>`;
+  }).join('')}</div>`;
 }
 async function famRename(id){
-  const p=famPerson(id); if(!p) return;
-  const name=prompt('Name to show for '+(p.email||p.name), p.name); if(name===null) return;
+  const m=(household?.members||[]).find(x=>x.id===id); if(!m) return;
+  const name=prompt('Name to show for '+(m.email||m.name), m.name||''); if(name===null) return;
   try{ await rpc('inkscan_set_name',{member:id,name:name.trim()}); await refreshHousehold(); renderSyncBox(); renderAfterEdit(); }
   catch(e){ if($('famMsg')) $('famMsg').textContent=e.message||'That name could not be saved.'; }
+}
+/* The family owner can make a member a joint owner: one pile of cards between the two of them. Cards that
+   were marked as that member's become part of the shared pile; turning it off later leaves them there. */
+async function famJoint(id,on){
+  const m=(household?.members||[]).find(x=>x.id===id); if(!m) return;
+  const name=m.name||m.email||'this person';
+  if(!confirm(on?`Share your cards with ${name}? You and ${name} become one owner: any cards marked as ${name}’s join your pile, and cards either of you adds count for both.`:`Give ${name} separate cards again? Cards already in your shared pile stay yours; cards ${name} adds from now on are marked as ${name}’s.`)) return;
+  try{ await rpc('inkscan_set_joint',{member:id,joint:!!on}); await refreshHousehold(); await famRefresh(); famChromeKey=null; renderSyncBox(); renderAfterEdit(); toast(on?`You and ${name} now share one pile of cards.`:`${name} has separate cards again.`); }
+  catch(e){ if($('famMsg')) $('famMsg').textContent=e.message||'That could not be changed.'; }
 }
 function famHistoryHTML(){
   if(!famOn() || !fam.moves.length) return '';
@@ -2619,6 +2634,7 @@ $('sheetBody').addEventListener('click', async e=>{
     }
   } else if (a==='now'){ sync(true); }
   else if (a==='rename'){ await famRename(b.dataset.uid); }
+  else if (a==='joint'){ await famJoint(b.dataset.uid, b.dataset.on==='1'); }
   else if (['invite','join','leave','remove','share'].includes(a)){
     const msg=t=>{ if($('famMsg')) $('famMsg').textContent=t; };
     try{

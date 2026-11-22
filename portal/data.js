@@ -197,14 +197,14 @@
   function takeFamily(o){
     const people = root.InkFamily ? root.InkFamily.people(household?.members, household?.owner) : [];
     state.family = o && Array.isArray(o.holdings) && people.length > 1
-      ? {owner: household.owner, me: session.uid, people, holdings: root.InkFamily.index(o.holdings), moves: Array.isArray(o.moves) ? o.moves : []} : null;
+      ? {owner: household.owner, me: root.InkFamily.self(household.members, household.owner, session.uid), people, holdings: root.InkFamily.index(o.holdings), moves: Array.isArray(o.moves) ? o.moves : []} : null;
   }
   const noShares = {};
   function shares(id){
     const f = state.family; if (!f) return noShares;
     return root.InkFamily.split(state.inv.get(id), f.holdings[id], f.owner);
   }
-  const deckOwner = d => d.owner && state.family?.people.some(p => p.id === d.owner) ? d.owner : state.family?.owner || null;
+  const deckOwner = d => (d.owner && root.InkFamily?.person(state.family?.people, d.owner)?.id) || state.family?.owner || null;
   // Hands copies from one person to another. Returns how many moved.
   async function transfer(items, deck){
     const o = await rest('POST', 'rpc/inkscan_transfer', {game: state.game, items, deck_id: deck?.id || null, deck_name: deck?.name || null});

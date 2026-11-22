@@ -41,7 +41,7 @@
     return `You own ${all}${here && here !== all ? ` (${here} of this printing)` : ''} · ${free} free`;
   }
   /* ---------- family: who has which copies ---------- */
-  const fam = () => S().family, famPerson = id => fam()?.people.find(p => p.id === id), famName = id => famPerson(id)?.name || 'Someone';
+  const fam = () => S().family, famPerson = id => InkFamily.person(fam()?.people, id), famName = id => famPerson(id)?.name || 'Someone';
   const finWords = v => [[v.q, 'normal'], [v.f, 'foil'], [v.rf, 'rainbow foil']].filter(x => x[0]).map(x => `${x[0]} ${x[1]}`).join(', ');
   const ptag = (p, n, full) => p ? `<span class="ptag p${p.slot}" title="${esc(p.name)}">${esc(full ? p.name : p.initials)}${n ? `<b>${n}</b>` : ''}</span>` : '';
   // On card art a tag only appears when someone other than the family owner has a copy; lists always name everyone.

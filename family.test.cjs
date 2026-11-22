@@ -30,3 +30,20 @@ test('people: family owner first, names fall back to the email', () => {
   const p = F.people([{id: A, email: 'landen@x.com'}, {id: O, email: 'b@x.com', name: 'Brian Chapman'}], O);
   assert.deepStrictEqual(p.map(x => [x.id, x.name, x.slot, x.initials, x.owner]), [[O, 'Brian Chapman', 0, 'BC', true], [A, 'Landen', 1, 'L', false]]);
 });
+
+test('a joint member is one owner with the family owner', () => {
+  const members = [{id: O, name: 'Brian', email: 'b@x.com'}, {id: A, name: 'Laura', email: 'l@x.com', joint: true}, {id: B, name: 'Nic', email: 'n@x.com'}];
+  const p = F.people(members, O);
+  assert.deepStrictEqual(p.map(x => x.id), [O, B], 'the joint member is not listed separately');
+  assert.strictEqual(p[0].name, 'Brian & Laura'); assert.strictEqual(p[0].initials, 'BL'); assert.deepStrictEqual(p[0].also, [A]);
+  assert.strictEqual(F.person(p, A).id, O, 'her id counts as the owner');
+  assert.strictEqual(F.person(p, B).id, B); assert.strictEqual(F.person(p, 'gone'), null);
+  assert.strictEqual(F.self(members, O, A), O, 'cards she adds are the owner pile');
+  assert.strictEqual(F.self(members, O, B), B); assert.strictEqual(F.self(members, O, O), O);
+});
+test('the joint mark means nothing on the owner, and nothing without it', () => {
+  const members = [{id: O, name: 'Brian', joint: true}, {id: A, name: 'Laura'}];
+  const p = F.people(members, O);
+  assert.deepStrictEqual(p.map(x => x.name), ['Brian', 'Laura']); assert.strictEqual(p[0].also, undefined);
+  assert.strictEqual(F.self(members, O, A), A);
+});
