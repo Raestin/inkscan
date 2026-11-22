@@ -67,13 +67,27 @@
     return items;
   }
   const initials = name => { const w = String(name || '?').trim().split(/\s+/); return ((w[0]?.[0] || '?') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase(); };
+  /* A member marked joint shares the family owner's cards: the two are one owner. Such a member is not listed
+     as a separate person; the owner's entry carries both names, and `also` lists the ids that count as it. */
+  const isJoint = (m, ownerId) => !!(m && m.joint && m.id !== ownerId);
+  // Whose cards this signed-in person's are: the family owner's for a joint member, their own otherwise.
+  const self = (members, ownerId, uid) => (members || []).some(m => m && m.id === uid && isJoint(m, ownerId)) ? ownerId : uid;
   // A stable colour slot per person: the family owner is 0, everyone else by the order they joined.
   function people(members, ownerId){
-    const list = (members || []).filter(m => m && m.id).map(m => ({id: m.id, name: m.name || (m.email || 'Member').split('@')[0].replace(/^./, ch => ch.toUpperCase()), email: m.email || '', owner: m.id === ownerId}));
+    const all = (members || []).filter(m => m && m.id), shown = m => m.name || (m.email || 'Member').split('@')[0].replace(/^./, ch => ch.toUpperCase());
+    const joint = all.filter(m => isJoint(m, ownerId));
+    const list = all.filter(m => !isJoint(m, ownerId)).map(m => ({id: m.id, name: shown(m), email: m.email || '', owner: m.id === ownerId}));
     list.sort((a, b) => (b.owner ? 1 : 0) - (a.owner ? 1 : 0));
     list.forEach((p, i) => { p.slot = i % 6; p.initials = initials(p.name); });
+    const head = list.find(p => p.owner);
+    if (head && joint.length){
+      const names = [head.name, ...joint.map(shown)];
+      head.name = names.join(' & '); head.initials = names.map(n => (n.trim()[0] || '?').toUpperCase()).join(''); head.also = joint.map(m => m.id);
+    }
     return list;
   }
-  const api = {FIN, count, index, applyDeltas, split, removalFrom, deckItems, initials, people};
+  // The listed person an id counts as: themselves, or the family owner for a joint member.
+  const person = (list, id) => (list || []).find(p => p.id === id || p.also?.includes(id)) || null;
+  const api = {FIN, count, index, applyDeltas, split, removalFrom, deckItems, initials, people, person, self};
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.InkFamily = api;
 })(typeof self !== 'undefined' ? self : globalThis);
