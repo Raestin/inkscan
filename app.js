@@ -2554,9 +2554,9 @@ async function famMoveDeck(d,b){
 }
 function famPeopleHTML(){
   const h=household?.for===session?.uid?household:null; if(!h||(h.members||[]).length<2) return '';
-  const mine=h.role==='owner', people=InkFamily.people(h.members,h.owner), ownerName=(h.members.find(m=>m.id===h.owner)?.name)||'the owner';
+  const mine=h.role==='owner', on=famOn(), ownerName=(h.members.find(m=>m.id===h.owner)?.name)||'the owner';
   return `<div class="famlist">${h.members.map(m=>{
-    const joint=!!m.joint&&m.id!==h.owner, p=InkFamily.person(people,m.id), name=m.name||(m.email||'Member').split('@')[0];
+    const joint=!!m.joint&&m.id!==h.owner, p=on?famPerson(m.id):null, name=m.name||(m.email||'Member').split('@')[0];
     return `<div class="famrow fammember"><span class="ptag p${p?.slot||0}">${esc(name)}</span><span class="note grow">${esc(m.email||'')}${joint?` · shares ${esc(ownerName)}’s cards`:''}</span><span class="famacts">${mine||m.id===session.uid?`<button class="btn ghost tiny" data-sync="rename" data-uid="${esc(m.id)}">Rename</button>`:''}${mine&&m.id!==h.owner?`<button class="btn ghost tiny" data-sync="joint" data-uid="${esc(m.id)}" data-on="${joint?'':'1'}">${joint?'Separate cards':'Share my cards'}</button>`:''}</span></div>`;
   }).join('')}</div>`;
 }
