@@ -1324,7 +1324,8 @@ function beep(){
 function hit(card){
   if(!card || !byId.has(card.id) || !printingAllowed(card,scanPrintingScope))return;
   lastHitAt = Date.now();
-  if(standMode){ standAdded=standPrev; standProve(); }
+  // Counted: stop reading this picture and just watch it, several times a second, so the hand that swaps the card is never missed, even for another copy of the same card.
+  if(standMode){ standAdded=standPrev; standProve(); standTries=STAND_TRIES; }
   logAdd(card, foilMode);
   // A camera hit replaces any manual search that was showing.
   if($('q').value){ $('q').value=''; quickVisible=30; renderQuick(); }
