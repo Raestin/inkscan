@@ -108,3 +108,36 @@ test('the camera brightening the whole picture is not a change', () => {
   const card = frame(160, 213, {x: 6, y: 50, w: 113, h: 158}), brighter = card.map(v => Math.min(255, v + 20));
   assert.ok(S.change(card, brighter, 160, {x: 0.04, y: 0.23, w: 0.7, h: 0.74}) < 2);
 });
+// The view from the phone: dark table, pale stand, and a dark gap in the stand that is card-shaped by bad luck.
+function standView(card){
+  const w = 240, h = 320, l = new Uint8Array(w * h).fill(45);
+  for (let y = 60; y < 310; y++) for (let x = 30; x < 235; x++) l[y * w + x] = 222;
+  for (let y = 215; y < 285; y++) for (let x = 40; x < 90; x++) l[y * w + x] = 40 + ((x + y) % 7) * 6;   // the gap, with texture
+  if (card) for (let y = card.y; y < card.y + card.h; y++) for (let x = card.x; x < card.x + card.w; x++){
+    const rim = x < card.x + 3 || x >= card.x + card.w - 3 || y < card.y + 3 || y >= card.y + card.h - 3;
+    l[y * w + x] = rim ? 22 : (y > card.y + card.h * 0.62 ? 205 : 130);
+  }
+  return {l, w, h};
+}
+test('changed: the card that was dropped in, not the dark gap that was always there', () => {
+  const before = standView(null), after = standView({x: 110, y: 100, w: 66, h: 92});
+  const r = S.changed(before.l, after.l, 240);
+  assert.ok(r); assert.ok(near(r.x, 110 / 240) && near(r.y, 100 / 320) && near(r.w, 66 / 240) && near(r.h, 92 / 320));
+  assert.equal(S.changed(before.l, before.l, 240), null, 'nothing changed, nothing found');
+});
+test('changed: the whole picture getting brighter is not a card', () => {
+  const before = standView(null), brighter = before.l.map(v => Math.min(255, v + 25));
+  assert.equal(S.changed(before.l, brighter, 240), null);
+  const after = standView({x: 110, y: 100, w: 66, h: 92}), afterBrighter = after.l.map(v => Math.min(255, v + 25));
+  assert.ok(S.changed(before.l, afterBrighter, 240), 'a card is still found through the brightening');
+});
+test('overlap, scale and contrast', () => {
+  const a = {x: 0.3, y: 0.4, w: 0.2, h: 0.3};
+  assert.ok(S.overlap(a, a) > 0.999);
+  assert.equal(S.overlap(a, {x: 0.6, y: 0.4, w: 0.2, h: 0.3}), 0);
+  const z = S.scale(a, 2);
+  assert.ok(near(z.x, 0.1, 1e-9) && near(z.y, 0.3, 1e-9) && near(z.w, 0.4, 1e-9) && near(z.h, 0.6, 1e-9));
+  const v = standView({x: 110, y: 100, w: 66, h: 92}), place = {x: 110 / 240, y: 100 / 320, w: 66 / 240, h: 92 / 320};
+  assert.ok(S.contrast(v.l, 240, place) > 30, 'a card has light and dark');
+  assert.ok(S.contrast(standView(null).l, 240, place) < 5, 'an empty tray is flat');
+});
