@@ -1224,6 +1224,17 @@ async function standRead(){
 /* The number line wouldn't read: read the name line and ask Scryfall which card that is (it forgives a
    wrong letter or two). One printing is added like any scan; several are listed to choose from. */
 const standNames=new Map(); let standNameAt=0, standLines={};
+// A card known by name, among its printings. Whatever did read on the number line still helps: a collector
+// number or a set code that fits only one printing settles it.
+function pickByName(name, candidates, lineText){
+  const line=String(lineText||'').toUpperCase(), numbers=new Set([...line.matchAll(/\b0*(\d{1,4})\s*\/\s*\d{2,4}\b/g),...line.matchAll(/\b[CURMSLTP]\s+0*(\d{2,4})\b/g)].map(m=>m[1]));
+  const words=new Set(line.split(/[^A-Z0-9]+/));
+  for(const fits of [c=>numbers.has(collectorToken(c.c))&&words.has(String(c.s).toUpperCase()), c=>numbers.has(collectorToken(c.c))]){
+    const narrowed=candidates.filter(fits); if(narrowed.length===1) return {status:'exact',card:narrowed[0],candidates:narrowed,reference:null,query:name,message:''};
+  }
+  if(candidates.length===1) return {status:'exact',card:candidates[0],candidates,reference:null,query:name,message:''};
+  return {status:'ambiguous',card:null,candidates,reference:null,query:name,message:`Read the name ${name}, but not the number line. Nothing was added. Choose your printing.`};
+}
 async function standName(){
   if(!G.live||!standSeen||!standNow) return null;
   for(const turn of InkStand.turns(standNow.sideways,standTurn)){
@@ -1242,14 +1253,7 @@ async function standName(){
     standTurn=turn;
     // The card just added is still in the stand: one bad read of its number line is not a new card.
     const again=candidates.find(c=>c.id===cooldownKey); if(again) return {status:'exact',card:again,candidates:[again],reference:null,query:name,message:''};
-    // Whatever did read on the number line still helps: a collector number or a set code that fits only one printing settles it.
-    const line=[standLines[turn],...Object.values(standShotLines)].join('\n').toUpperCase(), numbers=new Set([...line.matchAll(/\b0*(\d{1,4})\s*\/\s*\d{2,4}\b/g),...line.matchAll(/\b[CURMSLTP]\s+0*(\d{2,4})\b/g)].map(m=>m[1]));
-    const words=new Set(line.split(/[^A-Z0-9]+/));
-    for(const fits of [c=>numbers.has(collectorToken(c.c))&&words.has(String(c.s).toUpperCase()), c=>numbers.has(collectorToken(c.c))]){
-      const narrowed=candidates.filter(fits); if(narrowed.length===1) return {status:'exact',card:narrowed[0],candidates:narrowed,reference:null,query:name,message:''};
-    }
-    if(candidates.length===1) return {status:'exact',card:candidates[0],candidates,reference:null,query:name,message:''};
-    return {status:'ambiguous',card:null,candidates,reference:null,query:name,message:`Read the name ${name}, but not the number line. Nothing was added. Choose your printing.`};
+    return pickByName(name,candidates,[standLines[turn],...Object.values(standShotLines)].join('\n'));
   }
   return null;
 }
@@ -1345,6 +1349,71 @@ function hit(card){
   camMsg(`${card.n} · ${card.v ? card.v+' · ' : ''}${money(priceOf(card,x.foil))} ${finishLabel(x.foil)}`);
 }
 $('startBtn').onclick = startCam;
+/* Scanning from a saved photo or a screenshot, for when there is no camera to hand. The card is found in the
+   picture the way stand mode finds it (a dark-bordered card on a paler surface), or the picture is taken to
+   be the card itself. The number line is read either way up; for games looked up online, the name line is
+   the fallback. */
+async function photoResolve(bmp){
+  const {l,w,h}=standGrid(bmp,bmp.width,bmp.height), side=G.guide==='bottom-right'?'right':'left';
+  const places=[...InkStand.findCards(l,w,h).slice(0,2),{x:0,y:0,w:1,h:1,sideways:bmp.width>bmp.height}], lines=[];
+  for(const rect of places) for(const turn of InkStand.turns(rect.sideways,0)){
+    let text='';
+    for(const nudge of [...InkStand.NUDGE,0.012]){
+      const strip=grabStand(side,turn,bmp,rect,nudge); if(!strip) continue;
+      // Dots between the parts of a number line often read as other marks from a photo.
+      const read=(await worker.recognize(strip)).data.text.replace(/[«»+*~]/g,'·'); text+=read+'\n';
+      let found=resolveNumberLine(read,scanPrintingScope);
+      if(G.live&&found.status==='missing'&&found.reference){ const refs=found.references||[found.reference]; if((await Promise.all(refs.map(livePrinting))).some(Boolean)) found=resolveNumberLine(read,scanPrintingScope); }
+      if(found.status!=='unrecognized') return found;
+    }
+    lines.push({rect,turn,text});
+  }
+  if(!G.live||!navigator.onLine) return null;
+  for(const {rect,turn,text} of lines){
+    const strip=grabStand('title',turn,bmp,rect); if(!strip) continue;
+    const {data}=await worker.recognize(strip), title=InkStand.cleanTitle(data.text); if(!title) continue;
+    try{
+      const found=await scryfall('/cards/named?fuzzy='+encodeURIComponent(title)); if(!found?.name) continue;
+      // The lookup forgives a great deal, and a photo has no second look: the name it gives must be nearly what was read.
+      const want=norm(found.name.split(' // ')[0]), got=norm(title); if(got.length<5||editDistance(got,want)>Math.floor(want.length/5)) continue;
+      await liveSearch(`!"${found.name.split(' // ')[0]}"`,'prints');
+      const name=G.fromScryfall(found).n, candidates=DB.cards.filter(c=>c.n===name&&printingAllowed(c,scanPrintingScope));
+      if(candidates.length) return pickByName(name,candidates,text);
+    }catch(e){}
+  }
+  return null;
+}
+function editDistance(a,b){
+  let row=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){ const next=[i]; for(let j=1;j<=b.length;j++) next[j]=Math.min(row[j]+1,next[j-1]+1,row[j-1]+(a[i-1]===b[j-1]?0:1)); row=next; }
+  return row[b.length];
+}
+let photoBusy=false;
+async function scanPhotos(files){
+  files=[...files].filter(f=>/^image\//.test(f.type)||!f.type); if(!files.length||photoBusy||!DB) return;
+  photoBusy=true; $('photoBtn').disabled=true; clearScanResolution();
+  let added=0, unread=0, review=null;
+  try{
+    await getWorker();
+    for(const [i,file] of files.entries()){
+      $('photoBtn').textContent=files.length>1?`Reading photo ${i+1} of ${files.length}…`:'Reading photo…';
+      let found=null;
+      try{ const bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); found=await photoResolve(bmp); bmp.close?.(); }catch(e){}
+      if(found?.card&&logAdd(found.card,foilMode)) added++;
+      else if(found&&['missing','ambiguous','blocked'].includes(found.status)) review=found;
+      else unread++;
+    }
+  }catch(e){ unread=files.length-added; }
+  photoBusy=false; $('photoBtn').disabled=false; $('photoBtn').textContent='Scan from a photo';
+  if(review) showScanResolution(review);
+  const one=files.length===1, x=log[0];
+  if(one&&added){ const c=byId.get(x?.cardId); toast(`Added ${c?.n||'the card'}${c?.v?' · '+c.v:''}${c?.sn?' ('+c.sn+')':''}`); return; }
+  toast(one&&review?(review.status==='ambiguous'&&review.query?'Tap your card below.':'Printing needs manual review. Nothing added.')
+    : one?'No card could be read from that photo. Try a sharp, straight-on photo of one card, or search by name.'
+    : `Added ${added} of ${files.length} photos.${unread?` ${unread} couldn’t be read.`:''}${review?' One needs a choice below.':''}`);
+}
+$('photoBtn').onclick=()=>$('photoIn').click();
+$('photoIn').onchange=e=>{ const files=[...e.target.files]; e.target.value=''; scanPhotos(files); };
 $('stopBtn').onclick = stopCam;
 function setScanFinish(finish){
   if(!FINISHES.includes(finish))return;
@@ -2920,7 +2989,7 @@ async function boot(){
   fillSetSelect(); inkChips($('collInks'), collInks, renderColl); inkChips($('bInks'), bInks, renderBrowse);
   renderTotals();
   $('startBtn').disabled = !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-  if ($('startBtn').disabled) $('camstart').querySelector('.note').textContent = 'This browser can’t open the camera. Use Chrome, or add cards with search.';
+  if ($('startBtn').disabled) $('camstart').querySelector('.note').textContent = 'This browser can’t open the camera. Scan from a photo, or add cards with search.';
   navigator.storage?.persist?.().catch(()=>{});
   const want=location.hash.slice(1);
   showTab(VIEWS[want]?want:lsGet('inkscan.tab','home'));

@@ -13,12 +13,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&family=Cinzel:wght@700&family=Fraunces:opsz,wght@9..144,600&family=Bangers&family=Fredoka:wght@600&display=swap">
 <script>/* theme before first paint */try{var g=JSON.parse(localStorage.getItem('inkscan.game'));document.documentElement.dataset.game=['lorcana','mtg','onepiece','pokemon'].indexOf(g)>=0?g:'lorcana'}catch(e){document.documentElement.dataset.game='lorcana'}</script>
-<link rel="stylesheet" href="tokens.css?v=60">
-<link rel="stylesheet" href="themes.css?v=60">
-<script src="themes.js?v=60"></script>
-<link rel="stylesheet" href="app.css?v=60">
-<link rel="stylesheet" href="shell.css?v=60">
-<link rel="stylesheet" href="play.css?v=60">
+<link rel="stylesheet" href="tokens.css?v=61">
+<link rel="stylesheet" href="themes.css?v=61">
+<script src="themes.js?v=61"></script>
+<link rel="stylesheet" href="app.css?v=61">
+<link rel="stylesheet" href="shell.css?v=61">
+<link rel="stylesheet" href="play.css?v=61">
 </head>
 <body>
 <!-- Icon set: one sprite, used as <svg class="ic"><use href="#i-name"/></svg> -->
@@ -121,6 +121,7 @@
         <button class="shutter" id="startBtn" disabled aria-label="Start scanning"><span></span></button>
         <strong>Tap to scan</strong>
         <span class="note">Fit the card's bottom-left corner into the corner guide. The number line goes in the gold box.</span>
+        <button class="btn photobtn" id="photoBtn">Scan from a photo</button>
       </div>
     </div>
     <div class="searchwrap">
@@ -359,18 +360,19 @@
   <div class="pal-list" id="palList" role="listbox"></div>
 </div>
 <div class="peek" id="peek" aria-hidden="true" hidden></div>
+<input type="file" id="photoIn" accept="image/*" multiple hidden>
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=60"></script>
-<script src="family.js?v=60"></script>
-<script src="upgrades.js?v=60"></script>
-<script src="catalog.js?v=60"></script>
-<script src="legality.js?v=60"></script>
-<script src="games.js?v=60"></script>
-<script src="stand.js?v=60"></script>
-<script src="app.js?v=60"></script>
-<script src="play.js?v=60"></script>
-<script src="shell.js?v=60"></script>
+<script src="safety.js?v=61"></script>
+<script src="family.js?v=61"></script>
+<script src="upgrades.js?v=61"></script>
+<script src="catalog.js?v=61"></script>
+<script src="legality.js?v=61"></script>
+<script src="games.js?v=61"></script>
+<script src="stand.js?v=61"></script>
+<script src="app.js?v=61"></script>
+<script src="play.js?v=61"></script>
+<script src="shell.js?v=61"></script>
 </body>
 </html>
