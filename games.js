@@ -32,6 +32,7 @@
     scanPlaceholder: 'Card name, P3 43, PD1 11, or P2 24B',
     scanHint: 'Fit the card\'s bottom-left corner into the corner guide. The number line goes in the gold box.',
     guide: 'bottom-left',
+    deckSites: 'Dreamborn, Inktable or a website',
     deckFormatNote: 'Decklists use the "4 Name - Version" format that Dreamborn, Inktable and most Lorcana sites import.'
   };
 
@@ -50,6 +51,7 @@
     scanPlaceholder: 'Card name or code, like OP01-016',
     scanHint: 'Fit the card\'s bottom-right corner into the corner guide. The card code goes in the gold box.',
     guide: 'bottom-right',
+    deckSites: 'a One Piece deck site',
     deckFormatNote: 'Decklists use one card per line, like "4xOP01-016" or "4 Nami - OP01-016". The Leader counts separately from the 50.',
     nvKey: c => 'op|' + norm(c.v),
     setLabel: c => c.s,
@@ -93,6 +95,7 @@
     scanPlaceholder: 'Card name, or set code and number like TWM 130',
     scanHint: 'Fit the card\'s bottom-left corner into the corner guide. The set code and number go in the gold box.',
     guide: 'bottom-left',
+    deckSites: 'Pokémon TCG Live, Limitless or a website',
     deckFormatNote: 'Decklists use the Pokémon TCG Live format, like "4 Dreepy TWM 128". Basic Energy has no copy limit.',
     setLabel: c => c.s,
     // images.pokemontcg.io serves every printing at <set id>/<number>.png, from the card id "<set id>-<number>".
@@ -166,6 +169,7 @@
     scanPlaceholder: 'Card name, MH3 123, or an older card\'s 109/175 2011',
     scanHint: 'Fit the card\'s bottom-left corner into the corner guide. The set code and number go in the gold box; on cards from before 2014, that\'s the © line with the number.',
     guide: 'bottom-left',
+    deckSites: 'Moxfield, Archidekt or a website',
     deckFormatNote: 'Decklists use one card per line, like "1 Sol Ring". Set and number in parentheses are ignored when importing. Cards under a "Commander" heading become the commander.',
     nvKey: c => norm(c.n) + '|',
     setLabel: c => String(c.s || '').toUpperCase(),

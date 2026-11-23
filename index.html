@@ -13,12 +13,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&family=Cinzel:wght@700&family=Fraunces:opsz,wght@9..144,600&family=Bangers&family=Fredoka:wght@600&display=swap">
 <script>/* theme before first paint */try{var g=JSON.parse(localStorage.getItem('inkscan.game'));document.documentElement.dataset.game=['lorcana','mtg','onepiece','pokemon'].indexOf(g)>=0?g:'lorcana'}catch(e){document.documentElement.dataset.game='lorcana'}</script>
-<link rel="stylesheet" href="tokens.css?v=59">
-<link rel="stylesheet" href="themes.css?v=59">
-<script src="themes.js?v=59"></script>
-<link rel="stylesheet" href="app.css?v=59">
-<link rel="stylesheet" href="shell.css?v=59">
-<link rel="stylesheet" href="play.css?v=59">
+<link rel="stylesheet" href="tokens.css?v=60">
+<link rel="stylesheet" href="themes.css?v=60">
+<script src="themes.js?v=60"></script>
+<link rel="stylesheet" href="app.css?v=60">
+<link rel="stylesheet" href="shell.css?v=60">
+<link rel="stylesheet" href="play.css?v=60">
 </head>
 <body>
 <!-- Icon set: one sprite, used as <svg class="ic"><use href="#i-name"/></svg> -->
@@ -138,6 +138,7 @@
         <label class="field">Printing scope <select id="scanPrintingScope"><option value="all">All printings</option><option value="promo">Promo / special only</option></select></label>
         <label class="field">Finish for scans and search adds <select id="scanFinish"><option value="normal">Normal</option><option value="foil">Foil</option><option value="rainbow">Rainbow foil</option></select></label>
         <p class="note">Promos and special printings are separate cards, not foil settings. Scanning can't tell the finish, so set it here or with the Foil button.</p>
+        <p class="note" id="promoCatalogNote" hidden></p>
       </div>
     </div>
   </section>
@@ -361,15 +362,15 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=59"></script>
-<script src="family.js?v=59"></script>
-<script src="upgrades.js?v=59"></script>
-<script src="catalog.js?v=59"></script>
-<script src="legality.js?v=59"></script>
-<script src="games.js?v=59"></script>
-<script src="stand.js?v=59"></script>
-<script src="app.js?v=59"></script>
-<script src="play.js?v=59"></script>
-<script src="shell.js?v=59"></script>
+<script src="safety.js?v=60"></script>
+<script src="family.js?v=60"></script>
+<script src="upgrades.js?v=60"></script>
+<script src="catalog.js?v=60"></script>
+<script src="legality.js?v=60"></script>
+<script src="games.js?v=60"></script>
+<script src="stand.js?v=60"></script>
+<script src="app.js?v=60"></script>
+<script src="play.js?v=60"></script>
+<script src="shell.js?v=60"></script>
 </body>
 </html>

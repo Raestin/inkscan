@@ -71,8 +71,12 @@ async function loadPromoCatalog(){
   }catch(e){promoLoadError='Supplemental promo catalog could not be loaded. Its exact printings are unavailable; never substitute a regular-set card.';}
 }
 function renderPromoCatalogStatus(){
-  const messages=[promoLoadError,...promoCatalogWarnings].filter(Boolean),element=$('promoCatalogStatus');
+  // Only a promo list that failed to load belongs over the camera. Printings that share a set and number are
+  // a standing fact about the catalog, so that note lives in Scan settings.
+  const shared=promoCatalogWarnings.filter(m=>/^Ambiguous printing /.test(m)).length;
+  const messages=[promoLoadError,...promoCatalogWarnings.filter(m=>!/^Ambiguous printing /.test(m))].filter(Boolean),element=$('promoCatalogStatus'),note=$('promoCatalogNote');
   if(element){element.hidden=!messages.length;element.textContent=messages.join(' ');}
+  if(note){note.hidden=!shared;note.textContent=shared?`${shared} promo printing${shared===1?' shares':'s share'} a set and number with another card. They are kept as separate cards, so pick the exact one when you add it.`:'';}
 }
 let coreRules=null,coreRulesLoadError=null,legalityIndex=null,legalityIndexDay=null;
 async function loadCoreRules(){
@@ -292,6 +296,9 @@ function addLiveCards(cards){
   persistLiveCards();
   return added;
 }
+// Games looked up online can only search the cards already saved on this device while there is no connection.
+const offlineSearch=()=>G.live&&!navigator.onLine;
+const OFFLINE_NOTE='You are offline, so only cards already saved on this device can be searched. Reconnect to search every card.';
 async function liveSearch(query, unique){
   if(!G.live||!navigator.onLine) return false;
   const q=String(query||'').trim(); if(q.length<3) return false;
@@ -899,9 +906,9 @@ function renderQuick(){
   }
   const result=searchPrintings($('q').value),res=result.candidates.slice(0,quickVisible),el=$('qres');
   el.hidden=!$('q').value.trim() && scanPrintingScope!=='promo';
-  const hint=result.message && result.status!=='exact'?`<p class="note printing-search-note" role="status">${esc(result.message)}</p>`:'';
+  const hint=(offlineSearch()&&$('q').value.trim()?`<p class="note printing-search-note" role="status">${OFFLINE_NOTE}</p>`:'')+(result.message && result.status!=='exact'?`<p class="note printing-search-note" role="status">${esc(result.message)}</p>`:'');
   const count=result.candidates.length>30?`<p class="note printing-search-note">Showing ${res.length} of ${result.candidates.length} matching printings. Search by name or full set code and collector number, or show more below.</p>`:'';
-  el.innerHTML=hint+count+(res.length?res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}${isSpecialPrinting(c)?' · '+(LORCANA?'Promo / special printing':esc(c.pv)):''}</div>${result.status==='ambiguous'?`<div class="m">${esc(printingProvider(c))} ID: ${esc(c.id)}</div>`:''}</div><div class="acts"><button data-act="add" data-id="${c.id}" aria-label="Add ${esc(c.n)} ${esc(c.s)} number ${esc(c.c)}">Add</button></div></div></div>`).join(''):`<div class="empty" style="padding:16px">No exact printing found. Try its name or a full reference such as <b>P3 43</b>, <b>PD1 11</b>, or <b>P2 24B</b>. An absent printing cannot be added as its regular version.</div>`)+(result.candidates.length>res.length?`<button class="btn printing-more" id="qMore" data-more-printings>Show next ${Math.min(30,result.candidates.length-res.length)} printings</button>`:'');
+  el.innerHTML=hint+count+(res.length?res.map(c=>`<div class="item"><div class="item-main" data-card="${c.id}">${thumbHTML(c)}<div class="who"><div class="n">${esc(c.n)}</div><div class="v">${esc(c.v)}</div><div class="m">${metaLine(c,foilMode)}${isSpecialPrinting(c)?' · '+(LORCANA?'Promo / special printing':esc(c.pv)):''}</div>${result.status==='ambiguous'?`<div class="m">${esc(printingProvider(c))} ID: ${esc(c.id)}</div>`:''}</div><div class="acts"><button data-act="add" data-id="${c.id}" aria-label="Add ${esc(c.n)} ${esc(c.s)} number ${esc(c.c)}">Add</button></div></div></div>`).join(''):(offlineSearch()?'':`<div class="empty" style="padding:16px">${LORCANA?'No exact printing found. Try its name or a full reference such as <b>P3 43</b>, <b>PD1 11</b>, or <b>P2 24B</b>. An absent printing cannot be added as its regular version.':'No exact printing found. Try its name, or its set code and number.'}</div>`))+(result.candidates.length>res.length?`<button class="btn printing-more" id="qMore" data-more-printings>Show next ${Math.min(30,result.candidates.length-res.length)} printings</button>`:'');
 }
 $('qres').addEventListener('click',e=>{
   if(e.target.closest('[data-more-printings]')){quickVisible+=30;renderQuick();return;}
@@ -1537,7 +1544,7 @@ function renderBrowse(){
     :s==='cost'?(a,b)=>(a.co??99)-(b.co??99)||a.n.localeCompare(b.n)
     :s==='price'?(a,b)=>((shownPrice(b)??-1)-(shownPrice(a)??-1))||bySetOrder(a,b):bySetOrder);
   let missCost=0, unpriced=0; if(own==='miss') for(const c of list){const p=shownPrice(c);if(p===null)unpriced++;else missCost+=p;}
-  $('bCount').textContent = `${list.length.toLocaleString()} cards${own==='miss'&&list.length?` · ${money(missCost)} ${unpriced?`priced portion; ${unpriced} unpriced`:'estimated to buy them all'}`:''}`;
+  $('bCount').textContent = `${offlineSearch()?'Offline, saved cards only · ':''}${list.length.toLocaleString()} cards${own==='miss'&&list.length?` · ${money(missCost)} ${unpriced?`priced portion; ${unpriced} unpriced`:'estimated to buy them all'}`:''}`;
   $('bValue').textContent=valueSummary(list.map(c=>inventoryRows(c,inv[c.id])),finish);
   const bNote=$('bValueNote'); if(bNote) bNote.textContent=valueNote();
   chunked($('bGrid'), $('bSentinel'), list, c=>{const q=finish==='all'||finish==='normal'?(inv[c.id]?.q||0):0,f=finish==='all'||finish==='foil'?(inv[c.id]?.f||0):0,rf=finish==='all'||finish==='rainbow'?(inv[c.id]?.rf||0):0;return tileHTML(c,{q:q+f+rf,f,rf,dim:true,cap:`${setLabel(c)} #${c.c} · ${money(shownPrice(c))}${finish==='all'?'':' '+finish}`});});
@@ -1719,7 +1726,7 @@ function renderDecks(keepScroll){
   const opts='<option value="all">All brackets</option>'+brackets.map(b=>`<option value="${b}">Bracket ${b}</option>`).join('');
   if($('dBracket').innerHTML!==opts){ $('dBracket').innerHTML=opts; $('dBracket').value=brackets.includes(cur)?cur:'all'; }
   deckFilterCount();
-  if(!hasDecks){ $('deckList').innerHTML=`<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from Dreamborn, Inktable or a website.</div>`; return; }
+  if(!hasDecks){ $('deckList').innerHTML=`<div class="empty"><strong>No decks yet</strong>Tap New deck to build one from your collection, or Import to paste a list from ${esc(G.deckSites)}.</div>`; return; }
   const rows=deckRows();
   $('dCount').textContent=rows.length===decks.length?`${decks.length} decks`:`Showing ${rows.length} of ${decks.length} decks`;
   $('deckList').innerHTML=rows.length?rows.map(deckItemHTML).join(''):`<div class="empty"><strong>No decks match</strong>Change the search or tap Reset deck filters.</div>`;
@@ -1877,9 +1884,9 @@ $('dOwned').onchange = ()=>renderDeckEdit();
 function renderDeckAdd(d, keepScroll){
   const inks = deckInks(d); const q = norm($('dq').value); const ownedOnly = $('dOwned').checked;
   if (LORCANA) $('dInkNote').textContent = inks.length>=2 ? `Showing ${inks.join(' and ')} cards` : inks.length===1 ? `${inks[0]} plus any second ink` : 'Any ink';
-  else $('dInkNote').textContent = G.live && !ownedOnly ? 'Searching Scryfall as you type' : '';
+  else $('dInkNote').textContent = G.live && !ownedOnly ? (offlineSearch()?'Offline: saved cards only':'Searching Scryfall as you type') : '';
   const fmt=deckRules(d).key;
-  if (FORMATS) $('dInkNote').textContent = `${G.live && !ownedOnly ? 'Searching Scryfall as you type. ' : ''}Showing cards legal in ${FORMATS[fmt].label}`;
+  if (FORMATS) $('dInkNote').textContent = `${G.live && !ownedOnly ? (offlineSearch()?'Offline: saved cards only. ':'Searching Scryfall as you type. ') : ''}Showing cards legal in ${FORMATS[fmt].label}`;
   if (G.live && !ownedOnly) liveSearch($('dq').value+(fmt&&fmt!=='commander'&&$('dq').value.trim().length>=3?` legal:${fmt}`:'')).then(added=>{ if(added&&getDeck()===d) renderDeckAdd(d,true); });
   let list = nvReps.map(ps=>ps.find(c=>!isSpecialCard(c))||ps[0]).filter(c=>{
     if (LORCANA && inks.length>=2 && !c.inks.every(i=>inks.includes(i))) return false;
@@ -1891,7 +1898,7 @@ function renderDeckAdd(d, keepScroll){
   }).map(c=>repOf(c.nv));
   list.sort((a,b)=>(a.co-b.co)||a.n.localeCompare(b.n)||a.v.localeCompare(b.v));
   const y = window.scrollY;
-  if (!list.length){ $('dRes').innerHTML = `<div class="empty">${ownedOnly?'None of your cards match. Uncheck "Cards I own" to search every card.':'No cards match that search.'}</div>`; $('dMore').innerHTML=''; return; }
+  if (!list.length){ $('dRes').innerHTML = `<div class="empty">${ownedOnly?'None of your cards match. Uncheck "Cards I own" to search every card.':offlineSearch()?OFFLINE_NOTE:'No cards match that search.'}</div>`; $('dMore').innerHTML=''; return; }
   const planning = $('dPlan').checked;
   if (planning) $('dInkNote').textContent = 'Adding to this deck\'s upgrades, not the deck itself';
   const render = c => planning ? planRowHTML(c.nv, d.plan?.in?.[c.nv]||0, d, 'in', true) : deckRowHTML(c.nv, d.cards[c.nv]||0, d).replace('aria-label="One fewer"', 'aria-label="One fewer"'+(d.cards[c.nv]?'':' disabled'));
@@ -2923,6 +2930,7 @@ async function boot(){
   getWorker().catch(()=>{});
   fillUnknownCards();
   window.addEventListener('online',()=>fillUnknownCards());
+  if(G.live) ['online','offline'].forEach(ev=>window.addEventListener(ev,()=>{ if(tab==='browse') renderBrowse(); if(tab==='scan') renderQuick(); if(getDeck()) renderDeckEdit(); }));
   // Signed-in devices that have synced before pick up cloud changes on open and whenever they return to the screen.
   window.addEventListener('online',syncSoon);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) syncSoon(); });
