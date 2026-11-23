@@ -239,6 +239,7 @@ input.deckname:hover,input.deckname:focus{border-color:var(--line2);background:v
 .shutter span{display:block;width:100%;height:100%;border-radius:50%;background:var(--scan-hit)}
 .shutter:active{transform:scale(.93)}
 .shutter:disabled{opacity:.4}
+.camstart .photobtn{margin-top:8px}
 .camtools{position:absolute;top:12px;right:12px;left:12px;display:flex;gap:8px;justify-content:flex-end}
 .camtools button{height:36px;padding:0 16px;background:var(--media-glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:var(--on-media);border:1px solid var(--media-line);border-radius:var(--pill);font-size:13px;font-weight:600;cursor:pointer}
 .camtools button[aria-pressed="true"]{background:var(--scan-hit);color:var(--foil-fg);border-color:transparent}
