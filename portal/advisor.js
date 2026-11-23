@@ -16,7 +16,7 @@
   const chat = () => D.lsGet(key(), {messages: [], saved: {}});
   const store = c => { if (!D.lsSet(key(), c)) ctx.toast('This conversation is too big to keep in the browser. Start a new one.'); };
 
-  const TOOL_LABEL = {get_collection: 'Read your collection', list_decks: 'Listed your decks', get_deck: 'Opened a deck', search_cards: 'Searched cards', simulate: 'Ran a simulation', buy_plan: 'Priced a shopping list', propose_deck: 'Drafted a deck', edit_deck: 'Changed a deck', set_owned: 'Corrected a card count'};
+  const TOOL_LABEL = {get_collection: 'Read your collection', list_decks: 'Listed your decks', get_deck: 'Opened a deck', search_cards: 'Searched cards', simulate: 'Ran a simulation', buy_plan: 'Priced a shopping list', propose_deck: 'Drafted a deck', edit_deck: 'Changed a deck', plan_upgrade: 'Planned an upgrade', set_owned: 'Corrected a card count'};
   const DECK_SUGGEST = ["I'm missing a card for this deck.", "What's the weakest card in this deck?", 'Goldfish this deck and tell me where it stumbles.'];
   const SUGGEST = {
     mtg: ['Which of my decks are closest to finished, and what should I buy first?', 'Build a Pauper deck using only cards I own (lands aside).', 'Goldfish my Voja deck and tell me where it stumbles.', 'What in my collection is worth trading away?'],
@@ -34,7 +34,7 @@
     power: c.st ?? undefined, toughness: ctx.game === 'mtg' ? c.wp ?? undefined : undefined, text: c.tx || undefined,
     legal: ctx.game === 'mtg' && c.lgs ? Object.entries(c.lgs).filter(([, v]) => v === 'legal').map(([k]) => k) : undefined,
     price_usd: money(c.p ?? c.pf)}, extra || {}) : null;
-  function deckSummary(d){ const st = D.deckStats(d); return {id: d.id, name: d.name, format: d.format || (d.commanders.length ? 'commander' : undefined), cards: st.total, size: st.size, built: d.built || undefined, still_to_add: d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).map(([nv, n]) => [ctx.nvName(nv), n])) : undefined, favorite: d.fav || undefined, missing: st.missing, cost_to_finish_usd: st.unknown ? undefined : money(st.missCost), cost_note: st.unknown ? 'Not priced yet: get_deck or buy_plan on this deck gives its cost.' : undefined}; }
+  function deckSummary(d){ const st = D.deckStats(d); return {id: d.id, name: d.name, format: d.format || (d.commanders.length ? 'commander' : undefined), cards: st.total, size: st.size, built: d.built || undefined, still_to_add: d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).map(([nv, n]) => [ctx.nvName(nv), n])) : undefined, planned_upgrades: d.plan ? planView(d) : undefined, favorite: d.fav || undefined, missing: st.missing, cost_to_finish_usd: st.unknown ? undefined : money(st.missCost), cost_note: st.unknown ? 'Not priced yet: get_deck or buy_plan on this deck gives its cost.' : undefined}; }
   async function cardsFromNames(list){
     const cards = {}, unresolved = [];
     for (const {name, qty} of list || []){ const nv = await D.resolveName(ctx.game, name); if (nv) cards[nv] = (cards[nv] || 0) + Math.max(1, qty | 0); else unresolved.push(name); }
@@ -143,6 +143,28 @@
     return {saved: true, deck: saved.name, changed: lineText(lines), cards: st.total, size: st.size, built: saved.built || undefined, still_missing: st.missing, added, undo: 'The user can tap Undo on this change in the chat.'};
   }
 
+  /* Planned upgrades: cards to bring into a deck later and cards they replace. Nothing in the deck list changes;
+     the user makes the swap in the deck's Upgrades section when the cards are in hand. */
+  const planView = d => { const g = root.InkUpgrades.progress(d.plan, nv => D.spareNV(d, nv)); return d.plan ? {bring_in: g.rows.map(r => ({name: ctx.nvName(r.nv), qty: r.q, in_hand: r.have})), take_out: Object.entries(d.plan.out).map(([nv, q]) => ({name: ctx.nvName(nv), qty: q})), ready_to_swap: g.ready} : undefined; };
+  async function planUpgrade(input){
+    const busyMsg = ctx.editBlocked?.(input.deck_id); if (busyMsg) return {error: busyMsg};
+    const ready = await ready4write(); if (ready) return {error: ready};
+    const d = await D.refreshDeck(input.deck_id); if (!d) return {error: 'No deck with that id. Use list_decks.'};
+    if (!(input.bring_in || []).length && !(input.take_out || []).length && !input.clear) return {error: 'Give cards to bring in, cards to take out, or clear.'};
+    let plan = input.clear ? null : d.plan; const problems = [];
+    for (const [side, list] of [['in', input.bring_in], ['out', input.take_out]]) for (const {name, qty} of list || []){
+      const nv = await D.resolveName(ctx.game, name);
+      if (!nv){ problems.push(`No card found named ${name}.`); continue; }
+      if (side === 'out' && !d.cards[nv] && (qty | 0) > 0){ problems.push(`${name} is not in ${d.name}.`); continue; }
+      plan = root.InkUpgrades.set(plan, side, nv, Math.max(0, qty | 0), d.cards);
+    }
+    if (problems.length) return {error: problems.join(' ') + ' Nothing was changed.'};
+    const saved = await D.saveDeck({...d, plan});
+    await D.needDecks([saved.id]);
+    deckChanged(saved);
+    return {saved: true, deck: saved.name, deck_list_changed: false, planned_upgrades: planView(saved) || 'none', note: 'The user makes the swap in the deck\'s Upgrades section once the cards are in hand.'};
+  }
+
   async function setOwned(input, id){
     if (!sameGame(input.game)) return otherGame(input.game);
     const ready = await ready4write(); if (ready) return {error: ready};
@@ -197,6 +219,7 @@
     return `<div class="change${ch.undone ? ' undone' : ''}"><span>${what}</span>${ch.undone ? '<span class="chip">Undone</span>' : `<button class="btn sm" type="button" data-undo="${esc(id)}">Undo</button>`}</div>`;
   }
   TOOLS.edit_deck = editDeck;
+  TOOLS.plan_upgrade = planUpgrade;
   TOOLS.set_owned = setOwned;
 
   /* ---------- relay ---------- */

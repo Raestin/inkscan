@@ -278,7 +278,7 @@ async function loadLiveCards(){
 function persistLiveCards(){
   if(!G.live||!DB) return;
   const keep=new Set([...Object.keys(inv),...Object.keys(wish)]);
-  const nvs=new Set(decks.flatMap(d=>Object.keys(d.cards)));
+  const nvs=new Set(decks.flatMap(deckNVs));
   const cards=DB.cards.filter(c=>keep.has(c.id)||nvs.has(c.nv)).concat(DB.cards.filter(c=>!keep.has(c.id)&&!nvs.has(c.nv)).slice(-1500));
   cachePut(GAME_ID+'-cards.json',{asof:DB.asof,cards:cards.map(({nv,inks,num,prf,...c})=>c)});
 }
@@ -341,7 +341,9 @@ async function fillUnknownCards(){
    name, and the cards are then looked up 75 at a time. Fetched once per session, and only when needed. */
 let fillingDecks=false, nameIndex=null, deckLookupDone=false;
 const unknownNote=n=>!navigator.onLine?`${n} card${n===1?'':'s'} load when online`:deckLookupDone?`${n} card${n===1?'':'s'} not found on Scryfall`:`Loading ${n} card${n===1?'':'s'}…`;
-const deckUnknown=()=>[...new Set(decks.flatMap(d=>Object.keys(d.cards)))].filter(nv=>!byNV.has(nv));
+// Every card a deck names: its list, and the cards planned to come in.
+const deckNVs=d=>[...Object.keys(d.cards),...Object.keys(d.plan?.in||{})];
+const deckUnknown=()=>[...new Set(decks.flatMap(deckNVs))].filter(nv=>!byNV.has(nv));
 async function fillDeckCards(){
   if(!G.live||!DB||fillingDecks||!navigator.onLine) return 0;
   let todo=deckUnknown(); if(!todo.length) return 0;
@@ -382,7 +384,7 @@ async function liveNames(names){
   return added;
 }
 async function refreshLivePrices(btn){
-  const deckIds=decks.flatMap(d=>Object.keys(d.cards).map(nv=>repOf(nv)?.id)).filter(Boolean);
+  const deckIds=decks.flatMap(d=>deckNVs(d).map(nv=>repOf(nv)?.id)).filter(Boolean);
   const ids=[...new Set([...Object.keys(inv),...Object.keys(wish),...deckIds])].filter(id=>id.startsWith('sf_')).map(id=>id.slice(3));
   if(btn) btn.disabled=true; let n=0;
   try{
@@ -1552,7 +1554,7 @@ function refreshBrowseBadges(){
 /* =========================================================
    DECKS
    ========================================================= */
-let curDeck = null, dsub = 'list', handIds = null;
+let curDeck = null, dsub = 'list', handIds = null, planOpen = false, planPicking = false;
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 /* Per-deck rules: the deck's format for MTG, otherwise the game's single deck rule set. */
 const FORMATS=G.formats||null;
@@ -1627,6 +1629,7 @@ function deckAdd(d, nv, n){
   }
   if (next<=0){ delete d.cards[nv]; if (d.commanders?.includes(nv)) d.commanders=d.commanders.filter(k=>k!==nv); } else d.cards[nv]=next;
   if (d.todo?.[nv]){ if(next<=0) delete d.todo[nv]; else d.todo[nv]=Math.min(d.todo[nv],next); if(!Object.keys(d.todo).length) delete d.todo; }
+  planTidy(d);
   d.updated = Date.now(); saveDecks(); return true;
 }
 /* Tapping the star makes a card the commander, adds a valid partner, or swaps the commander out. */
@@ -1827,6 +1830,7 @@ function renderDeckEdit(keepScroll){
     if (!st.format && st.main===size && !st.offColor && !st.overCopies && !st.notLegal && (!G.deck.leaderType||st.leaders===1)) warns.push(`<span class="chip">Size / copy check only</span>`);
   }
   if (st.unknown) warns.push(`<span class="chip">${esc(unknownNote(st.unknown))}</span>`);
+  if (d.plan){ const g=planProgress(d); warns.push(`<span class="chip${g.ready?' ok':''}">Upgrades: ${g.want?`${g.have} of ${g.want} in hand`:`${g.out} to take out`}</span>`); }
   if (st.missing) warns.push(`<span class="chip warn">Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?` partial; ${st.missingUnpriced} unpriced`:''}</span>`);
   $('deckStats').innerHTML = `<div class="nums"><div><strong>${st.total}</strong>cards</div>${LORCANA?`<div><strong>${st.inkable}</strong>inkable</div><div><strong>${(st.types.Character||0)}</strong>characters</div><div><strong>${(st.types.Action||0)+(st.types.Item||0)+(st.types.Location||0)}</strong>other</div>`:`<div><strong>${st.main}</strong>${G.deck.leaderType?'main deck':'total'}</div>${G.deck.leaderType?`<div><strong>${st.leaders}</strong>leader</div>`:''}`}<div>${inkSetHTML(st.inks)}<br>${st.inks.join(' / ')||'—'}</div></div>
     <div class="curve" aria-label="Cost curve">${st.curve.map((n,i)=>i===0&&!n?'':`<div><span>${n||''}</span><i style="height:${Math.round(44*n/max)}px"></i><span>${i===7?'7+':i}</span></div>`).join('')}</div>
@@ -1835,6 +1839,9 @@ function renderDeckEdit(keepScroll){
   const two=window.matchMedia('(min-width:1100px)').matches;
   $('deckEdit').classList.toggle('two',two);
   $('deckListPane').hidden = !two&&dsub!=='list'; $('deckAddPane').hidden = !two&&dsub!=='add';
+  $('deckPlanPane').hidden = two ? !(d.plan||planOpen) : dsub!=='plan';
+  $('deckPlanTab').textContent = d.plan ? `Upgrades (${InkUpgrades.total(d.plan.in)+InkUpgrades.total(d.plan.out)})` : 'Upgrades';
+  if (!$('deckPlanPane').hidden) renderDeckPlan(d);
   if (two||dsub==='list') renderDeckList(d);
   if (two||dsub==='add') renderDeckAdd(d, keepScroll);
 }
@@ -1885,10 +1892,84 @@ function renderDeckAdd(d, keepScroll){
   list.sort((a,b)=>(a.co-b.co)||a.n.localeCompare(b.n)||a.v.localeCompare(b.v));
   const y = window.scrollY;
   if (!list.length){ $('dRes').innerHTML = `<div class="empty">${ownedOnly?'None of your cards match. Uncheck "Cards I own" to search every card.':'No cards match that search.'}</div>`; $('dMore').innerHTML=''; return; }
-  const render = c => deckRowHTML(c.nv, d.cards[c.nv]||0, d).replace('aria-label="One fewer"', 'aria-label="One fewer"'+(d.cards[c.nv]?'':' disabled'));
+  const planning = $('dPlan').checked;
+  if (planning) $('dInkNote').textContent = 'Adding to this deck\'s upgrades, not the deck itself';
+  const render = c => planning ? planRowHTML(c.nv, d.plan?.in?.[c.nv]||0, d, 'in', true) : deckRowHTML(c.nv, d.cards[c.nv]||0, d).replace('aria-label="One fewer"', 'aria-label="One fewer"'+(d.cards[c.nv]?'':' disabled'));
   chunked($('dRes'), $('dMore'), list, render, 60);
   if (keepScroll) window.scrollTo(0,y);
 }
+
+/* ---------- planned upgrades ----------
+   Each deck can list cards to bring in and cards to take out (InkUpgrades). The cards to bring in are that
+   deck's own wish list; they move into the deck, and the others out of it, once the new cards are in hand. */
+// Copies the collection has for this deck beyond the ones the deck already uses.
+function planSpare(d,nv){ return Math.max(0,freeNV(nv,d.id)-(d.cards[nv]||0)+(d.todo?.[nv]||0)); }
+function planName(nv){ return repOf(nv)?.n||nameIndex?.get(nv)||nv.replace(/\|$/,''); }
+function planProgress(d){ return InkUpgrades.progress(d.plan,nv=>planSpare(d,nv)); }
+function planMissing(d){ return planProgress(d).rows.filter(r=>r.have<r.q&&repOf(r.nv)).map(r=>({q:r.q-r.have,c:repOf(r.nv),nv:r.nv})); }
+function planMax(d,c){ if(LORCANA) return 4; if(!c) return 99; const R=deckRules(d); return G.deck.singletonExempt&&G.deck.singletonExempt(c)?99:(R.key&&legalIn(c,R.key)==='restricted'?1:R.maxCopies); }
+function planTidy(d){ if(!d.plan) return; const p=InkUpgrades.clean(d.plan,d.cards); if(p) d.plan=p; else delete d.plan; }
+function planSet(d,side,nv,n){ const p=InkUpgrades.set(d.plan,side,nv,n,d.cards); if(p) d.plan=p; else delete d.plan; d.updated=Date.now(); saveDecks(); }
+/* Moves planned copies across: into the deck, or out of it. Returns true or the reason the deck can't take them. */
+function planMove(d,side,nv,n){
+  const planned=d.plan?.[side]?.[nv]||0; n=Math.min(n,planned); if(n<=0) return true;
+  const r=deckAdd(d,nv,side==='in'?n:-n); if(r!==true) return r;
+  planSet(d,side,nv,planned-n); return true;
+}
+function planSwapAll(d){
+  const before={cards:{...d.cards},commanders:[...(d.commanders||[])],todo:d.todo?{...d.todo}:null,plan:InkSafety.clone(d.plan)};
+  // Cards come out first, so copy limits see the deck as it will be.
+  let out=0, inn=0; const problems=[];
+  for(const [nv,q] of Object.entries(d.plan?.out||{})){ if(planMove(d,'out',nv,q)===true) out+=q; }
+  for(const r of planProgress(d).rows){ if(!r.have) continue; const res=planMove(d,'in',r.nv,r.have); if(res===true) inn+=r.have; else problems.push(res); }
+  renderDeckEdit(true);
+  if(problems.length){ toast(problems[0]); return; }
+  toast(`${d.name}: ${inn} in, ${out} out`,{label:'Undo',fn:()=>{ d.cards=before.cards; d.commanders=before.commanders; if(before.todo) d.todo=before.todo; else delete d.todo; if(before.plan) d.plan=before.plan; else delete d.plan; d.updated=Date.now(); saveDecks(); if(tab==='decks') renderDecks(); toast('Swap undone'); }});
+}
+function planRowHTML(nv,q,d,side,picker){
+  const c=repOf(nv), max=side==='out'?(d.cards[nv]||0):planMax(d,c), have=side==='in'?Math.min(q,planSpare(d,nv)):0, each=cheapest(nv);
+  const meta=side==='out'?`${d.cards[nv]||0} in deck`
+    :!q?`own ${ownedNV(nv)}${d.cards[nv]?` · ${d.cards[nv]} in deck`:''}`
+    :`${have<q?`<span style="color:var(--warn)">in hand ${have} of ${q}</span>`:`in hand ${have} of ${q}`}${have<q&&each!=null?` · ${money(each)} each`:''}`;
+  const move=picker||!q?'':side==='out'?`<button type="button" class="link tiny" data-act="pmove" data-side="out" data-nv="${esc(nv)}">Take out now</button>`
+    :have?`<button type="button" class="link tiny" data-act="pmove" data-side="in" data-nv="${esc(nv)}">Put ${have} in the deck</button>`:'';
+  return `<div class="item"><div class="item-main"${c?` data-card="${c.id}"`:''}>${c?thumbHTML(c):''}<div class="who"><div class="n">${esc(planName(nv))}</div>${c?`<div class="v">${esc(c.v)}</div>`:''}<div class="m">${meta}</div>${move?`<div class="m">${move}</div>`:''}</div>
+    <div class="acts"><button data-act="pq" data-side="${side}" data-nv="${esc(nv)}" data-d="-1" aria-label="One fewer"${q?'':' disabled'}>−</button><output>${q}</output><button data-act="pq" data-side="${side}" data-nv="${esc(nv)}" data-d="1" aria-label="One more"${q>=max?' disabled':''}>+</button></div></div></div>`;
+}
+function renderDeckPlan(d){
+  const g=planProgress(d), outs=Object.entries(d.plan?.out||{}), miss=planMissing(d), short=g.want-g.have;
+  let cost=0, unpriced=0; for(const m of miss){ const p=cheapest(m.nv); if(p==null) unpriced+=m.q; else cost+=p*m.q; }
+  const net=g.want-g.out, byName=(a,b)=>planName(a[0]??a.nv).localeCompare(planName(b[0]??b.nv));
+  const sum=!d.plan?`<div class="empty"><strong>No upgrades planned</strong>List the cards you want to bring into this deck and the cards they replace. Swap them in when the new cards arrive.</div>`
+    :`<p class="note plan-note">${g.want?`<b>${g.have} of ${g.want}</b> cards in hand`:'Nothing coming in'}${short?` · ${short} to get${cost?`, about ${money(cost)}`:''}${unpriced?` (${unpriced} unpriced)`:''}`:''}. ${g.out} going out.${net?` The deck ends ${Math.abs(net)} card${Math.abs(net)===1?'':'s'} ${net>0?'larger':'smaller'}.`:''}</p>`;
+  $('deckPlanPane').innerHTML=`<div class="stack planbox"><h3 class="h3 planhead">Upgrades</h3>${sum}
+    <div class="toolbtns">${d.plan?`<button class="btn primary" data-plan="swap"${g.ready?'':' disabled'}>Make the swap</button>`:''}<button class="btn" data-plan="in">Bring in a card</button><button class="btn" data-plan="out"${Object.keys(d.cards).length?'':' disabled'}>Take out a card</button>${short?`<button class="btn" data-plan="wish">Wishlist missing</button><button class="btn" data-plan="buy">Buy missing</button>`:''}</div>
+    ${d.plan?`<div class="list">${g.rows.length?`<div class="group">Coming in<span>${g.want}</span></div>${g.rows.slice().sort(byName).map(r=>planRowHTML(r.nv,r.q,d,'in')).join('')}`:''}${outs.length?`<div class="group">Going out<span>${g.out}</span></div>${outs.sort(byName).map(([nv,q])=>planRowHTML(nv,q,d,'out')).join('')}`:''}</div>`:''}</div>`;
+}
+function planPickHTML(d){ return `<p class="note">Mark the copies that leave this deck when the upgrade goes in.</p><div class="list">${Object.keys(d.cards).sort((a,b)=>planName(a).localeCompare(planName(b))).map(nv=>planRowHTML(nv,d.plan?.out?.[nv]||0,d,'out',true)).join('')}</div><button class="btn primary" data-plan="picked">Done</button>`; }
+function onPlanClick(e){
+  const d=getDeck(); if(!d) return;
+  const q=e.target.closest('button[data-act="pq"]'), m=e.target.closest('button[data-act="pmove"]'), a=e.target.closest('[data-plan]');
+  if(q){ const side=q.dataset.side, nv=q.dataset.nv; planSet(d,side,nv,(d.plan?.[side]?.[nv]||0)+ +q.dataset.d); }
+  else if(m){ const side=m.dataset.side, nv=m.dataset.nv, n=side==='in'?Math.min(d.plan?.in?.[nv]||0,planSpare(d,nv)):d.plan?.out?.[nv]||0, r=planMove(d,side,nv,n); toast(r===true?`${n} ${planName(nv)} ${side==='in'?'put in':'taken out of'} ${d.name}`:r); }
+  else if(a){
+    const act=a.dataset.plan;
+    if(act==='swap'){ planSwapAll(d); return; }
+    if(act==='in'){ $('dPlan').checked=true; $('dOwned').checked=false; dsub='add'; renderDeckEdit(); if(!window.matchMedia('(min-width:1100px)').matches) $('dq').focus(); return; }
+    if(act==='out'){ planPicking=true; openSheet('Take out a card',planPickHTML(d),()=>{ planPicking=false; }); return; }
+    if(act==='picked'){ closeSheet(); return; }
+    if(act==='buy'){ openTcg(planMissing(d),'. Every planned card is in hand'); return; }
+    if(act==='wish'){ let n=0; for(const x of planMissing(d)){ const cur=wish[x.c.id]||0; if(cur<x.q){ wish[x.c.id]=x.q; n+=x.q-cur; } } saveWish(); toast(n?`Added ${n} cards to your wishlist`:'Those cards are already on your wishlist'); return; }
+    return;
+  }
+  else return;
+  if(planPicking&&sheetOpen){ const y=$('sheetBody').scrollTop; $('sheetBody').innerHTML=planPickHTML(d); $('sheetBody').scrollTop=y; }
+  renderDeckEdit(true);
+}
+$('deckPlanPane').addEventListener('click', onPlanClick);
+$('dRes').addEventListener('click', onPlanClick);
+$('sheetBody').addEventListener('click', e=>{ if(planPicking) onPlanClick(e); });
+$('dPlan').onchange=()=>{ if($('dPlan').checked) $('dOwned').checked=false; renderDeckEdit(); };
 
 /* deck menu */
 $('deckMoreBtn').onclick = ()=>{
@@ -1898,6 +1979,7 @@ $('deckMoreBtn').onclick = ()=>{
       <button class="btn" data-dm="txt">Download .txt</button>
       <button class="btn" data-dm="wish">Wishlist missing cards</button>
       <button class="btn" data-dm="buy">Buy missing on TCGplayer</button>
+      <button class="btn" data-dm="plan">Plan upgrades</button>
       <button class="btn" data-dm="dup">Duplicate deck</button>
       <button class="btn" data-dm="newcards">Add list as new physical cards</button>
       ${d.importLines||d.unresolved?'<button class="btn" data-dm="source">Review imported source</button>':''}
@@ -1923,6 +2005,7 @@ $('sheetBody').addEventListener('click', async e=>{
     let n=0; for (const [nv,q] of Object.entries(d.cards)){ const m=Math.max(0,q-freeNV(nv,d.id)); if(!m) continue; const c=repOf(nv); const cur=wish[c.id]||0; if (cur<m){ wish[c.id]=m; n+=m-cur; } }
     saveWish(); toast(n?`Added ${n} cards to your wishlist`:'You already own or want every card in this deck');
   }
+  else if (a==='plan'){ planOpen=true; dsub='plan'; closeSheet(); renderDeckEdit(); }
   else if (a==='move'){ await famMoveDeck(d,b); }
   else if (a==='dup'){ const c=famStamp({id:uid(), name:d.name+' (copy)', cards:{...d.cards}, ...(d.commanders?.length?{commanders:[...d.commanders]}:{}), updated:Date.now()}); decks.push(c); saveDecks(); curDeck=c.id; closeSheet(); renderDecks(); toast('Deck duplicated'); }
   else if (a==='del'){ const at=decks.indexOf(d); decks = decks.filter(x=>x!==d); saveDecks(); curDeck=null; closeSheet(); renderDecks();
@@ -2271,7 +2354,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,owner:typeof r.meta?.owner==='string'&&r.meta.owner?r.meta.owner:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,owner:typeof r.meta?.owner==='string'&&r.meta.owner?r.meta.owner:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,plan:r.meta?.plan&&typeof r.meta.plan==='object'&&!Array.isArray(r.meta.plan)?r.meta.plan:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -2290,7 +2373,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.owner)o.owner=d.owner;else delete o.owner;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.format)o.format=d.format;else delete o.format;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.owner)o.owner=d.owner;else delete o.owner;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.plan)o.plan=d.plan;else delete o.plan;if(d.format)o.format=d.format;else delete o.format;return o;});
   snapDeckSigs();
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
@@ -2302,6 +2385,7 @@ function deckMeta(value,previous){
   if(value?.favorite) meta.fav=true; else delete meta.fav;
   if(value?.built) meta.built=true; else delete meta.built;
   if(value?.built && value?.todo) meta.todo=value.todo; else delete meta.todo;
+  if(value?.plan) meta.plan=value.plan; else delete meta.plan;
   if(value?.format) meta.format=value.format; else delete meta.format;
   if(value?.owner) meta.owner=value.owner; else delete meta.owner;
   return meta;
