@@ -119,6 +119,21 @@ const TOOLS = [
     },
   },
   {
+    name: "plan_upgrade",
+    description: "Put cards on a deck's planned-upgrades list without changing the deck list: cards to bring in later (the deck's own wish list) and the cards they will replace. Use it when the user wants an upgrade whose cards they don't own yet, or says to plan, queue or save a change for later. Each qty is the planned total for that card on the list; qty 0 takes it off. Cards to take out must be in the deck. The user makes the swap themselves in the deck's Upgrades section once the cards are in hand. get_deck and list_decks show the current list as planned_upgrades.",
+    input_schema: {
+      type: "object",
+      properties: {
+        deck_id: { type: "string" },
+        bring_in: { type: "array", items: { type: "object", properties: { name: { type: "string" }, qty: { type: "integer" } }, required: ["name", "qty"], additionalProperties: false } },
+        take_out: { type: "array", items: { type: "object", properties: { name: { type: "string" }, qty: { type: "integer" } }, required: ["name", "qty"], additionalProperties: false } },
+        clear: { type: "boolean", description: "Empty the deck's planned-upgrades list first." },
+      },
+      required: ["deck_id"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "edit_deck",
     description: "Change one of the user's saved decks right now: take cards out, put cards in, or both (a swap). The change is saved to the cloud immediately and reaches the phone on its next sync; the user can tap Undo on it in the chat. Use exact card names. Returns the new card count, and for each added card how many free copies the user has.",
     input_schema: {
@@ -161,6 +176,7 @@ How to work:
   2. Pick a replacement they own with free copies (get_collection shows free; get_deck shows the deck), that fits the deck's plan, colours, curve and format. Confirm its text and legality with search_cards if unsure.
   3. Call edit_deck with the removal and the addition together, so the deck stays the same size.
   4. Reply in a line or two: what changed and why the new card fits. Don't ask permission first; every change has an Undo in the chat. Ask only when there is no good owned replacement, and then offer the best one to buy.
+- Upgrades the user can't make yet (they don't own the cards, or they say plan it, queue it, or do it later): call plan_upgrade with the cards to bring in and the cards they replace, matched in number so the deck keeps its size. Don't use edit_deck for these. Say what went on the list and what it will cost to get.
 - Never change a deck or a count the user didn't ask about. If a fix would affect another deck (for example a count drop leaves a built deck short), say so and offer the fix instead of making it.
 - Rules questions: give the ruling first, then why, then how it resolves on the stack.
 - Format answers for a wide screen: short paragraphs, compact lists or small tables. No filler.`;

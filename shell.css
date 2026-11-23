@@ -209,6 +209,8 @@ kbd{display:inline-block;min-width:20px;padding:0 4px;border-radius:var(--r-xs);
   #deckEdit.two .deck-main>.seg{display:none}
   #deckEdit.two #deckAddPane{position:sticky;top:80px;max-height:calc(100vh - 104px);padding:16px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
   #deckEdit.two .addhead{display:block}
+  #deckEdit.two .planbox{padding:16px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+  #deckEdit.two .planbox .planhead{display:block}
   #deckEdit.two #deckAddPane>*{flex:none}
   #deckEdit.two #dRes{border-radius:var(--rc)}
 }

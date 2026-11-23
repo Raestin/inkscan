@@ -302,6 +302,10 @@ details.mini[open]{color:var(--muted);font-size:13px}
 .link{color:var(--accent-ink);font-weight:600;font-size:15px;text-decoration:none}
 button.link{background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
 .todo-note{margin-top:12px}
+.planbox .planhead{display:none}
+.plan-note{font-size:15px;color:var(--fg)}
+.planbox .list .item-main{cursor:default}
+.planbox .list .item-main[data-card]{cursor:pointer}
 .link.tiny{font-size:13px}
 .toolbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .toolbtns .btn{white-space:normal;height:auto;min-height:48px;padding:12px}

@@ -162,7 +162,7 @@
   function deckFromRow(r){
     const m = r.meta && typeof r.meta === 'object' && !Array.isArray(r.meta) ? r.meta : {};
     return {id: r.id, name: r.name, cards: r.cards || {}, commanders: r.commanders || [], meta: m, updated_at: r.updated_at,
-      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, owner: typeof m.owner === 'string' && m.owner ? m.owner : null, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null};
+      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, owner: typeof m.owner === 'string' && m.owner ? m.owner : null, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null, plan: root.InkUpgrades ? root.InkUpgrades.clean(m.plan, r.cards || {}) : null};
   }
   // opts.decks: only fetch card data for these decks now (the phone); needDecks fetches the others when asked.
   async function load(game, progress, opts){
@@ -175,7 +175,7 @@
     state.wish = new Map(wish.filter(r => r.qty > 0).map(r => [r.card_id, r.qty]));
     state.decks = decks.filter(r => !r.deleted).map(deckFromRow);
     if (game === 'mtg'){
-      const nvs = state.decks.flatMap(d => !opts?.decks || opts.decks.includes(d.id) ? Object.keys(d.cards) : Object.keys(d.todo || {}));
+      const nvs = state.decks.flatMap(d => !opts?.decks || opts.decks.includes(d.id) ? [...Object.keys(d.cards), ...Object.keys(d.plan?.in || {})] : Object.keys(d.todo || {}));
       await fillMtg(cat, [...state.inv.keys(), ...state.wish.keys()], nvs, progress);
     }
     state.loadedAt = Date.now();
@@ -186,7 +186,7 @@
   // Card data for some decks (every deck when no ids are given). Nothing to do once they are known.
   async function needDecks(ids, progress){
     if (state.game !== 'mtg' || !state.cat) return;
-    const nvs = state.decks.filter(d => !ids || ids.includes(d.id)).flatMap(d => Object.keys(d.cards)).filter(nv => !state.cat.byNV.has(nv));
+    const nvs = state.decks.filter(d => !ids || ids.includes(d.id)).flatMap(d => [...Object.keys(d.cards), ...Object.keys(d.plan?.in || {})]).filter(nv => !state.cat.byNV.has(nv));
     if (nvs.length && await fillMtg(state.cat, [], nvs, progress)) rebuildOwnership();
   }
   // Card data the phone app already holds, so it isn't fetched a second time.
@@ -220,6 +220,8 @@
   }
   const ownedNV = nv => ownedByNV.get(nv) || 0;
   // A built deck holds its listed copies minus any it lists as still to add (cards not in the box yet).
+  // Copies the collection has for a deck beyond the ones the deck already uses: what a planned upgrade can draw on.
+  const spareNV = (d, nv) => Math.max(0, freeNV(nv, d.id) - (d.cards[nv] || 0) + (d.todo?.[nv] || 0));
   const heldNV = (d, nv) => Math.max(0, (d.cards[nv] || 0) - (d.todo?.[nv] || 0));
   function committedNV(nv, exceptId){ let n = 0; for (const d of state.decks) if (d.built && d.id !== exceptId) n += heldNV(d, nv); return n; }
   const freeNV = (nv, exceptId) => Math.max(0, ownedNV(nv) - committedNV(nv, exceptId));
@@ -288,6 +290,8 @@
     if (d.format) meta.format = d.format; else delete meta.format;
     const todo = d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).filter(([nv, n]) => Number.isInteger(n) && n > 0 && d.cards[nv]).map(([nv, n]) => [nv, Math.min(n, d.cards[nv])])) : null;
     if (todo && Object.keys(todo).length) meta.todo = todo; else delete meta.todo;
+    // Planned upgrades ride along; a build without the helper leaves whatever the cloud holds untouched.
+    if (root.InkUpgrades){ const plan = root.InkUpgrades.clean(d.plan, d.cards); if (plan) meta.plan = plan; else delete meta.plan; }
     if (d.guide) meta.guide = d.guide;
     if (d.owner) meta.owner = d.owner;
     const row = {user_id: own, game: state.game, id: d.id, name: d.name, cards: d.cards, commanders: d.commanders || [], meta, deleted: false, updated_at: stamp()};
@@ -339,5 +343,5 @@
   }
 
   root.PortalData = {state, session: () => session, signIn, signOut, owner, load, deckStats, ownedNV, freeNV, committedNV, cheapest, ownedValue,
-    attach, seed, needDecks, saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
+    attach, seed, needDecks, saveDeck, refreshDeck, refreshCards, setCount, newId, shares, deckOwner, transfer, heldNV, spareNV, searchCards, resolveName, nvKeyOf, cloudAllowed, token, SB_URL, SB_KEY, lsGet, lsSet};
 })(self);

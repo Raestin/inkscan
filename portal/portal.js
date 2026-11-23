@@ -216,7 +216,7 @@
     else if (e.key === 'Tab'){ const f = [...cvEl.querySelectorAll('button:not([hidden]):not(:disabled)')]; if (!f.length) return; const i = f.indexOf(document.activeElement); e.preventDefault(); f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus(); }
   });
   document.addEventListener('click', e => {
-    const el = e.target.closest?.('[data-card]'); if (!el || el.closest('#cv') || e.target.closest('[data-qty],a[href],input,select,label')) return;
+    const el = e.target.closest?.('[data-card]'); if (!el || el.closest('#cv') || e.target.closest('[data-qty],[data-up],[data-upmove],a[href],input,select,label')) return;
     cvOpen(el.dataset.card, el);
   });
   const nameBtn = (c, label) => c ? `<button type="button" class="cardlink">${esc(label ?? cardName(c))}</button>` : `<span class="cn">${esc(label || '')}</span>`;
@@ -496,9 +496,11 @@
         <section class="card"><h2 class="sec">Types</h2><div id="chTypes"></div></section>
       </div>
       ${strategyHTML(d)}
+      ${upgradesHTML(d)}
       <section class="card">
         <div class="toolbar">
           <div class="search grow"><svg class="ic"><use href="#i-search"/></svg><input id="addQ" placeholder="${game === 'mtg' ? 'Add a card: name or Scryfall search' : 'Add a card by name'}" value="${esc(workshop.addQ)}"></div>
+          <label class="check"><input type="checkbox" id="addPlan" ${workshop.plan ? 'checked' : ''}> Plan as upgrade</label>
           <label class="sr" for="cmpSel">Compare with</label>
           <select id="cmpSel"><option value="">Compare with…</option>${others.map(o => `<option value="${esc(o.id)}" ${workshop.compare === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>
         </div>
@@ -524,6 +526,8 @@
       mark();
     };
     if ($('todoDone')) $('todoDone').onclick = () => { d.todo = null; mark(); };
+    wireUpgrades(p, d, mark);
+    $('addPlan').onchange = () => { workshop.plan = $('addPlan').checked; };
     $('dCopy').onclick = async () => { const text = Object.entries(d.cards).map(([nv, q]) => `${q} ${nvName(nv)}`).join('\n'); try { await navigator.clipboard.writeText(text); toast('List copied.'); } catch(e){ toast('Copy failed. Select the list and copy it.'); } };
     if ($('dMove')) $('dMove').onclick = () => famMoveDeck(v);
     $('dSave').onclick = async () => {
@@ -535,6 +539,7 @@
       const nv = b.dataset.nv, n = (d.cards[nv] || 0) + (+b.dataset.qty);
       if (n <= 0){ delete d.cards[nv]; d.commanders = d.commanders.filter(x => x !== nv); } else d.cards[nv] = n;
       if (d.todo?.[nv]){ if (n <= 0) delete d.todo[nv]; else d.todo[nv] = Math.min(d.todo[nv], n); if (!Object.keys(d.todo).length) d.todo = null; }
+      d.plan = InkUpgrades.clean(d.plan, d.cards);
       mark();
     };
     const runAdd = debounce(async () => {
@@ -544,7 +549,7 @@
         const r = await D.searchCards(game, q, 12);
         if (workshop.addQ.trim() !== q) return;
         $('addRes').innerHTML = r.cards.length ? r.cards.map(c => `<button type="button" class="chip-btn" data-add="${esc(c.nv)}"${cardAttr(c, true)}><svg class="ic"><use href="#i-plus"/></svg>${esc(cardName(c))}<span class="muted">${D.ownedNV(c.nv) ? ` · own ${D.ownedNV(c.nv)}` : ''}</span></button>`).join('') : '<p class="muted small">No cards found.</p>';
-        for (const b of $('addRes').querySelectorAll('[data-add]')) b.onclick = () => { d.cards[b.dataset.add] = (d.cards[b.dataset.add] || 0) + 1; workshop.dirty = true; renderDeckPane(p, v); };
+        for (const b of $('addRes').querySelectorAll('[data-add]')) b.onclick = () => { const nv = b.dataset.add; if (workshop.plan) d.plan = InkUpgrades.set(d.plan, 'in', nv, (d.plan?.in?.[nv] || 0) + 1, d.cards); else d.cards[nv] = (d.cards[nv] || 0) + 1; workshop.dirty = true; renderDeckPane(p, v); };
       } catch(err){ $('addRes').innerHTML = `<p class="muted small">${esc(err.message)}</p>`; }
     }, 350);
     $('addQ').oninput = () => { workshop.addQ = $('addQ').value; runAdd(); };
@@ -555,6 +560,39 @@
     if ($('stratSim')) $('stratSim').onclick = () => { if (!S().decks.some(x => x.id === d.id)){ toast('Save the deck first, then run it in the Simulator.'); return; } sim.deck = d.id; sim.result = null; sim.mode = 'opening'; location.hash = 'simulate'; };
     $('cmpSel').onchange = () => { workshop.compare = $('cmpSel').value; renderCompare(d); };
     renderCompare(d);
+  }
+  /* Planned upgrades for the open deck: cards to bring in (the deck's own wish list) and cards to take out.
+     They move across once the new cards are in hand. Like every edit here, nothing is saved until Save. */
+  function upgradesHTML(d){
+    const U = InkUpgrades, g = U.progress(d.plan, nv => D.spareNV(d, nv)), outs = Object.entries(d.plan?.out || {}), short = g.want - g.have, net = g.want - g.out;
+    let cost = 0; for (const r of g.rows) if (r.have < r.q) cost += (D.cheapest(r.nv) || 0) * (r.q - r.have);
+    const byName = (a, b) => nvName(a).localeCompare(nvName(b));
+    const steps = (side, nv) => `<button type="button" class="icon-btn" data-up="${side}" data-step="-1" data-nv="${esc(nv)}" aria-label="One fewer ${esc(nvName(nv))}"><svg class="ic"><use href="#i-minus"/></svg></button><button type="button" class="icon-btn" data-up="${side}" data-step="1" data-nv="${esc(nv)}" aria-label="One more ${esc(nvName(nv))}"><svg class="ic"><use href="#i-plus"/></svg></button>`;
+    const inDeck = Object.keys(d.cards).sort(byName);
+    return `<section class="card upgrades">
+      <div class="up-head"><h2 class="sec">Upgrades</h2>${d.plan ? `<button class="btn primary" id="upSwap" type="button" ${g.ready ? '' : 'disabled'}>Make the swap</button>` : ''}</div>
+      <p class="muted small">${d.plan ? `${g.want ? `<b>${g.have} of ${g.want}</b> cards in hand` : 'Nothing coming in'}${short ? ` · ${short} to get${cost ? `, about ${money(cost)}` : ''}` : ''}. ${g.out} going out.${net ? ` The deck ends ${plural(Math.abs(net), 'card')} ${net > 0 ? 'larger' : 'smaller'}.` : ''}` : 'List the cards you want to bring into this deck and the cards they replace. Swap them in when the new cards arrive.'}</p>
+      <div class="up-cols">
+        <div><h3 class="grp">Coming in <span class="muted">${g.want}</span></h3>
+          ${g.rows.length ? `<table class="tbl compact"><thead><tr><th class="num">Qty</th><th>Card</th><th class="num">In hand</th><th class="num">Price</th><th></th></tr></thead><tbody>${g.rows.slice().sort((a, b) => byName(a.nv, b.nv)).map(r => { const c = S().cat.rep(r.nv); return `<tr class="${r.have < r.q ? 'needs' : ''}"${cardAttr(c)}><td class="num">${r.q}</td><td>${nameBtn(c, nvName(r.nv))}</td><td class="num">${r.have < r.q ? `<span class="need">${r.have}</span>` : '<span class="ok-t">✓</span>'}</td><td class="num">${money(D.cheapest(r.nv))}</td><td class="qty-btns">${steps('in', r.nv)}${r.have ? `<button type="button" class="btn sm" data-upmove="in" data-nv="${esc(r.nv)}">Put ${r.have} in</button>` : ''}</td></tr>`; }).join('')}</tbody></table>` : ''}
+          <p class="muted small">Tick <b>Plan as upgrade</b> beside the card search below, then pick a card.</p></div>
+        <div><h3 class="grp">Going out <span class="muted">${g.out}</span></h3>
+          ${outs.length ? `<table class="tbl compact"><thead><tr><th class="num">Qty</th><th>Card</th><th class="num">In deck</th><th></th></tr></thead><tbody>${outs.sort((a, b) => byName(a[0], b[0])).map(([nv, q]) => { const c = S().cat.rep(nv); return `<tr${cardAttr(c)}><td class="num">${q}</td><td>${nameBtn(c, nvName(nv))}</td><td class="num">${d.cards[nv] || 0}</td><td class="qty-btns">${steps('out', nv)}<button type="button" class="btn sm" data-upmove="out" data-nv="${esc(nv)}">Take out</button></td></tr>`; }).join('')}</tbody></table>` : ''}
+          ${inDeck.length ? `<label class="sr" for="upOut">Take out a card</label><select id="upOut"><option value="">Take out a card…</option>${inDeck.map(nv => `<option value="${esc(nv)}">${esc(nvName(nv))} (${d.cards[nv]})</option>`).join('')}</select>` : ''}</div>
+      </div>
+    </section>`;
+  }
+  function wireUpgrades(p, d, mark){
+    const U = InkUpgrades, moved = r => { d.cards = r.cards; d.plan = r.plan; d.commanders = d.commanders.filter(nv => d.cards[nv]); if (d.todo){ for (const nv of Object.keys(d.todo)){ if (!d.cards[nv]) delete d.todo[nv]; else d.todo[nv] = Math.min(d.todo[nv], d.cards[nv]); } if (!Object.keys(d.todo).length) d.todo = null; } };
+    for (const b of p.querySelectorAll('[data-up]')) b.onclick = () => { const side = b.dataset.up, nv = b.dataset.nv; d.plan = U.set(d.plan, side, nv, (d.plan?.[side]?.[nv] || 0) + (+b.dataset.step), d.cards); mark(); };
+    for (const b of p.querySelectorAll('[data-upmove]')) b.onclick = () => { const side = b.dataset.upmove, nv = b.dataset.nv; moved(U.move(d.cards, d.plan, side, nv, side === 'in' ? D.spareNV(d, nv) : d.plan.out[nv])); mark(); };
+    if ($('upOut')) $('upOut').onchange = () => { const nv = $('upOut').value; if (!nv) return; d.plan = U.set(d.plan, 'out', nv, (d.plan?.out?.[nv] || 0) + 1, d.cards); mark(); };
+    if ($('upSwap')) $('upSwap').onclick = () => {
+      let n = 0, out = 0;
+      for (const [nv, q] of Object.entries(d.plan?.out || {})){ moved(U.move(d.cards, d.plan, 'out', nv, q)); out += q; }
+      for (const r of U.progress(d.plan, nv => D.spareNV(d, nv)).rows) if (r.have){ moved(U.move(d.cards, d.plan, 'in', r.nv, r.have)); n += r.have; }
+      toast(`${n} in, ${out} out. Save the deck to keep the swap.`); mark();
+    };
   }
   function cardTable(rows){
     return `<table class="tbl compact fixed"><colgroup><col style="width:48px"><col><col style="width:20%"><col style="width:88px"><col style="width:64px"><col style="width:80px"><col style="width:88px"></colgroup><thead><tr><th class="num">Qty</th><th>Card</th><th>Cost</th><th class="num">Own</th><th class="num">Need</th><th class="num">Price</th><th></th></tr></thead><tbody>${rows.map(r => `<tr class="${r.need ? 'needs' : ''}"${cardAttr(r.c)}>

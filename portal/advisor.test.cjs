@@ -75,7 +75,7 @@ function world(){
   };
   ctx.self = ctx;
   vm.createContext(ctx);
-  for (const f of ['../games.js', 'data.js', 'advisor.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, {filename: f});
+  for (const f of ['../games.js', '../upgrades.js', 'data.js', 'advisor.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, {filename: f});
   const D = ctx.PortalData, A = ctx.PortalAdvisor;
   const nvName = nv => { const c = D.state.cat?.rep(nv); return c ? c.n : nv.replace(/\|$/, ''); };
   const changed = [];
@@ -203,4 +203,36 @@ test('the phone loads card data for the open deck only; the advisor fetches anot
   const deck = await w.A._tools.get_deck({deck_id: 'dother'});
   assert.deepEqual(w.asked, ['Plains', 'Kor Skyfisher']);
   assert.ok(deck.list.every(r => !r.note), 'every card is known once the deck is opened');
+});
+
+test('plan_upgrade lists cards to bring in and take out without touching the deck list', async () => {
+  const w = world(); await w.load();
+  const out = await w.A._tools.plan_upgrade({deck_id: 'dskies', bring_in: [{name: 'War Screecher', qty: 3}], take_out: [{name: 'Hovermyr', qty: 3}]}, 'tp1');
+  assert.equal(out.saved, true);
+  assert.equal(out.deck_list_changed, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(w.cloudDeck('dskies').cards)), {'hovermyr|': 4, 'plains|': 16});
+  assert.deepEqual(JSON.parse(JSON.stringify(w.cloudDeck('dskies').meta.plan)), {in: {'warscreecher|': 3}, out: {'hovermyr|': 3}});
+  assert.equal(w.cloudDeck('dskies').meta.built, true, 'the built flag survives');
+  assert.deepEqual(JSON.parse(JSON.stringify(out.planned_upgrades.bring_in)), [{name: 'War Screecher', qty: 3, in_hand: 2}], 'two War Screechers are owned, so two of three are in hand');
+  assert.equal(out.planned_upgrades.ready_to_swap, false);
+});
+
+test('plan_upgrade changes a planned count, takes a card off with qty 0, and refuses a card that is not in the deck', async () => {
+  const w = world(); await w.load();
+  await w.A._tools.plan_upgrade({deck_id: 'dskies', bring_in: [{name: 'War Screecher', qty: 3}], take_out: [{name: 'Hovermyr', qty: 3}]}, 'tp1');
+  const out = await w.A._tools.plan_upgrade({deck_id: 'dskies', bring_in: [{name: 'War Screecher', qty: 2}], take_out: [{name: 'Hovermyr', qty: 0}]}, 'tp2');
+  assert.deepEqual(JSON.parse(JSON.stringify(w.cloudDeck('dskies').meta.plan)), {in: {'warscreecher|': 2}, out: {}});
+  assert.equal(out.planned_upgrades.ready_to_swap, true);
+  const bad = await w.A._tools.plan_upgrade({deck_id: 'dskies', take_out: [{name: 'War Screecher', qty: 1}]}, 'tp3');
+  assert.match(bad.error, /not in Selesnya Skies/);
+  const cleared = await w.A._tools.plan_upgrade({deck_id: 'dskies', clear: true}, 'tp4');
+  assert.equal(cleared.planned_upgrades, 'none');
+  assert.equal(w.cloudDeck('dskies').meta.plan, undefined);
+});
+
+test('editing a deck keeps its planned upgrades, trimmed to what is still in the deck', async () => {
+  const w = world(); await w.load();
+  await w.A._tools.plan_upgrade({deck_id: 'dskies', bring_in: [{name: 'War Screecher', qty: 2}], take_out: [{name: 'Hovermyr', qty: 4}]}, 'tp1');
+  await w.A._tools.edit_deck({deck_id: 'dskies', remove: [{name: 'Hovermyr', qty: 2}], add: [{name: 'War Screecher', qty: 2}]}, 'tu1');
+  assert.deepEqual(JSON.parse(JSON.stringify(w.cloudDeck('dskies').meta.plan)), {in: {'warscreecher|': 2}, out: {'hovermyr|': 2}});
 });
