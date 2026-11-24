@@ -277,6 +277,19 @@ test('deck bracket syncs through the meta column and keeps unknown meta keys',as
  assert.equal(maps.decks.d1.bracket,4);assert.equal(maps.decks.d2.bracket,undefined);
 });
 
+test('a deck\'s rank and difficulty sync through the meta column, 1 to 10 only',async()=>{
+ assert.deepEqual(S.maps({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{x:1},rank:7,difficulty:10}]}).decks.a,{name:'A',cards:{x:1},rank:7,difficulty:10});
+ assert.throws(()=>S.validate({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},rank:11}]}),/invalid rank/);
+ assert.throws(()=>S.validate({inv:{},wish:{},decks:[{id:'a',name:'A',cards:{},difficulty:0}]}),/invalid difficulty/);
+ const h=harness();h.api.setState({});let call;h.api.setRest(async(...args)=>{call=args;return [{id:'d1'}];});
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{x:1},rank:6,difficulty:3}},null);
+ assert.equal(JSON.stringify(call[2].meta),'{"rank":6,"difficulty":3}');
+ await h.api.guardedWrite({section:'decks',id:'d1',value:{name:'A',cards:{x:1},rank:6}},{updated_at:'t',name:'A',cards:{x:1},deleted:false,commanders:[],meta:{rank:6,difficulty:3}});
+ assert.equal(JSON.stringify(call[2].meta),'{"rank":6}');
+ const maps=h.api.remoteMaps({inv:[],wish:[],decks:[{id:'d1',name:'A',cards:{x:1},deleted:false,commanders:[],meta:{rank:9,difficulty:2}},{id:'d2',name:'B',cards:{},deleted:false,commanders:[],meta:{rank:12,difficulty:'hard'}}]});
+ assert.equal(maps.decks.d1.rank,9);assert.equal(maps.decks.d1.difficulty,2);assert.equal(maps.decks.d2.rank,undefined);assert.equal(maps.decks.d2.difficulty,undefined);
+});
+
 const GUIDE={overview:'Counters everywhere.',early:'Ramp.',middle:'Spread counters.',late:'Swing wide.',win:['Combat damage'],keys:['Sol Ring'],tip:'Hold removal.',themes:['+1/+1 Counters']};
 test('deck guide renders collapsed panel with phases, wins, tappable key cards; hidden without a guide',()=>{
  const h=harness();const d=deck(["Atraxa, Praetors' Voice",'Sol Ring'],["Atraxa, Praetors' Voice"]);d.guide=GUIDE;

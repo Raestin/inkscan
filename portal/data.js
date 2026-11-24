@@ -159,10 +159,12 @@
       out.push(...page); if (page.length < 1000) return out;
     }
   }
+  // A deck's rank and difficulty are whole scores from 1 to 10, or not set.
+  const score = v => Number.isInteger(v) && v >= 1 && v <= 10 ? v : null;
   function deckFromRow(r){
     const m = r.meta && typeof r.meta === 'object' && !Array.isArray(r.meta) ? r.meta : {};
     return {id: r.id, name: r.name, cards: r.cards || {}, commanders: r.commanders || [], meta: m, updated_at: r.updated_at,
-      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, owner: typeof m.owner === 'string' && m.owner ? m.owner : null, format: m.format || null, bracket: m.bracket || null, guide: m.guide || null, plan: root.InkUpgrades ? root.InkUpgrades.clean(m.plan, r.cards || {}) : null};
+      built: !!m.built, todo: m.built && m.todo && typeof m.todo === 'object' && !Array.isArray(m.todo) ? m.todo : null, fav: !!m.fav, owner: typeof m.owner === 'string' && m.owner ? m.owner : null, format: m.format || null, bracket: m.bracket || null, rank: score(m.rank), difficulty: score(m.difficulty), guide: m.guide || null, plan: root.InkUpgrades ? root.InkUpgrades.clean(m.plan, r.cards || {}) : null};
   }
   // opts.decks: only fetch card data for these decks now (the phone); needDecks fetches the others when asked.
   async function load(game, progress, opts){
@@ -288,6 +290,7 @@
     const own = await owner(), meta = {...(d.meta || {})};
     for (const k of ['built', 'fav']) if (d[k]) meta[k] = true; else delete meta[k];
     if (d.format) meta.format = d.format; else delete meta.format;
+    for (const k of ['rank', 'difficulty']) if (score(d[k])) meta[k] = d[k]; else delete meta[k];
     const todo = d.built && d.todo ? Object.fromEntries(Object.entries(d.todo).filter(([nv, n]) => Number.isInteger(n) && n > 0 && d.cards[nv]).map(([nv, n]) => [nv, Math.min(n, d.cards[nv])])) : null;
     if (todo && Object.keys(todo).length) meta.todo = todo; else delete meta.todo;
     // Planned upgrades ride along; a build without the helper leaves whatever the cloud holds untouched.
