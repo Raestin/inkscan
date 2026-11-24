@@ -1,0 +1,11 @@
+{
+  "name": "inkscan-isolated-synthetic-qa",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "test:unit": "cd fixture && node --test tests.cjs household-contract.test.cjs",
+    "check": "node --check fixture/app.js && node --check fixture/safety.js && node --check fixture/sw.js",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": { "@playwright/test": "1.64.1" }
+}
