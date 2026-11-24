@@ -1722,6 +1722,9 @@ function inkSetHTML(inks){ return `<span class="inkset">${inks.map(i=>`<span cla
 /* Deck home: search plus a collapsible filter box, mirroring Collection. */
 const deckInkSel=new Set();
 let deckHomeScroll=0;
+/* Two scores out of ten on every deck: rank is how strong it is in its own format, difficulty is how hard it is to play well. */
+const deckScore=v=>Number.isInteger(v)&&v>=1&&v<=10?v:0;
+const deckScoresHTML=d=>{ const x=[deckScore(d.rank)?`<span>Rank <b>${d.rank}</b>/10</span>`:'',deckScore(d.difficulty)?`<span>Difficulty <b>${d.difficulty}</b>/10</span>`:''].join(''); return x?`<div class="m scores">${x}</div>`:''; };
 const deckBracket=d=>d.bracket?String(d.bracket):(/^B([1-5])\s*[·.\-:]/.exec(d.name)||[])[1]||null;
 // Commander Brackets (beta, Feb 2026): Game Changers none in 1-2, up to 3 in 3, any in 4-5.
 const GC_LIMIT={1:0,2:0,3:3,4:Infinity,5:Infinity};
@@ -1768,6 +1771,9 @@ function deckRows(){
   rows.sort(s==='name'?(a,b)=>a.d.name.localeCompare(b.d.name,undefined,{numeric:true})
     :s==='owned'?(a,b)=>((b.st.total-b.st.missing)/(b.st.total||1))-((a.st.total-a.st.missing)/(a.st.total||1))||a.st.missCost-b.st.missCost
     :s==='cost'?(a,b)=>a.st.missCost-b.st.missCost||a.st.missing-b.st.missing
+    :s==='rank'?(a,b)=>deckScore(b.d.rank)-deckScore(a.d.rank)||a.d.name.localeCompare(b.d.name,undefined,{numeric:true})
+    :s==='easy'?(a,b)=>(deckScore(a.d.difficulty)||11)-(deckScore(b.d.difficulty)||11)||deckScore(b.d.rank)-deckScore(a.d.rank)
+    :s==='hard'?(a,b)=>deckScore(b.d.difficulty)-deckScore(a.d.difficulty)||deckScore(b.d.rank)-deckScore(a.d.rank)
     :(a,b)=>b.d.updated-a.d.updated);
   // Favorites first: a stable re-sort that pins hearted decks above the rest, each group keeping the chosen order.
   if($('dFavFirst').checked) rows.sort((a,b)=>(b.d.favorite?1:0)-(a.d.favorite?1:0));
@@ -1779,7 +1785,7 @@ function deckItemHTML({d,st}){
   const sub=[st.format&&st.format!=='commander'?esc(st.formatLabel):'', cmdNames&&norm(cmdNames)!==norm(d.name.replace(/^B[1-5]\s*[·.\-:]\s*/,''))?esc(cmdNames):'', `${have}/${size}`].filter(Boolean).join(' · ');
   const status=!st.total?'No cards yet':st.unknown?unknownNote(st.unknown):st.missing?`Missing ${st.missing} · ${money(st.missCost)}${st.missingUnpriced?' partial':''}`:'You own every card';
   const chip=d.built?'<span class="chip ok">Built</span>':rules==='fix'||rules==='short'?'<span class="chip warn">Fix rules</span>':rules==='pass'?'<span class="chip ok">Legal</span>':'';
-  return `<div class="item deckrow"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${sub}</div>${famOn()?`<div class="ptags">${famTag(famPerson(deckOwner(d)),0,true)}</div>`:''}<div class="meter${st.missing?'':' full'}"><i style="width:${pct}%"></i></div><div class="m">${status}</div></div>${chip}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}"><svg class="ic"><use href="#i-heart"/></svg></button></div>`;
+  return `<div class="item deckrow"><button class="item-main" data-deck="${d.id}">${c?thumbHTML(c):'<span class="thumb"></span>'}<div class="who"><div class="n">${esc(d.name)}</div><div class="m">${inkSetHTML(st.inks)} ${sub}</div>${deckScoresHTML(d)}${famOn()?`<div class="ptags">${famTag(famPerson(deckOwner(d)),0,true)}</div>`:''}<div class="meter${st.missing?'':' full'}"><i style="width:${pct}%"></i></div><div class="m">${status}</div></div>${chip}</button><button class="fav" data-fav="${d.id}" aria-pressed="${!!d.favorite}" aria-label="${d.favorite?'Remove from favorites':'Add to favorites'}"><svg class="ic"><use href="#i-heart"/></svg></button></div>`;
 }
 function renderDecks(keepScroll){
   famChrome();
@@ -1829,6 +1835,7 @@ $('deckBuiltBtn').onclick=()=>{
   $('builtAnyway').onclick=commit; $('builtCancel').onclick=()=>closeSheet();
 };
 $('deckFormatSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=$('deckFormatSel').value; if(v==='commander') delete d.format; else d.format=v; d.updated=Date.now(); saveDecks(); legalityFilled.delete(d.id); renderDeckEdit(true); toast(`Format set to ${FORMATS[deckFormat(d)].label}`); };
+for(const [id,k] of [['deckRankSel','rank'],['deckDiffSel','difficulty']]){ $(id).innerHTML='<option value="">Not set</option>'+Array.from({length:10},(_,i)=>`<option value="${i+1}">${i+1} of 10</option>`).join(''); $(id).onchange=()=>{ const d=getDeck(); if(!d) return; const v=deckScore(+$(id).value); if(v) d[k]=v; else delete d[k]; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); }; }
 $('deckBracketSel').onchange=()=>{ const d=getDeck(); if(!d) return; const v=+$('deckBracketSel').value; if(v>=1&&v<=5) d.bracket=v; else delete d.bracket; d.updated=Date.now(); saveDecks(); renderDeckEdit(true); };
 function getDeck(){ return decks.find(d=>d.id===curDeck); }
 
@@ -1871,6 +1878,7 @@ function renderDeckEdit(keepScroll){
   const R=deckRules(d);
   $('deckFormatWrap').hidden=!FORMATS; if(FORMATS) $('deckFormatSel').value=deckFormat(d);
   $('deckBracketWrap').hidden=!R.commander; if(R.commander) $('deckBracketSel').value=d.bracket?String(d.bracket):'';
+  $('deckRankSel').value=deckScore(d.rank)?String(d.rank):''; $('deckDiffSel').value=deckScore(d.difficulty)?String(d.difficulty):'';
   renderDeckGuide(d);
   $('deckBuiltBtn').setAttribute('aria-pressed',!!d.built); $('deckBuiltBtn').innerHTML=d.built?'<svg class="ic"><use href="#i-check"/></svg>Built':'Mark built';
   $('deckFavBtn').setAttribute('aria-pressed',!!d.favorite); $('deckFavBtn').setAttribute('aria-label',d.favorite?'Remove from favorites':'Add to favorites');
@@ -2241,7 +2249,7 @@ function parseDeckFile(text){
     const bracket=Number.isInteger(d.bracket)&&d.bracket>=1&&d.bracket<=5?d.bracket:null;
     const guide=d.guide&&typeof d.guide==='object'&&!Array.isArray(d.guide)&&JSON.stringify(d.guide).length<=6000?JSON.parse(JSON.stringify(d.guide)):null;
     const format=typeof d.format==='string'&&G.formats?.[d.format]&&d.format!=='commander'?d.format:null;
-    return {name:d.name.trim(),cards,commanders,owned:G.live&&d.owned===true,bracket,guide,format};
+    return {name:d.name.trim(),cards,commanders,owned:G.live&&d.owned===true,bracket,guide,format,rank:deckScore(d.rank)||null,difficulty:deckScore(d.difficulty)||null};
   });
 }
 const ownedReceipt=d=>'deckfile-owned:'+d.name;
@@ -2286,9 +2294,9 @@ async function importDeckFile(list, need, owned=[]){
     for(const c of d.cards){ const card=fileCard(c.id), nv=card?.nv||null; lines.push({raw:`${c.qty} ${c.name}`,qty:c.qty,nv}); if(nv) cards[nv]=(cards[nv]||0)+c.qty; else miss.push(`${c.qty} ${c.name}`); }
     unresolved+=miss.length;
     const commanders=d.commanders.map(id=>byId.get('sf_'+id)?.nv).filter(nv=>nv&&cards[nv]);
-    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(d.guide?{guide:d.guide}:{}),...(d.format?{format:d.format}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
+    const fields={name:d.name,cards,...(commanders.length?{commanders}:{}),...(d.bracket?{bracket:d.bracket}:{}),...(d.rank?{rank:d.rank}:{}),...(d.difficulty?{difficulty:d.difficulty}:{}),...(d.guide?{guide:d.guide}:{}),...(d.format?{format:d.format}:{}),...(miss.length?{importLines:lines.filter(l=>!l.nv),unresolved:miss}:{}),updated:now-i};
     const existing=decks.find(x=>x.name===d.name&&!x.deleted);
-    if(existing){ for(const k of ['commanders','bracket','guide','format','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
+    if(existing){ for(const k of ['commanders','bracket','rank','difficulty','guide','format','importLines','unresolved']) delete existing[k]; Object.assign(existing,fields); updatedDecks++; }
     else decks.push({id:uid(),...fields});
   });
   let added=0;
@@ -2430,7 +2438,7 @@ function remoteMaps(rows){
     const value={q:r.q,f:r.f};if(r.rainbow_foil)value.rf=r.rainbow_foil;
     return [r.card_id,value];
   }));
-  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,owner:typeof r.meta?.owner==='string'&&r.meta.owner?r.meta.owner:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,plan:r.meta?.plan&&typeof r.meta.plan==='object'&&!Array.isArray(r.meta.plan)?r.meta.plan:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
+  const state={inv:inventory,wish:Object.fromEntries(rows.wish.map(r=>[r.card_id,r.qty])),decks:rows.decks.filter(r=>!r.deleted).map(r=>({...r,bracket:Number.isInteger(r.meta?.bracket)?r.meta.bracket:undefined,rank:deckScore(r.meta?.rank)||undefined,difficulty:deckScore(r.meta?.difficulty)||undefined,guide:r.meta?.guide&&typeof r.meta.guide==='object'&&!Array.isArray(r.meta.guide)?r.meta.guide:undefined,favorite:r.meta?.fav===true?true:undefined,owner:typeof r.meta?.owner==='string'&&r.meta.owner?r.meta.owner:undefined,built:r.meta?.built===true?true:undefined,todo:r.meta?.built===true&&r.meta?.todo&&typeof r.meta.todo==='object'&&!Array.isArray(r.meta.todo)?r.meta.todo:undefined,plan:r.meta?.plan&&typeof r.meta.plan==='object'&&!Array.isArray(r.meta.plan)?r.meta.plan:undefined,format:typeof r.meta?.format==='string'?r.meta.format:undefined}))};
   InkSafety.validate(state);return InkSafety.maps(state);
 }
 function reviewUpdate(plan){
@@ -2449,7 +2457,7 @@ function reviewUpdate(plan){
 }
 function replaceLocalMaps(values){
   inv=values.inv; wish=values.wish;
-  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.owner)o.owner=d.owner;else delete o.owner;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.plan)o.plan=d.plan;else delete o.plan;if(d.format)o.format=d.format;else delete o.format;return o;});
+  decks=Object.entries(values.decks).map(([id,d])=>{const o={...decks.find(old=>old.id===id),id,name:d.name,cards:d.cards,commanders:d.commanders||[],updated:Date.now()};if(d.bracket)o.bracket=d.bracket;else delete o.bracket;for(const k of ['rank','difficulty']){ if(d[k])o[k]=d[k];else delete o[k]; }if(d.guide)o.guide=d.guide;else delete o.guide;if(d.favorite)o.favorite=true;else delete o.favorite;if(d.owner)o.owner=d.owner;else delete o.owner;if(d.built)o.built=true;else delete o.built;if(d.todo)o.todo=d.todo;else delete o.todo;if(d.plan)o.plan=d.plan;else delete o.plan;if(d.format)o.format=d.format;else delete o.format;return o;});
   snapDeckSigs();
 }
 /* Per-deck extras ride in one jsonb "meta" column, so new deck settings never need a database change.
@@ -2457,6 +2465,7 @@ function replaceLocalMaps(values){
 function deckMeta(value,previous){
   const meta={...(previous?.meta&&typeof previous.meta==='object'&&!Array.isArray(previous.meta)?previous.meta:{})};
   if(value?.bracket) meta.bracket=value.bracket; else delete meta.bracket;
+  for(const k of ['rank','difficulty']){ if(value?.[k]) meta[k]=value[k]; else delete meta[k]; }
   if(value?.guide) meta.guide=value.guide; else delete meta.guide;
   if(value?.favorite) meta.fav=true; else delete meta.fav;
   if(value?.built) meta.built=true; else delete meta.built;

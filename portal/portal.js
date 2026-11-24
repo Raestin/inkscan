@@ -387,7 +387,7 @@
 
   /* ---------- Deck workshop ---------- */
   const workshop = {id: null, draft: null, dirty: false, q: '', filter: 'all', sort: D.lsGet('portal.deckSort', 'name'), colors: [], compare: '', addQ: '', addResults: []};
-  const DECK_SORTS = [['name', 'Name'], ['easiest', 'Easiest to build'], ['fewest', 'Fewest cards missing'], ['cheapest', 'Cheapest to finish'], ['recent', 'Recently changed']];
+  const DECK_SORTS = [['name', 'Name'], ['easiest', 'Easiest to build'], ['fewest', 'Fewest cards missing'], ['cheapest', 'Cheapest to finish'], ['rank', 'Highest rank'], ['simple', 'Easiest to play'], ['recent', 'Recently changed']];
   function curveOf(cards){
     const groups = game === 'lorcana' ? ['1', '2', '3', '4', '5', '6', '7+'] : ['0', '1', '2', '3', '4', '5', '6', '7+'];
     const vals = groups.map(() => 0);
@@ -419,11 +419,13 @@
       easiest: (a, b) => last(a) - last(b) || own(b) - own(a) || a.st.missCost - b.st.missCost || byName(a, b),
       fewest: (a, b) => last(a) - last(b) || a.st.missing - b.st.missing || a.st.missCost - b.st.missCost || byName(a, b),
       cheapest: (a, b) => last(a) - last(b) || a.st.missCost - b.st.missCost || a.st.missing - b.st.missing || byName(a, b),
+      rank: (a, b) => (b.d.rank || 0) - (a.d.rank || 0) || byName(a, b),
+      simple: (a, b) => (a.d.difficulty || 11) - (b.d.difficulty || 11) || (b.d.rank || 0) - (a.d.rank || 0) || byName(a, b),
       recent: (a, b) => (Date.parse(b.d.updated_at) || 0) - (Date.parse(a.d.updated_at) || 0) || byName(a, b)
     };
     const list = all.filter(r => (!q || r.d.name.toLowerCase().includes(q)) && (tests[workshop.filter] ? tests[workshop.filter](r) : workshop.filter === r.d.format)
       && (!workshop.colors.length || workshop.colors.every(c => deckColors(r.d).includes(c)))).sort(sorts[workshop.sort] || sorts.name);
-    const ranked = workshop.sort !== 'name' && workshop.sort !== 'recent';
+    const ranked = !['name', 'recent', 'rank', 'simple'].includes(workshop.sort);
     if (!workshop.id || !S().decks.some(d => d.id === workshop.id)) workshop.id = workshop.draft?.id && !workshop.draft.updated_at ? workshop.draft.id : list[0]?.d.id || null;
     const base = S().decks.find(d => d.id === workshop.id);
     if (!workshop.draft || workshop.draft.id !== workshop.id) { workshop.draft = base ? structuredClone(base) : workshop.draft; workshop.dirty = workshop.draft && !workshop.draft.updated_at; }
@@ -440,7 +442,7 @@
           <div class="cpick" role="group" aria-label="${esc(gameDef().colorWord)}s">${gameDef().colors.filter(x => x !== 'Colorless').map(x => `<button type="button" class="cdot" data-col="${esc(x)}" aria-pressed="${workshop.colors.includes(x)}" aria-label="${esc(x)}" title="${esc(x)}"><i style="background:${colorVar(x)}"></i></button>`).join('')}<span class="muted small dl-count">${list.length === all.length ? plural(all.length, 'deck') : `${list.length} of ${all.length}`}</span></div>
           <ul class="dl">${list.map(({d, st}, i) => { const o = st.total ? Math.round(100 * (st.total - st.missing) / st.total) : 0;
             const state = d.built ? 'Built' : !st.total ? 'Empty' : st.unknown ? 'Loading cards' : st.missing ? `${plural(st.missing, 'card')} to get${st.missCost ? ` · ${money(st.missCost)}` : ''}` : 'Ready to build';
-            return `<li><button type="button" class="dl-i ${d.id === workshop.id ? 'on' : ''}" data-id="${esc(d.id)}" style="--deck:${deckGrad(d)}"><span class="dl-top">${ranked ? `<span class="dl-r">${i + 1}</span>` : ''}<span class="dl-n">${esc(d.name)}</span>${fam() ? ptag(famPerson(D.deckOwner(d))) : ''}<span class="dl-p${st.total && !st.missing ? ' full' : ''}">${st.total ? o + '%' : ''}</span></span><span class="dl-m">${dots(deckColors(d))}${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span><span class="dl-m">${esc(state)}</span><span class="meter${st.total && !st.missing ? ' full' : ''}"><i style="width:${o}%"></i></span></button></li>`; }).join('') || '<li class="muted small dl-none">No decks match.</li>'}</ul>
+            return `<li><button type="button" class="dl-i ${d.id === workshop.id ? 'on' : ''}" data-id="${esc(d.id)}" style="--deck:${deckGrad(d)}"><span class="dl-top">${ranked ? `<span class="dl-r">${i + 1}</span>` : ''}<span class="dl-n">${esc(d.name)}</span>${fam() ? ptag(famPerson(D.deckOwner(d))) : ''}<span class="dl-p${st.total && !st.missing ? ' full' : ''}">${st.total ? o + '%' : ''}</span></span><span class="dl-m">${dots(deckColors(d))}${esc([formatLabel(d), `${st.total}/${st.size}`].filter(Boolean).join(' · '))}</span>${d.rank || d.difficulty ? `<span class="dl-m">${esc([d.rank ? `Rank ${d.rank}/10` : '', d.difficulty ? `Difficulty ${d.difficulty}/10` : ''].filter(Boolean).join(' · '))}</span>` : ''}<span class="dl-m">${esc(state)}</span><span class="meter${st.total && !st.missing ? ' full' : ''}"><i style="width:${o}%"></i></span></button></li>`; }).join('') || '<li class="muted small dl-none">No decks match.</li>'}</ul>
         </aside>
         <div id="deckPane" class="deck-pane"></div>
       </div>`;
@@ -476,6 +478,7 @@
           <input id="dName" class="title-input" value="${esc(d.name)}" aria-label="Deck name">
           <div class="deck-actions">
             ${formats.length ? `<select id="dFormat">${formats.map(([k, f]) => `<option value="${k}" ${d.format === k ? 'selected' : ''}>${esc(f.label)}</option>`).join('')}</select>` : ''}
+            ${[['dRank', 'Rank', 'rank'], ['dDiff', 'Difficulty', 'difficulty']].map(([id, l, k]) => `<select id="${id}" aria-label="${l}, out of 10"><option value="">${l}: not set</option>${Array.from({length: 10}, (_, i) => `<option value="${i + 1}" ${d[k] === i + 1 ? 'selected' : ''}>${l} ${i + 1}/10</option>`).join('')}</select>`).join('')}
             <label class="check"><input type="checkbox" id="dBuilt" ${d.built ? 'checked' : ''}> Built</label>
             <button class="btn" id="dCopy" type="button"><svg class="ic"><use href="#i-copy"/></svg>Copy list</button>
             <button class="btn primary" id="dSave" type="button" ${workshop.dirty ? '' : 'disabled'}>${d.updated_at ? 'Save changes' : 'Save deck'}</button>
@@ -518,6 +521,7 @@
     const mark = () => { workshop.dirty = true; renderDeckPane(p, v); };
     $('dName').onchange = () => { d.name = $('dName').value.trim() || d.name; workshop.dirty = true; $('dSave').disabled = false; };
     if ($('dFormat')) $('dFormat').onchange = () => { d.format = $('dFormat').value; mark(); };
+    for (const [id, k] of [['dRank', 'rank'], ['dDiff', 'difficulty']]) $(id).onchange = () => { d[k] = +$(id).value || null; mark(); };
     // Marking built: cards without enough free copies are listed as still to add, not taken from other decks.
     $('dBuilt').onchange = () => {
       d.built = $('dBuilt').checked;

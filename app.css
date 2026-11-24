@@ -204,6 +204,10 @@ textarea{height:auto;min-height:180px;padding:12px;font-family:ui-monospace,Cons
 input.deckname{font-family:var(--display);font-weight:var(--display-wt);font-size:28px;letter-spacing:-.01em;height:auto;padding:4px 0;border:1px solid transparent;background:transparent;border-radius:var(--rc)}
 input.deckname:hover,input.deckname:focus{border-color:var(--line2);background:var(--surface);padding-inline:12px}
 .deckmeta:empty{display:none}
+.row.deckmeta{flex-wrap:wrap}
+.deckrow .scores{display:flex;flex-wrap:wrap;gap:0 12px}
+.deckrow .scores span{white-space:nowrap}
+.deckrow .scores b{color:var(--fg)}
 .pillselect{display:inline-flex;align-items:center;gap:0;height:36px;padding-left:16px;border-radius:var(--pill);background:var(--surface2);font-size:13px;font-weight:600;color:var(--muted)}
 .pillselect select{height:36px;background-color:transparent;border:0;width:auto;font-weight:600;color:var(--fg);padding-left:4px;font-size:15px}
 .builtbtn{height:36px;padding:0 16px;font-size:13px}

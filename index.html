@@ -13,12 +13,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Figtree:wght@400;500;600;700&family=Cinzel:wght@700&family=Fraunces:opsz,wght@9..144,600&family=Bangers&family=Fredoka:wght@600&display=swap">
 <script>/* theme before first paint */try{var g=JSON.parse(localStorage.getItem('inkscan.game'));document.documentElement.dataset.game=['lorcana','mtg','onepiece','pokemon'].indexOf(g)>=0?g:'lorcana'}catch(e){document.documentElement.dataset.game='lorcana'}</script>
-<link rel="stylesheet" href="tokens.css?v=61">
-<link rel="stylesheet" href="themes.css?v=61">
-<script src="themes.js?v=61"></script>
-<link rel="stylesheet" href="app.css?v=61">
-<link rel="stylesheet" href="shell.css?v=61">
-<link rel="stylesheet" href="play.css?v=61">
+<link rel="stylesheet" href="tokens.css?v=62">
+<link rel="stylesheet" href="themes.css?v=62">
+<script src="themes.js?v=62"></script>
+<link rel="stylesheet" href="app.css?v=62">
+<link rel="stylesheet" href="shell.css?v=62">
+<link rel="stylesheet" href="play.css?v=62">
 </head>
 <body>
 <!-- Icon set: one sprite, used as <svg class="ic"><use href="#i-name"/></svg> -->
@@ -230,7 +230,7 @@
           <label class="field" id="dWhoWrap" hidden>Owner <select id="dWho"><option value="">Everyone</option></select></label>
           <label class="field">Cards owned <select id="dOwn"><option value="all">All decks</option><option value="complete">I own every card</option><option value="missing">Missing cards</option><option value="built">Built decks</option><option value="unbuilt">Not built</option></select></label>
           <label class="field">Contains card <input type="search" id="dCard" placeholder="Card name, like Sol Ring" autocomplete="off"></label>
-          <label class="field">Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option></select></label>
+          <label class="field">Sort <select id="dSort"><option value="recent">Recently edited</option><option value="name">Name</option><option value="owned">Most owned</option><option value="cost">Cheapest to finish</option><option value="rank">Highest rank</option><option value="easy">Easiest to play</option><option value="hard">Hardest to play</option></select></label>
           <button class="btn ghost" id="dReset">Reset filters</button>
         </div>
       </div>
@@ -255,6 +255,8 @@
       <div class="row tight deckmeta">
         <label class="pillselect" id="deckFormatWrap" hidden><span>Format</span><select id="deckFormatSel"></select></label>
         <label class="pillselect" id="deckBracketWrap" hidden><span>Bracket</span><select id="deckBracketSel"><option value="">Not set</option><option value="1">1 · Exhibition</option><option value="2">2 · Core</option><option value="3">3 · Upgraded</option><option value="4">4 · Optimized</option><option value="5">5 · cEDH</option></select></label>
+        <label class="pillselect"><span>Rank</span><select id="deckRankSel"></select></label>
+        <label class="pillselect"><span>Difficulty</span><select id="deckDiffSel"></select></label>
       </div>
       <details class="filterbox" id="deckGuide" hidden><summary>Overview &amp; strategy</summary><div class="stack dguide" id="deckGuideBody"></div></details>
       <div class="deckstats" id="deckStats"></div>
@@ -364,15 +366,15 @@
 <input type="file" id="fileIn" accept=".csv,.json,text/csv,application/json" hidden>
 
 <script src="tesseract.min.js"></script>
-<script src="safety.js?v=61"></script>
-<script src="family.js?v=61"></script>
-<script src="upgrades.js?v=61"></script>
-<script src="catalog.js?v=61"></script>
-<script src="legality.js?v=61"></script>
-<script src="games.js?v=61"></script>
-<script src="stand.js?v=61"></script>
-<script src="app.js?v=61"></script>
-<script src="play.js?v=61"></script>
-<script src="shell.js?v=61"></script>
+<script src="safety.js?v=62"></script>
+<script src="family.js?v=62"></script>
+<script src="upgrades.js?v=62"></script>
+<script src="catalog.js?v=62"></script>
+<script src="legality.js?v=62"></script>
+<script src="games.js?v=62"></script>
+<script src="stand.js?v=62"></script>
+<script src="app.js?v=62"></script>
+<script src="play.js?v=62"></script>
+<script src="shell.js?v=62"></script>
 </body>
 </html>
